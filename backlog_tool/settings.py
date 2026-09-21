@@ -83,7 +83,7 @@ def load_project_catalog(project_key):
     path = catalog_path(project_key)
     if not os.path.exists(path):
         raise ValueError(
-            f"Missing project catalog {path}. Run: python3 scripts/backlog.py project inspect {project_key}"
+            f"Missing project catalog {path}. Run: backlog-cli project inspect {project_key}"
         )
     with open(path, "r", encoding="utf-8") as catalog_file:
         return json.load(catalog_file)

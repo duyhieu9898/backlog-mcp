@@ -19,7 +19,7 @@ class PostCreateUpdateError(RuntimeError):
     def __init__(self, issue_key, payload, target_status, error):
         super().__init__(
             f"Created UT bug {issue_key}, but failed to update it to {target_status}. "
-            f"Run manually: python3 scripts/backlog.py issue update {issue_key} "
+            f"Run manually: backlog-cli issue update {issue_key} "
             f"--status {target_status} --assignee <creator-or-me> --apply. Error: {error}"
         )
         self.issue_key = issue_key

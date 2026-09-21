@@ -3,75 +3,29 @@
 
 import json
 import os
+import time
 from typing import Annotated, Any, Literal, Sequence
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 from mcp.server.fastmcp import FastMCP
 from mcp.types import CallToolResult, TextContent
 
-from backlog_tool.cli import execute
-from backlog_tool.settings import load_config, summarize_metrics
-
-
-class IssueCompact(BaseModel):
-    issueKey: str
-    summary: str
-    description: str | None = None
-    issueType: str | None = None
-    status: str | None = None
-    assignee: str | None = None
-    priority: str | None = None
-    startDate: str | None = None
-    dueDate: str | None = None
-    estimatedHours: float | None = None
-    actualHours: float | None = None
-    resourceUri: str | None = None
-    url: str | None = None
-    daysUntilDue: int | None = None
-    dueAlertLevel: int | None = None
-    customFields: list[dict[str, Any]] | None = None
-
-
-class PaginationInfo(BaseModel):
-    limit: int
-    nextCursor: str | None = None
-    hasMore: bool
-
-
-class GetIssuesData(BaseModel):
-    issues: list[IssueCompact]
-
-
-class GetIssuesResponse(BaseModel):
-    ok: bool
-    data: GetIssuesData
-    pagination: PaginationInfo
-
-
-class GetBugsData(BaseModel):
-    bugs: list[IssueCompact]
-
-
-class GetBugsResponse(BaseModel):
-    ok: bool
-    data: GetBugsData
-    pagination: PaginationInfo
-
-
-class GetIssueResponse(BaseModel):
-    ok: bool
-    data: IssueCompact
-
-
-class GetStoriesData(BaseModel):
-    stories: list[IssueCompact]
-
-
-class GetStoriesResponse(BaseModel):
-    ok: bool
-    data: GetStoriesData
-    pagination: PaginationInfo
-
+from backlog_tool.settings import (
+    load_config,
+    load_env_file,
+    log_event,
+    log_metric,
+    project_keys,
+    load_project_catalog,
+    summarize_metrics,
+    view_base_url,
+)
+from backlog_tool import issue_service, presenter
+from backlog_tool.resolver import resolve_user_id
+from workflows import guidance, ut_bug, story_task_overview
+import workflows.resolve_bug as bug_workflow
+from workflows.audit import audit_workflows
+from backlog_tool.inspect import build_project_config, write_catalog
 
 IssueView = Literal["compact", "full"]
 SortOrder = Literal["asc", "desc"]
@@ -111,75 +65,48 @@ mcp = FastMCP(
     json_response=True,
 )
 
-
-def _append(args: list[str], flag: str, value: Any) -> None:
-    if value not in (None, ""):
-        args.extend((flag, str(value)))
+_config: dict[str, Any] | None = None
 
 
-def _append_many(args: list[str], flag: str, values: Sequence[str] | None) -> None:
-    for value in values or []:
-        if value:
-            args.extend((flag, value))
+def bootstrap_config() -> dict[str, Any]:
+    """Load env and config once at startup."""
+    global _config
+    load_env_file()
+    _config = load_config()
+    return _config
 
 
-def _append_custom_fields(args: list[str], custom_fields: dict[str, Any] | None) -> None:
-    for key, value in (custom_fields or {}).items():
-        if value not in (None, ""):
-            args.extend(("--custom", f"{key}={value}"))
+def get_config_instance() -> dict[str, Any]:
+    """Retrieve the singleton config or load it if not initialized."""
+    global _config
+    if _config is None:
+        _config = bootstrap_config()
+    return _config
 
 
-def _append_apply_mode(args: list[str], mode: MutationMode) -> None:
-    if mode == "apply":
-        args.extend(("--apply",))
+# Bootstrap on module import
+try:
+    bootstrap_config()
+except Exception:
+    pass
 
 
-def _append_list_controls(
-    args: list[str],
-    *,
-    limit: int,
-    offset: int,
-    sort: str | None,
-    order: str | None,
-) -> None:
-    args.extend(("--limit", str(limit), "--offset", str(offset)))
-    _append(args, "--sort", sort)
-    _append(args, "--order", order)
-
-
-def _build_issue_list_args(
-    *,
-    command: list[str],
-    project: str,
-    query: str,
-    limit: int,
-    offset: int,
-    sort: IssueSort | None,
-    order: SortOrder | None,
-) -> list[str]:
-    args = command.copy()
-
-    _append_list_controls(
-        args,
-        limit=limit,
-        offset=offset,
-        sort=sort,
-        order=order,
+def _workspace_path() -> str | None:
+    """Resolve the active client workspace without exposing it as a tool input."""
+    return (
+        os.environ.get("BACKLOG_WORKSPACE_PATH")
+        or os.environ.get("CLAUDE_PROJECT_DIR")
+        or None
     )
 
-    _append(args, "--project", project)
-    _append(args, "--query", query)
 
-    return args
-
-
-def _to_markdown(data: Any, args: Sequence[str]) -> str:
+def _to_markdown(data: Any, tool_name: str) -> str:
     if not data:
         return "No data."
-    command_name = ":".join(args[:2]) if len(args) >= 2 else ":".join(args)
+
     if isinstance(data, list):
         count = len(data)
-        summary = f"Retrieved {count} items via '{command_name}'."
+        summary = f"Retrieved {count} items via '{tool_name}'."
         if count > 0:
             lines = [summary, ""]
             for item in data:
@@ -199,7 +126,7 @@ def _to_markdown(data: Any, args: Sequence[str]) -> str:
         if key and title:
             status_suffix = f" [{status}]" if status else ""
             return f"Retrieved item **{key}**: {title}{status_suffix}.\nFull details are available in the structured content."
-        lines = [f"Result of '{command_name}':", ""]
+        lines = [f"Result of '{tool_name}':", ""]
         for k, v in data.items():
             if isinstance(v, (dict, list)):
                 lines.append(f"- **{k}**: (structured data)")
@@ -209,12 +136,15 @@ def _to_markdown(data: Any, args: Sequence[str]) -> str:
     return str(data)
 
 
-def _item_count(data: Any) -> int:
-    if isinstance(data, list):
-        return len(data)
-    if data in (None, "", [], {}):
-        return 0
-    return 1
+def _resource_uris(data: Any) -> list[str]:
+    items = data if isinstance(data, list) else [data]
+    uris = []
+    for item in items:
+        if isinstance(item, dict):
+            issue_key = item.get("issueKey") or item.get("issue")
+            if issue_key:
+                uris.append(f"backlog://issue/{issue_key}")
+    return sorted(set(uris))
 
 
 def _pagination(limit: int, offset: int, returned: int, enabled: bool) -> dict[str, Any]:
@@ -239,70 +169,22 @@ def _parse_cursor(cursor: str) -> int:
         raise ValueError(f"Invalid cursor format: '{cursor}'. Cursor must be a non-negative integer string representing the offset (e.g., '50').")
 
 
-def _normalize_data(data: Any, args: list[str]) -> Any:
-    if not data:
-        return data
-    group = args[0] if len(args) > 0 else ""
-    action = args[1] if len(args) > 1 else ""
-    
-    if group in ("issue", "bug", "story"):
-        # Skip bug sub-commands that return rule configs or context
-        if group == "bug" and action in ("context", "rules", "fields"):
-            return data
-            
-        if isinstance(data, list):
-            normalized = []
-            for item in data:
-                if isinstance(item, dict):
-                    try:
-                        normalized.append(IssueCompact.model_validate(item).model_dump(exclude_none=True))
-                    except Exception:
-                        normalized.append(item)
-                else:
-                    normalized.append(item)
-            return normalized
-        elif isinstance(data, dict):
-            try:
-                return IssueCompact.model_validate(data).model_dump(exclude_none=True)
-            except Exception:
-                return data
-    return data
-
-
-def _resource_uris(data: Any) -> list[str]:
-    items = data if isinstance(data, list) else [data]
-    uris = []
-    for item in items:
-        if isinstance(item, dict):
-            issue_key = item.get("issueKey") or item.get("issue")
-            if issue_key:
-                uris.append(f"backlog://issue/{issue_key}")
-    return sorted(set(uris))
-
-
-def _envelope(
-    *,
-    ok: bool,
-    data: Any,
-    list_key: str | None,
-    limit: int,
-    offset: int,
-    paginated: bool,
-) -> dict[str, Any]:
-    result_data = {list_key or "items": data} if isinstance(data, list) else data
-    returned = _item_count(data)
-    
-    envelope_data = {
-        "ok": ok,
-        "data": result_data if result_data is not None else {},
-    }
-    if paginated:
-        envelope_data["pagination"] = _pagination(limit, offset, returned, paginated)
-    return envelope_data
-
-
-def _error_result(args: Sequence[str], error: Exception) -> CallToolResult:
+def _error_result(
+    tool: str,
+    error: Exception,
+    started: float | None = None,
+    dry_run: bool | None = None,
+    project: str | None = None,
+) -> CallToolResult:
     message = str(error)
+    if started is not None:
+        duration_ms = (time.monotonic() - started) * 1000
+        try:
+            log_metric(tool, 0, duration_ms, "error", dry_run=dry_run, project=project)
+            log_event("error", "tool_error", tool=tool, duration_ms=round(duration_ms, 1), error=message)
+        except Exception:
+            pass
+
     return CallToolResult(
         content=[TextContent(type="text", text=f"Error: {message}")],
         structuredContent=None,
@@ -310,56 +192,49 @@ def _error_result(args: Sequence[str], error: Exception) -> CallToolResult:
     )
 
 
-def _workspace_path() -> str | None:
-    """Resolve the active client workspace without exposing it as a tool input."""
-    return (
-        os.environ.get("BACKLOG_WORKSPACE_PATH")
-        or os.environ.get("CLAUDE_PROJECT_DIR")
-        or None
-    )
-
-
-def _invoke(
-    args: list[str],
+def _build_result(
+    data: Any,
+    tool: str,
     list_key: str | None = None,
-    full: bool = False,
     limit: int = 0,
     offset: int = 0,
     paginated: bool = False,
+    started: float | None = None,
+    dry_run: bool | None = None,
+    project: str | None = None,
 ) -> CallToolResult:
-    if full:
-        if "--json-full" not in args:
-            args.append("--json-full")
-    try:
-        res = execute(args, workspace_path=_workspace_path())
-    except Exception as error:
-        return _error_result(args, error)
-    data = res.data
-    
-    if not full:
-        data = _normalize_data(data, args)
-        
-    text = _to_markdown(data, args)
+    text = _to_markdown(data, tool)
+    result_data = {list_key or "items": data} if isinstance(data, list) else data
+    returned = len(data) if isinstance(data, list) else (0 if data in (None, "", [], {}) else 1)
 
-    structured = _envelope(
-        ok=True,
-        data=data,
-        list_key=list_key,
-        limit=limit,
-        offset=offset,
-        paginated=paginated,
-    )
-    
+    envelope_data = {
+        "ok": True,
+        "data": result_data if result_data is not None else {},
+    }
+    if paginated:
+        envelope_data["pagination"] = _pagination(limit, offset, returned, paginated)
+
     uris = _resource_uris(data)
+
+    if started is not None:
+        duration_ms = (time.monotonic() - started) * 1000
+        output_bytes = len(text.encode("utf-8"))
+        try:
+            log_metric(tool, output_bytes, duration_ms, "ok", dry_run=dry_run, project=project)
+            log_event("info", "tool_done", tool=tool, duration_ms=round(duration_ms, 1), status="ok")
+        except Exception:
+            pass
 
     return CallToolResult(
         content=[TextContent(type="text", text=text)],
-        structuredContent=structured,
+        structuredContent=envelope_data,
         _meta={
-            "command": ":".join(args[:2]) if len(args) >= 2 else ":".join(args),
+            "tool": tool,
+            "command": tool,
             "resourceUris": uris,
         }
     )
+
 
 @mcp.tool()
 def get_issue(
@@ -371,8 +246,18 @@ def get_issue(
     Use when the user names a specific Backlog issue and you need its current details.
     Do not use when you need to discover multiple issues; use get_issues instead.
     """
-    full = (view == "full")
-    return _invoke(["issue", "get", issue_id], full=full)
+    started = time.monotonic()
+    try:
+        config = get_config_instance()
+        raw_issue = issue_service.get_issue(config, issue_id)
+        if view == "full":
+            data = raw_issue
+        else:
+            base_url = view_base_url(config)
+            data = presenter.compact_issue(raw_issue, view=view, base_url=base_url)
+        return _build_result(data, "get_issue", started=started)
+    except Exception as e:
+        return _error_result("get_issue", e, started=started)
 
 
 @mcp.tool()
@@ -384,101 +269,60 @@ def get_issues(
     limit: Annotated[int, Field(description="Maximum issues to return, from 1 to 100.", ge=1, le=100)] = 50,
     cursor: Annotated[str, Field(description="Offset cursor for pagination (e.g., '50' to start from the 50th item). Omit or pass an empty string to start from the beginning.")] = "",
     sort: Annotated[
-    IssueSort | None,
-    Field(
-        description="Backlog issue sort field, e.g. updated, dueDate, priority. Omit for Backlog default ordering."
-    ),
-] = None,
+        IssueSort | None,
+        Field(
+            description="Backlog issue sort field, e.g. updated, dueDate, priority. Omit for Backlog default ordering."
+        ),
+    ] = None,
     order: Annotated[
-    SortOrder | None,
-    Field(
-        description="Sort order: asc or desc. Omit for Backlog default ordering."
-    ),
-] = None,
+        SortOrder | None,
+        Field(
+            description="Sort order: asc or desc. Omit for Backlog default ordering."
+        ),
+    ] = None,
 ) -> CallToolResult:
     """List issues assigned to the configured user in one project.
 
     Use when you need a paginated, filterable issue search across types.
     Do not use when the user asks specifically for open personal bugs; use get_my_open_bugs.
     """
+    started = time.monotonic()
     try:
         offset = _parse_cursor(cursor)
     except ValueError as e:
-        return _error_result(["issue", "list"], e)
+        return _error_result("get_issues", e, started=started, project=project_key)
 
-    args = _build_issue_list_args(
-        command=["issue", "list"],
-        project=project_key,
-        query=query,
-        limit=limit,
-        offset=offset,
-        sort=sort,
-        order=order,
-    )
-    _append_many(args, "--type", issue_types)
-    _append(args, "--view", "compact")
-    if include_closed:
-        args.append("--all")
-    return _invoke(args, list_key="issues", full=False, limit=limit, offset=offset, paginated=True)
-
-
-def _append_issue_fields(
-    args: list[str],
-    *,
-    description: str | None,
-    priority: str | None,
-    assignee: str | None,
-    category: str | None,
-    start_date: str | None,
-    due_date: str | None,
-    estimated_hours: float | None,
-    actual_hours: float | None,
-    custom_fields: dict[str, Any] | None,
-) -> None:
-    _append(args, "--desc", description)
-    _append(args, "--priority", priority)
-    _append(args, "--assignee", assignee)
-    _append(args, "--category", category)
-    _append(args, "--start-date", start_date)
-    _append(args, "--due-date", due_date)
-    _append(args, "--estimated-hours", estimated_hours)
-    _append(args, "--actual-hours", actual_hours)
-    _append_custom_fields(args, custom_fields)
-
-
-def _build_issue_update_args(
-    command: list[str],
-    issue_id: str,
-    *,
-    project: str = "",
-    description: str = "",
-    priority: str = "",
-    assignee: str = "",
-    category: str = "",
-    start_date: str = "",
-    due_date: str = "",
-    estimated_hours: float | None = None,
-    actual_hours: float | None = None,
-    custom_fields: dict[str, Any] | None = None,
-) -> list[str]:
-    args = command + [issue_id]
-
-    _append(args, "--project", project)
-
-    _append_issue_fields(
-        args,
-        description=description,
-        priority=priority,
-        assignee=assignee,
-        category=category,
-        start_date=start_date,
-        due_date=due_date,
-        estimated_hours=estimated_hours,
-        actual_hours=actual_hours,
-        custom_fields=custom_fields,
-    )
-
-    return args
+    try:
+        config = get_config_instance()
+        me = config.get("defaults", {}).get("assignee", "me")
+        assignee_id = resolve_user_id(config, me)
+        raw_issues = issue_service.get_issues(
+            config,
+            project_key=project_key or None,
+            query=query or None,
+            assignee_id=assignee_id,
+            open_only=not include_closed,
+            issue_types=list(issue_types) if issue_types else None,
+            limit=limit,
+            offset=offset,
+            sort=sort,
+            order=order,
+            start_path=_workspace_path(),
+        )
+        base_url = view_base_url(config)
+        data = [presenter.compact_issue(item, view="compact", base_url=base_url) for item in raw_issues]
+        return _build_result(
+            data,
+            "get_issues",
+            list_key="issues",
+            limit=limit,
+            offset=offset,
+            paginated=True,
+            started=started,
+            project=project_key,
+        )
+    except Exception as e:
+        return _error_result("get_issues", e, started=started, project=project_key)
 
 
 @mcp.tool()
@@ -503,24 +347,42 @@ def create_issue(
     Use when the user asks to create a generic Backlog issue and has supplied the issue type.
     Do not use when the user asks for the opinionated Unit Test bug workflow; use create_ut_bug.
     """
-    args = ["issue", "create", summary]
-    _append(args, "--project", project_key)
-    _append(args, "--issue-type", issue_type)
-    _append(args, "--parent", parent_key)
-    _append_issue_fields(
-        args,
-        description=description,
-        priority=priority,
-        assignee=assignee,
-        category=category,
-        start_date=start_date,
-        due_date=due_date,
-        estimated_hours=estimated_hours,
-        actual_hours=actual_hours,
-        custom_fields=custom_fields,
-    )
-    _append_apply_mode(args, mode)
-    return _invoke(args)
+    started = time.monotonic()
+    dry_run = (mode != "apply")
+    try:
+        config = get_config_instance()
+        res = issue_service.create_issue(
+            config,
+            summary=summary,
+            issue_type=issue_type,
+            project_key=project_key,
+            parent_key=parent_key,
+            description=description,
+            priority=priority,
+            assignee=assignee,
+            category=category,
+            start_date=start_date,
+            due_date=due_date,
+            estimated_hours=estimated_hours,
+            actual_hours=actual_hours,
+            custom_fields=custom_fields,
+            dry_run=dry_run,
+            workspace_path=_workspace_path(),
+        )
+        if dry_run:
+            data = res
+        else:
+            base_url = view_base_url(config)
+            data = presenter.compact_issue(res, view="compact", base_url=base_url)
+        return _build_result(
+            data,
+            "create_issue",
+            started=started,
+            dry_run=dry_run,
+            project=project_key,
+        )
+    except Exception as e:
+        return _error_result("create_issue", e, started=started, dry_run=dry_run, project=project_key)
 
 
 @mcp.tool()
@@ -546,25 +408,43 @@ def update_issue(
     Use when the user asks to change fields on an existing issue.
     Do not use when the user asks to complete the bug resolution workflow; use resolve_bug.
     """
-    args = _build_issue_update_args(
-        ["issue", "update"],
-        issue_id,
-        project=project_key,
-        description=description,
-        priority=priority,
-        assignee=assignee,
-        category=category,
-        start_date=start_date,
-        due_date=due_date,
-        estimated_hours=estimated_hours,
-        actual_hours=actual_hours,
-        custom_fields=custom_fields,
-    )
-    _append(args, "--summary", summary)
-    _append(args, "--status", status)
-    _append(args, "--comment", comment)
-    _append_apply_mode(args, mode)
-    return _invoke(args)
+    started = time.monotonic()
+    dry_run = (mode != "apply")
+    try:
+        config = get_config_instance()
+        res = issue_service.update_issue(
+            config,
+            issue_id=issue_id,
+            project_key=project_key,
+            summary=summary,
+            status=status,
+            comment=comment,
+            description=description,
+            priority=priority,
+            assignee=assignee,
+            category=category,
+            start_date=start_date,
+            due_date=due_date,
+            estimated_hours=estimated_hours,
+            actual_hours=actual_hours,
+            custom_fields=custom_fields,
+            dry_run=dry_run,
+            workspace_path=_workspace_path(),
+        )
+        if dry_run:
+            data = res
+        else:
+            base_url = view_base_url(config)
+            data = presenter.compact_issue(res, view="compact", base_url=base_url)
+        return _build_result(
+            data,
+            "update_issue",
+            started=started,
+            dry_run=dry_run,
+            project=project_key,
+        )
+    except Exception as e:
+        return _error_result("update_issue", e, started=started, dry_run=dry_run, project=project_key)
 
 
 @mcp.tool()
@@ -574,38 +454,55 @@ def get_my_open_bugs(
     limit: Annotated[int, Field(description="Maximum bugs to return, from 1 to 100.", ge=1, le=100)] = 50,
     cursor: Annotated[str, Field(description="Offset cursor for pagination (e.g., '50' to start from the 50th item). Omit or pass an empty string to start from the beginning.")] = "",
     sort: Annotated[
-    IssueSort | None,
-    Field(
-        description="Backlog issue sort field, e.g. updated, dueDate, priority. Omit for Backlog default ordering."
-    ),
-] = None,
+        IssueSort | None,
+        Field(
+            description="Backlog issue sort field, e.g. updated, dueDate, priority. Omit for Backlog default ordering."
+        ),
+    ] = None,
     order: Annotated[
-    SortOrder | None,
-    Field(
-        description="Sort order: asc or desc. Omit for Backlog default ordering."
-    ),
-] = None,
+        SortOrder | None,
+        Field(
+            description="Sort order: asc or desc. Omit for Backlog default ordering."
+        ),
+    ] = None,
 ) -> CallToolResult:
     """List open bugs assigned to the configured user in one project.
 
     Use when the user asks for their current open bugs or bug triage queue.
     Do not use for generic issue search across issue types; use get_issues.
     """
+    started = time.monotonic()
     try:
         offset = _parse_cursor(cursor)
     except ValueError as e:
-        return _error_result(["bug", "list"], e)
+        return _error_result("get_my_open_bugs", e, started=started, project=project_key)
 
-    args = _build_issue_list_args(
-        command=["bug", "list"],
-        project=project_key,
-        query=query,
-        limit=limit,
-        offset=offset,
-        sort=sort,
-        order=order,
-    )
-    return _invoke(args, list_key="bugs", full=False, limit=limit, offset=offset, paginated=True)
+    try:
+        config = get_config_instance()
+        bugs = bug_workflow.my_open_bugs_raw(
+            config,
+            project_key=project_key or None,
+            query=query or None,
+            limit=limit,
+            offset=offset,
+            sort=sort,
+            order=order,
+            start_path=_workspace_path(),
+        )
+        base_url = view_base_url(config)
+        data = [presenter.compact_issue(item, view="compact", base_url=base_url) for item in bugs]
+        return _build_result(
+            data,
+            "get_my_open_bugs",
+            list_key="bugs",
+            limit=limit,
+            offset=offset,
+            paginated=True,
+            started=started,
+            project=project_key,
+        )
+    except Exception as e:
+        return _error_result("get_my_open_bugs", e, started=started, project=project_key)
 
 
 @mcp.tool()
@@ -617,7 +514,13 @@ def get_bug_context(
     Use when preparing to understand, fix, discuss, or resolve a specific bug.
     Do not use for listing bugs; use get_my_open_bugs.
     """
-    return _invoke(["bug", "context", issue_key])
+    started = time.monotonic()
+    try:
+        config = get_config_instance()
+        data = bug_workflow.get_bug_context(config, issue_key)
+        return _build_result(data, "get_bug_context", started=started)
+    except Exception as e:
+        return _error_result("get_bug_context", e, started=started)
 
 
 @mcp.tool()
@@ -641,23 +544,47 @@ def resolve_bug(
     Use when the user asks to resolve/close a bug and wants project workflow fields filled.
     Do not use for generic issue updates unrelated to bug resolution; use update_issue.
     """
-    args = ["bug", "resolve", issue_key]
-    for flag, value in (
-        ("--status", status),
-        ("--actual-hours", actual_hours),
-        ("--estimated-hours", estimated_hours),
-        ("--qc-activity", qc_activity),
-        ("--cause-category", cause_category),
-        ("--bug-origin", bug_origin),
-        ("--impacted", impacted),
-        ("--resolution", resolution),
-        ("--comment", comment),
-        ("--commit", commit),
-        ("--fix-description", fix_description),
-    ):
-        _append(args, flag, value)
-    _append_apply_mode(args, mode)
-    return _invoke(args)
+    started = time.monotonic()
+    dry_run = (mode != "apply")
+    try:
+        config = get_config_instance()
+        res = bug_workflow.resolve_bug(
+            config,
+            issue_key=issue_key,
+            dry_run=dry_run,
+            status=status,
+            actual_hours=actual_hours,
+            estimated_hours=estimated_hours,
+            qc_activity=qc_activity,
+            cause_category=cause_category,
+            bug_origin=bug_origin,
+            impacted=impacted,
+            resolution=resolution,
+            comment=comment,
+            commit=commit,
+            fix_description=fix_description,
+            start_path=_workspace_path(),
+        )
+        if dry_run:
+            data = {
+                "dryRun": True,
+                "issue": res.get("issue"),
+                "project": res.get("project"),
+                "assignment": res.get("assignment"),
+                "changes": res.get("changes", []),
+                "warnings": res.get("warnings", []),
+            }
+        else:
+            base_url = view_base_url(config)
+            data = presenter.compact_issue(res, view="compact", base_url=base_url)
+        return _build_result(
+            data,
+            "resolve_bug",
+            started=started,
+            dry_run=dry_run,
+        )
+    except Exception as e:
+        return _error_result("resolve_bug", e, started=started, dry_run=dry_run)
 
 
 @mcp.tool()
@@ -673,10 +600,32 @@ def create_ut_bug(
     Use when the user asks to create a UT bug with the configured workflow defaults.
     Do not use for generic bugs or tasks; use create_issue.
     """
-    args = ["bug", "create-ut", parent_key, module, description]
-    _append(args, "--project", project_key)
-    _append_apply_mode(args, mode)
-    return _invoke(args)
+    started = time.monotonic()
+    dry_run = (mode != "apply")
+    try:
+        config = get_config_instance()
+        res = ut_bug.create_subtask_bug(
+            config,
+            project_key=project_key or None,
+            parent_key=parent_key,
+            module=module,
+            description=description,
+            dry_run=dry_run,
+            start_path=_workspace_path(),
+        )
+        if dry_run:
+            data = res
+        else:
+            data = {"issueKey": res.get("issueKey"), "applied": True}
+        return _build_result(
+            data,
+            "create_ut_bug",
+            started=started,
+            dry_run=dry_run,
+            project=project_key,
+        )
+    except Exception as e:
+        return _error_result("create_ut_bug", e, started=started, dry_run=dry_run, project=project_key)
 
 
 @mcp.tool()
@@ -688,9 +637,13 @@ def get_bug_rules(
     Use when preparing a bug resolution and you need required workflow defaults.
     Do not use for issue data; use get_bug_context or get_issue.
     """
-    args = ["bug", "rules"]
-    _append(args, "--project", project_key)
-    return _invoke(args)
+    started = time.monotonic()
+    try:
+        config = get_config_instance()
+        data = guidance.resolve_rules(config, project_key or None, start_path=_workspace_path())
+        return _build_result(data, "get_bug_rules", started=started, project=project_key)
+    except Exception as e:
+        return _error_result("get_bug_rules", e, started=started, project=project_key)
 
 
 @mcp.tool()
@@ -703,11 +656,13 @@ def get_bug_fields(
     Use when you need allowed values or guidance for resolve_bug fields.
     Do not use to update an issue; use resolve_bug or update_issue.
     """
-    args = ["bug", "fields"]
-    if field:
-        args.append(field)
-    _append(args, "--project", project_key)
-    return _invoke(args)
+    started = time.monotonic()
+    try:
+        config = get_config_instance()
+        data = guidance.field_guidance(field or None, config, project_key or None, start_path=_workspace_path())
+        return _build_result(data, "get_bug_fields", started=started, project=project_key)
+    except Exception as e:
+        return _error_result("get_bug_fields", e, started=started, project=project_key)
 
 
 @mcp.tool()
@@ -717,38 +672,53 @@ def get_my_work_overview(
     limit: Annotated[int, Field(description="Maximum stories/tasks to return, from 1 to 100.", ge=1, le=100)] = 50,
     cursor: Annotated[str, Field(description="Offset cursor for pagination (e.g., '50' to start from the 50th item). Omit or pass an empty string to start from the beginning.")] = "",
     sort: Annotated[
-    IssueSort | None,
-    Field(
-        description="Backlog issue sort field, e.g. updated, dueDate, priority. Omit for Backlog default ordering."
-    ),
-] = None,
+        IssueSort | None,
+        Field(
+            description="Backlog issue sort field, e.g. updated, dueDate, priority. Omit for Backlog default ordering."
+        ),
+    ] = None,
     order: Annotated[
-    SortOrder | None,
-    Field(
-        description="Sort order: asc or desc. Omit for Backlog default ordering."
-    ),
-] = None,
+        SortOrder | None,
+        Field(
+            description="Sort order: asc or desc. Omit for Backlog default ordering."
+        ),
+    ] = None,
 ) -> CallToolResult:
     """Get assigned Story and Task work items with deadline and status context.
 
     Use when the user asks for assigned stories/tasks, due dates, or project status.
     Do not use for generic issue search or bug triage; use get_issues or get_my_open_bugs.
     """
+    started = time.monotonic()
     try:
         offset = _parse_cursor(cursor)
     except ValueError as e:
-        return _error_result(["story", "overview"], e)
+        return _error_result("get_my_work_overview", e, started=started, project=project_key)
 
-    args = _build_issue_list_args(
-        command=["story", "overview"],
-        project=project_key,
-        query=query,
-        limit=limit,
-        offset=offset,
-        sort=sort,
-        order=order,
-    )
-    return _invoke(args, list_key="stories", limit=limit, offset=offset, paginated=True)
+    try:
+        config = get_config_instance()
+        stories = story_task_overview.my_story_task_overview(
+            config,
+            project_key=project_key or None,
+            query=query or None,
+            limit=limit,
+            offset=offset,
+            sort=sort,
+            order=order,
+            start_path=_workspace_path(),
+        )
+        return _build_result(
+            stories,
+            "get_my_work_overview",
+            list_key="stories",
+            limit=limit,
+            offset=offset,
+            paginated=True,
+            started=started,
+            project=project_key,
+        )
+    except Exception as e:
+        return _error_result("get_my_work_overview", e, started=started, project=project_key)
 
 
 @mcp.tool()
@@ -758,7 +728,19 @@ def list_configured_projects() -> CallToolResult:
     Use when choosing or confirming a project key.
     Do not use to fetch live project metadata; use inspect_project for one explicit project.
     """
-    return _invoke(["config", "list-projects"], list_key="projects")
+    started = time.monotonic()
+    try:
+        config = get_config_instance()
+        rows = []
+        for key in project_keys(config):
+            try:
+                catalog = load_project_catalog(key)
+                rows.append({"key": key, "id": catalog.get("id"), "name": catalog.get("name")})
+            except Exception:
+                rows.append({"key": key, "id": None, "name": "(missing catalog)"})
+        return _build_result(rows, "list_configured_projects", list_key="projects", started=started)
+    except Exception as e:
+        return _error_result("list_configured_projects", e, started=started)
 
 
 @mcp.tool()
@@ -768,7 +750,12 @@ def get_config() -> CallToolResult:
     Use when diagnosing local MCP configuration or defaults.
     Do not use to retrieve secrets; credentials are intentionally excluded.
     """
-    return _invoke(["config", "show"])
+    started = time.monotonic()
+    try:
+        config = get_config_instance()
+        return _build_result(redact_config(config), "get_config", started=started)
+    except Exception as e:
+        return _error_result("get_config", e, started=started)
 
 
 @mcp.tool()
@@ -778,7 +765,13 @@ def audit_config_workflows() -> CallToolResult:
     Use when configuration behavior looks wrong or before relying on workflow defaults.
     Do not use for issue search or project status summaries.
     """
-    return _invoke(["config", "audit-workflows"])
+    started = time.monotonic()
+    try:
+        config = get_config_instance()
+        data = audit_workflows(config)
+        return _build_result(data, "audit_config_workflows", started=started)
+    except Exception as e:
+        return _error_result("audit_config_workflows", e, started=started)
 
 
 @mcp.tool()
@@ -791,10 +784,23 @@ def inspect_project(
     Use when the user names one project and needs its metadata or catalog refreshed.
     Do not use to enumerate every project; use list_configured_projects.
     """
-    args = ["project", "inspect", project_key]
-    if mode == "read":
-        args.append("--stdout")
-    return _invoke(args)
+    started = time.monotonic()
+    try:
+        config = get_config_instance()
+        project_config = build_project_config(config, project_key)
+        if mode == "read":
+            data = project_config
+        else:
+            path = write_catalog(project_config)
+            data = {"wrote": path, "key": project_config["key"]}
+        return _build_result(
+            data,
+            "inspect_project",
+            started=started,
+            project=project_key,
+        )
+    except Exception as e:
+        return _error_result("inspect_project", e, started=started, project=project_key)
 
 
 @mcp.prompt()
@@ -900,13 +906,12 @@ def metrics_resource() -> str:
 )
 def issue_resource(issue_key: str) -> str:
     """Read one Backlog issue as JSON by issue key."""
-    result = _invoke(["issue", "get", issue_key], full=True)
-    if result.isError or result.structuredContent is None:
-        err_msg = result.content[0].text if (result.content and len(result.content) > 0) else "Unknown error"
-        if err_msg.startswith("Error: "):
-            err_msg = err_msg[7:]
-        return json.dumps({"ok": False, "error": err_msg}, indent=2, ensure_ascii=False)
-    return json.dumps(result.structuredContent, indent=2, ensure_ascii=False)
+    try:
+        config = get_config_instance()
+        data = issue_service.get_issue(config, issue_key)
+        return json.dumps(data, indent=2, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"ok": False, "error": str(e)}, indent=2, ensure_ascii=False)
 
 
 def main() -> None:

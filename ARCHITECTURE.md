@@ -15,10 +15,7 @@ The server acts as a wrapper around the `backlog_tool` core CLI/domain runtime, 
                   │
                   │ (Stdio Transport)
                   ▼
-         [ backlog_mcp.server ]  ◄─── FastMCP Router
-                  │
-                  ▼
-         [ backlog_tool.cli ]    ◄─── CLI Execution Bridge
+         [ backlog_mcp.server ]  ◄─── FastMCP Server
                   │
         ┌─────────┴─────────┐
         ▼                   ▼
@@ -36,38 +33,63 @@ The server acts as a wrapper around the `backlog_tool` core CLI/domain runtime, 
 The directory layout separates the MCP protocol interface from the core domain logic:
 
 ```plaintext
-backlog-mcp/
-├── backlog_mcp/             # MCP Server Interface
+hieund-backlog-mcp/
+├── backlog_mcp/                  # MCP Server Interface
 │   ├── __init__.py
-│   └── server.py            # FastMCP router defining tools and resources
-├── backlog_tool/            # Core Domain Runtime
-│   ├── client.py            # Backlog REST API HTTP client
-│   ├── settings.py          # Centralized configuration, local paths, and metrics
-│   ├── cli.py               # Main CLI command dispatcher
-│   └── *_service.py         # Business logic for issue & bug workflows
-├── workflows/               # Pre-defined Workflow Audits & Transition Policies
-│   ├── audit.py             # Config validation against project schemas
-│   └── *.py                 # Templates for bug resolution and field rules
-├── config/                  # Workstation configuration & project catalogs
-│   └── backlog.json         # Space URL, project listings, and defaults
-├── logs/                    # Local session logs and metrics (Git-ignored)
-└── tests/                   # Offline unit test suite with mock fixtures
+│   └── server.py                 # FastMCP router — tools, prompts, resources
+├── backlog_tool/                 # Core Domain Runtime
+│   ├── client.py                 # Backlog REST API HTTP client
+│   ├── settings.py               # Config, local paths, project resolution, metrics
+│   ├── cli.py                    # Standalone CLI dispatcher (backlog-cli)
+│   ├── issue_service.py          # Issue CRUD business logic (typed service)
+│   ├── resolver.py               # Option/ID resolution (status, type, custom fields)
+│   ├── presenter.py              # Output formatting (compact, table, markdown)
+│   ├── journal.py                # Durable CLI output log for cross-session memory
+│   └── inspect.py                # Project metadata inspect logic
+├── workflows/                    # Workflow policies & transition rules
+│   ├── config.py                 # Workflow config loader
+│   ├── audit.py                  # Config validation against project schemas
+│   ├── resolve_bug.py            # Bug resolution workflow & context builder
+│   ├── resolve_policy.py         # Bug resolution field policies
+│   ├── guidance.py               # Field guidance & allowed-value lookup
+│   ├── ut_bug.py                 # Unit Test sub-task bug creation
+│   ├── bug_template.py           # Bug field templates
+│   └── story_task_overview.py    # Story/task deadline overview
+├── config/                       # Workstation configuration & project catalogs
+│   ├── backlog.json              # Space URL, project list, user mapping, defaults
+│   └── projects/                 # Per-project cached catalogs (KEY.json)
+├── logs/                         # Local session logs and metrics (Git-ignored)
+└── tests/                        # Offline unit test suite with mock fixtures
+    └── fixtures/                 # Mock data for HTTP-free testing
 ```
 
 ### 1. MCP Server Interface (`backlog_mcp`)
-Defined in [server.py](file:///home/hieund/Documents/MY_PROJECT/DEVELOP_MAINTAIN/hieund-ai-kit-cli/backlog-mcp/backlog_mcp/server.py), this module uses the FastMCP SDK to bind Python functions to MCP tools. It handles:
-* Translating structured arguments from JSON payloads into CLI command arguments.
-* Routing tool execution back to the `backlog_tool.cli.execute` runner.
-* Serving resources like `backlog://config` and `backlog://metrics`.
+Defined in `backlog_mcp/server.py`, this module uses the FastMCP SDK to expose three kinds of MCP primitives:
+* **Tools** — callable actions (issue CRUD, bug workflow, project & config inspection). Invokes domain service functions directly with typed arguments and returns structured MCP responses.
+* **Prompts** — guided multi-step workflows (`resolve_bug_prompt`, `create_ut_bug_prompt`, `project_status_prompt`) that sequence tool calls for the agent.
+* **Resources** — readable data endpoints: `backlog://config`, `backlog://metrics`, `backlog://issue/{issue_key}`.
 
 ### 2. Core Domain Runtime (`backlog_tool`)
 The underlying engine that executes command actions:
-* [client.py](file:///home/hieund/Documents/MY_PROJECT/DEVELOP_MAINTAIN/hieund-ai-kit-cli/backlog-mcp/backlog_tool/client.py): Sends HTTP requests to the Backlog API. It reads the `BACKLOG_API_KEY` from the local `.env` and intercepts requests to logs so that credentials and raw URLs are never leaked.
-* [settings.py](file:///home/hieund/Documents/MY_PROJECT/DEVELOP_MAINTAIN/hieund-ai-kit-cli/backlog-mcp/backlog_tool/settings.py): Resolves path configs (e.g., locating `.env`, `config/backlog.json`, and `logs/` relative to the MCP project root) and writes local execution metrics.
-* [cli.py](file:///home/hieund/Documents/MY_PROJECT/DEVELOP_MAINTAIN/hieund-ai-kit-cli/backlog-mcp/backlog_tool/cli.py): Leverages argparse to parse actions (`issue`, `bug`, `config`, `project`, `story`) and formats the outputs to JSON or Markdown tables.
+* `client.py`: Sends HTTP requests to the Backlog API. Reads `BACKLOG_API_KEY` from `.env`; credentials and raw query-string URLs are never written to logs.
+* `settings.py`: Resolves all local paths (`.env`, `config/backlog.json`, `logs/`), implements the project-key resolution chain (explicit arg → `.backlog-project.json` walk-up → directory-name match → error), and writes per-invocation metrics.
+* `cli.py`: argparse dispatcher for subcommand groups `issue`, `bug`, `config`, `project`, `story`, `metrics`. Formats output as compact JSON or Markdown tables. Accepts `workspace_path` to pass workspace context from the MCP server.
+* `issue_service.py`: CRUD logic for Backlog issues (create, get, list, update).
+* `resolver.py`: Resolves human-readable names (status, issue type, category, custom fields) to Backlog API IDs using project catalog data.
+* `presenter.py`: Converts raw API responses to compact dicts and Markdown table strings.
+* `journal.py`: Appends structured CLI output to a local journal for durable cross-session memory.
+* `inspect.py`: Fetches and serializes project metadata from the Backlog API.
 
 ### 3. Workflows
-Defines the transition policies, rules, and field requirements for managing bugs and parent-child issues. It includes `config.py` and `audit.py` to check that the local project configuration catalogs remain consistent with the actual schemas configured in the Backlog space.
+Defines transition policies, field rules, and guided sequences for managing bugs and issues:
+* `config.py`: Loads workflow configuration from local JSON files.
+* `audit.py`: Validates local project catalogs and workflow configs against expected schemas; detects drift.
+* `resolve_bug.py`: Core bug resolution workflow — builds the resolution payload, applies field defaults, and enriches bug context for the agent.
+* `resolve_policy.py`: Encodes the field policies (required fields, allowed values) that govern bug resolution.
+* `guidance.py`: Returns allowed values and guidance text for individual bug workflow fields (`qc_activity`, `cause_category`, `bug_origin`, etc.).
+* `ut_bug.py`: Creates Unit Test sub-task bugs with opinionated field defaults.
+* `bug_template.py`: Shared field templates reused across bug creation and resolution.
+* `story_task_overview.py`: Queries and formats assigned Story/Task items with deadline context.
 
 ---
 

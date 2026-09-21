@@ -226,11 +226,46 @@ def run_handler(config, args):
                 start_path=getattr(args, "workspace_path", None),
             )
         if action == "create":
-            args.dry_run = not args.apply
-            return create_issue(config, args)
+            from backlog_tool.resolver import parse_custom_args
+            return create_issue(
+                config,
+                args.summary,
+                args.issue_type,
+                project_key=args.project or "",
+                parent_key=getattr(args, "parent", "") or "",
+                description=getattr(args, "desc", "") or "",
+                priority=getattr(args, "priority", "") or "",
+                assignee=getattr(args, "assignee", "") or "",
+                category=getattr(args, "category", "") or "",
+                start_date=getattr(args, "start_date", "") or "",
+                due_date=getattr(args, "due_date", "") or "",
+                estimated_hours=getattr(args, "estimated_hours", None),
+                actual_hours=getattr(args, "actual_hours", None),
+                custom_fields=parse_custom_args(args.custom) if args.custom else None,
+                dry_run=not args.apply,
+                workspace_path=getattr(args, "workspace_path", None),
+            )
         if action == "update":
-            args.dry_run = not args.apply
-            return update_issue(config, args)
+            from backlog_tool.resolver import parse_custom_args
+            return update_issue(
+                config,
+                args.issue_id,
+                project_key=args.project or "",
+                summary=getattr(args, "summary", "") or "",
+                status=getattr(args, "status", "") or "",
+                comment=getattr(args, "comment", "") or "",
+                description=getattr(args, "desc", "") or "",
+                priority=getattr(args, "priority", "") or "",
+                assignee=getattr(args, "assignee", "") or "",
+                category=getattr(args, "category", "") or "",
+                start_date=getattr(args, "start_date", "") or "",
+                due_date=getattr(args, "due_date", "") or "",
+                estimated_hours=getattr(args, "estimated_hours", None),
+                actual_hours=getattr(args, "actual_hours", None),
+                custom_fields=parse_custom_args(args.custom) if args.custom else None,
+                dry_run=not args.apply,
+                workspace_path=getattr(args, "workspace_path", None),
+            )
 
     if group == "bug":
         if action == "list":
@@ -314,23 +349,23 @@ def run_project(config, args):
     return {"wrote": path, "key": project_config["key"]}
 
 
-def present(result, args):
+def present(result, args, base_url=""):
     if getattr(args, "json_full", False):
         return result
     group, action = args.group, getattr(args, "action", None)
     view = getattr(args, "view", "compact")
 
     if group == "issue" and action == "list":
-        return [presenter.compact_issue(item, view=view) for item in result]
+        return [presenter.compact_issue(item, view=view, base_url=base_url) for item in result]
     if group == "issue" and action == "get":
-        return presenter.compact_issue(result, view=view)
+        return presenter.compact_issue(result, view=view, base_url=base_url)
     if group == "issue" and action in ("create", "update"):
         if isinstance(result, dict) and result.get("dryRun"):
             return result
-        return presenter.compact_issue(result, view=view)
+        return presenter.compact_issue(result, view=view, base_url=base_url)
 
     if group == "bug" and action == "list":
-        return [presenter.compact_issue(item, view=view) for item in result]
+        return [presenter.compact_issue(item, view=view, base_url=base_url) for item in result]
     if group == "bug" and action == "context":
         return result
     if group == "bug" and action == "resolve":
@@ -340,7 +375,7 @@ def present(result, args):
                 "assignment": result.get("assignment"),
                 "changes": result.get("changes", []), "warnings": result.get("warnings", []),
             }
-        return presenter.compact_issue(result, view=view)
+        return presenter.compact_issue(result, view=view, base_url=base_url)
     if group == "bug" and action == "create-ut":
         if isinstance(result, dict) and result.get("dryRun"):
             return result
@@ -393,7 +428,7 @@ def execute(argv, workspace_path=None):
     started = time.monotonic()
     try:
         result = run_handler(config, args)
-        presented_data = present(result, args)
+        presented_data = present(result, args, base_url=view_base_url(config))
 
         project = getattr(args, "project", None)
         if args.group in ("issue", "bug", "story"):

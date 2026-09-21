@@ -6,40 +6,28 @@ token-cost lever. Pass --json-full at the CLI to bypass this and get raw JSON.
 """
 import re
 
-from backlog_tool.settings import load_config
-
-
-def _base_url():
-    """Get base_url from config for building attachment URLs."""
-    try:
-        config = load_config()
-        return config.get("base_url", "")
-    except Exception:
-        return ""
-
-
-def _attachment_url(attachment_id):
+def _attachment_url(attachment_id, base_url=""):
     """Build a full attachment image URL."""
-    base = _base_url()
+    base = (base_url or "").rstrip("/")
     return f"{base}/ViewAttachmentImage.action?attachmentId={attachment_id}"
 
 
-def _build_attachment_map(attachments):
+def _build_attachment_map(attachments, base_url=""):
     """Map filename -> full URL from attachments list."""
     mapping = {}
     for att in attachments or []:
         name = att.get("name")
         att_id = att.get("id")
         if name and att_id:
-            mapping[name] = _attachment_url(att_id)
+            mapping[name] = _attachment_url(att_id, base_url=base_url)
     return mapping
 
 
-def _replace_evidence_urls(description, attachments):
+def _replace_evidence_urls(description, attachments, base_url=""):
     """Replace ![image][filename] references in description with full URLs."""
     if not description or not attachments:
         return description
-    mapping = _build_attachment_map(attachments)
+    mapping = _build_attachment_map(attachments, base_url=base_url)
     if not mapping:
         return description
 
@@ -125,23 +113,19 @@ def due_status(due_date, today=None):
     }
 
 
-def compact_issue(issue, view="compact"):
+def compact_issue(issue, view="compact", base_url=""):
     """Trim a raw Backlog issue (get/create/update/apply response)."""
     if not isinstance(issue, dict):
         return issue
     if view == "full":
         return issue
 
+    base_url = (base_url or "").rstrip("/")
+
     description = issue.get("description")
     attachments = issue.get("attachments")
     if description and attachments:
-        description = _replace_evidence_urls(description, attachments)
-    
-    try:
-        config = load_config()
-        base_url = config.get("base_url", "").rstrip("/")
-    except Exception:
-        base_url = ""
+        description = _replace_evidence_urls(description, attachments, base_url=base_url)
         
     issue_key = issue.get("issueKey")
     

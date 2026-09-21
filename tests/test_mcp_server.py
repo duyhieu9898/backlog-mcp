@@ -1,5 +1,5 @@
+import json
 import os
-from types import SimpleNamespace
 from unittest import mock
 
 import anyio
@@ -16,69 +16,53 @@ def test_runtime_state_is_rooted_in_local_mcp_directory():
 
 
 def test_create_issue_previews_by_default():
-    expected_result = CallToolResult(
-        content=[TextContent(type="text", text="success")],
-        structuredContent={"ok": True}
-    )
-    with mock.patch.object(server, "_invoke", return_value=expected_result) as invoke:
+    with mock.patch("backlog_mcp.server.issue_service.create_issue", return_value={"dryRun": True, "payload": {}}) as create_mock:
         result = server.create_issue("Summary", issue_type="Bug")
 
-    assert result == expected_result
-    args = invoke.call_args.args[0]
-    assert args[:3] == ["issue", "create", "Summary"]
-    assert "--issue-type" in args
-    assert "--apply" not in args
+    assert result.isError is False
+    assert create_mock.call_args.kwargs["dry_run"] is True
+    assert create_mock.call_args.kwargs["summary"] == "Summary"
+    assert create_mock.call_args.kwargs["issue_type"] == "Bug"
 
 
 def test_create_issue_applies_only_when_requested():
-    with mock.patch.object(server, "_invoke") as invoke:
+    with mock.patch("backlog_mcp.server.issue_service.create_issue", return_value={"id": 123, "issueKey": "AQM-1"}) as create_mock:
         server.create_issue("Summary", issue_type="Bug", mode="apply")
 
-    assert invoke.call_args.args[0][-1] == "--apply"
+    assert create_mock.call_args.kwargs["dry_run"] is False
 
 
 def test_resolve_bug_previews_by_default_and_applies_when_requested():
-    expected_result = CallToolResult(
-        content=[TextContent(type="text", text="{}")],
-        structuredContent={}
-    )
-    with mock.patch.object(server, "_invoke", return_value=expected_result) as invoke:
+    with mock.patch("backlog_mcp.server.bug_workflow.resolve_bug", return_value={"dryRun": True, "issue": "AQM-1"}) as resolve_mock:
         server.resolve_bug("AQM-1")
+    assert resolve_mock.call_args.kwargs["dry_run"] is True
 
-    assert "--apply" not in invoke.call_args.args[0]
-
-    with mock.patch.object(server, "_invoke", return_value=expected_result) as invoke:
+    with mock.patch("backlog_mcp.server.bug_workflow.resolve_bug", return_value={"issueKey": "AQM-1"}) as resolve_mock:
         server.resolve_bug("AQM-1", mode="apply")
-
-    assert invoke.call_args.args[0][-1] == "--apply"
+    assert resolve_mock.call_args.kwargs["dry_run"] is False
 
 
 def test_update_issue_and_create_ut_bug_preview_by_default():
-    with mock.patch.object(server, "_invoke") as invoke:
+    with mock.patch("backlog_mcp.server.issue_service.update_issue", return_value={"dryRun": True}) as update_mock, \
+         mock.patch("backlog_mcp.server.ut_bug.create_subtask_bug", return_value={"dryRun": True}) as ut_mock:
         server.update_issue("AQM-1", summary="Updated")
         server.create_ut_bug("AQM-1", "module", "failure")
 
-    for call in invoke.call_args_list:
-        assert "--apply" not in call.args[0]
+    assert update_mock.call_args.kwargs["dry_run"] is True
+    assert ut_mock.call_args.kwargs["dry_run"] is True
 
 
 def test_inspect_project_does_not_write_by_default():
-    expected_result = CallToolResult(
-        content=[TextContent(type="text", text="{}")],
-        structuredContent={}
-    )
-    with mock.patch.object(server, "_invoke", return_value=expected_result) as invoke:
+    with mock.patch("backlog_mcp.server.build_project_config", return_value={"key": "AQM"}) as build_mock, \
+         mock.patch("backlog_mcp.server.write_catalog") as write_mock:
         server.inspect_project("AQM")
 
-    assert invoke.call_args.args[0] == ["project", "inspect", "AQM", "--stdout"]
+    build_mock.assert_called_once()
+    write_mock.assert_not_called()
 
 
 def test_get_issues_maps_pagination_sort_and_field_selection():
-    expected_result = CallToolResult(
-        content=[TextContent(type="text", text="issues")],
-        structuredContent={"ok": True}
-    )
-    with mock.patch.object(server, "_invoke", return_value=expected_result) as invoke:
+    with mock.patch("backlog_mcp.server.issue_service.get_issues", return_value=[]) as get_mock:
         result = server.get_issues(
             project_key="AQM",
             query="payment",
@@ -89,21 +73,15 @@ def test_get_issues_maps_pagination_sort_and_field_selection():
             order="desc",
         )
 
-    assert result == expected_result
-    args = invoke.call_args.args[0]
-    kwargs = invoke.call_args.kwargs
-    assert args == [
-        "issue", "list",
-        "--limit", "25",
-        "--offset", "50",
-        "--sort", "updated",
-        "--order", "desc",
-        "--project", "AQM",
-        "--query", "payment",
-        "--type", "Bug",
-        "--view", "compact",
-    ]
-    assert kwargs["paginated"] is True
+    assert result.isError is False
+    kwargs = get_mock.call_args.kwargs
+    assert kwargs["project_key"] == "AQM"
+    assert kwargs["query"] == "payment"
+    assert kwargs["issue_types"] == ["Bug"]
+    assert kwargs["limit"] == 25
+    assert kwargs["offset"] == 50
+    assert kwargs["sort"] == "updated"
+    assert kwargs["order"] == "desc"
 
 
 def test_get_issues_with_invalid_cursor_returns_error():
@@ -112,19 +90,16 @@ def test_get_issues_with_invalid_cursor_returns_error():
     assert "Invalid cursor format" in result.content[0].text
 
 
-def test_invoke_returns_stable_success_envelope_with_pagination():
-    command_result = SimpleNamespace(
-        data=[{"issueKey": "AQM-1", "summary": "Fix it", "status": "Open"}],
-        text='[{"issueKey":"AQM-1"}]',
+def test_build_result_returns_stable_success_envelope_with_pagination():
+    data = [{"issueKey": "AQM-1", "summary": "Fix it", "status": "Open"}]
+    result = server._build_result(
+        data,
+        tool="get_issues",
+        list_key="issues",
+        limit=1,
+        offset=0,
+        paginated=True,
     )
-    with mock.patch.object(server, "execute", return_value=command_result):
-        result = server._invoke(
-            ["issue", "list", "--limit", "1", "--offset", "0"],
-            list_key="issues",
-            limit=1,
-            offset=0,
-            paginated=True,
-        )
 
     assert result.isError is False
     assert result.structuredContent == {
@@ -137,21 +112,21 @@ def test_invoke_returns_stable_success_envelope_with_pagination():
         },
     }
     assert result.meta == {
-        "command": "issue:list",
+        "tool": "get_issues",
+        "command": "get_issues",
         "resourceUris": ["backlog://issue/AQM-1"],
     }
-    assert "Retrieved 1 items via 'issue:list'." in result.content[0].text
+    assert "Retrieved 1 items via 'get_issues'." in result.content[0].text
 
 
-def test_invoke_uses_claude_project_directory_as_workspace():
-    command_result = SimpleNamespace(data=[], text="[]")
+def test_server_uses_claude_project_directory_as_workspace():
     with (
         mock.patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": "/work/AQM"}, clear=True),
-        mock.patch.object(server, "execute", return_value=command_result) as execute,
+        mock.patch("backlog_mcp.server.issue_service.get_issues", return_value=[]) as get_mock,
     ):
-        server._invoke(["issue", "list"])
+        server.get_issues(project_key="AQM")
 
-    execute.assert_called_once_with(["issue", "list"], workspace_path="/work/AQM")
+    assert get_mock.call_args.kwargs["start_path"] == "/work/AQM"
 
 
 def test_explicit_backlog_workspace_overrides_claude_project_directory():
@@ -166,9 +141,8 @@ def test_explicit_backlog_workspace_overrides_claude_project_directory():
         assert server._workspace_path() == "/work/OOP"
 
 
-def test_invoke_returns_structured_error_without_raising():
-    with mock.patch.object(server, "execute", side_effect=ValueError("bad field")):
-        result = server._invoke(["issue", "update", "AQM-1"])
+def test_error_result_returns_structured_error_without_raising():
+    result = server._error_result("update_issue", ValueError("bad field"))
 
     assert result.isError is True
     assert result.structuredContent is None
@@ -222,7 +196,7 @@ def test_to_markdown_formatting():
         {"issueKey": "PROJ-1", "summary": "Fix login issue", "status": "In Progress"},
         {"issueKey": "PROJ-2", "summary": "Design landing page", "status": "Open"}
     ]
-    res_list = server._to_markdown(data_list, ["issue", "list"])
+    res_list = server._to_markdown(data_list, "get_issues")
     assert "PROJ-1" in res_list
     assert "Fix login issue" in res_list
     assert "[In Progress]" in res_list
@@ -231,42 +205,33 @@ def test_to_markdown_formatting():
 
     # Test formatting single issue with status
     data_single = {"issueKey": "PROJ-123", "summary": "Database error", "status": "Closed"}
-    res_single = server._to_markdown(data_single, ["issue", "get", "PROJ-123"])
+    res_single = server._to_markdown(data_single, "get_issue")
     assert "PROJ-123" in res_single
     assert "Database error" in res_single
     assert "[Closed]" in res_single
 
 
-def test_issue_compact_model_validation_and_normalization():
-    # Test that _normalize_data correctly cleans and validates fields based on IssueCompact
-    raw_data = {
-        "issueKey": "PROJ-123",
-        "summary": "Fix validation error",
-        "description": "Details here",
-        "issueType": "Bug",
-        "status": "Open",
-        "assignee": "Test User",
-        "priority": "High",
-        "startDate": None, # Should be excluded since it is None and we model_dump(exclude_none=True)
-        "extraFieldToIgnore": "should_be_stripped", # Not in IssueCompact, should be ignored
-        "customFields": [{"name": "QC", "value": "Unit Test"}]
-    }
+def test_tool_execution_logs_metrics_on_success_and_error():
+    with mock.patch("backlog_mcp.server.log_metric") as log_metric_mock, \
+         mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", return_value={"issueKey": "AQM-1"}):
+        result = server.get_bug_context("AQM-1")
+        assert result.isError is False
+        log_metric_mock.assert_called_once()
+        call_args = log_metric_mock.call_args
+        assert call_args.args[0] == "get_bug_context"
+        assert call_args.args[3] == "ok"
 
-    normalized = server._normalize_data(raw_data, ["issue", "get", "PROJ-123"])
-    assert normalized["issueKey"] == "PROJ-123"
-    assert normalized["summary"] == "Fix validation error"
-    assert normalized["description"] == "Details here"
-    assert normalized["issueType"] == "Bug"
-    assert normalized["status"] == "Open"
-    assert normalized["assignee"] == "Test User"
-    assert normalized["priority"] == "High"
-    assert "startDate" not in normalized
-    assert "extraFieldToIgnore" not in normalized
-    assert normalized["customFields"] == [{"name": "QC", "value": "Unit Test"}]
+    with mock.patch("backlog_mcp.server.log_metric") as log_metric_mock, \
+         mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", side_effect=ValueError("Boom")):
+        result = server.get_bug_context("AQM-1")
+        assert result.isError is True
+        log_metric_mock.assert_called_once()
+        call_args = log_metric_mock.call_args
+        assert call_args.args[0] == "get_bug_context"
+        assert call_args.args[3] == "error"
 
 
 def test_config_resource_excludes_sensitive_keys():
-    import json
     raw_config = {
         "base_url": "https://bapjp.backlog.com",
         "api_key": "sensitive_api_key_123",
@@ -304,27 +269,13 @@ def test_config_resource_excludes_sensitive_keys():
 
 
 def test_issue_resource_success_and_error():
-    import json
-    
-    # Test success scenario
-    success_result = CallToolResult(
-        content=[TextContent(type="text", text="issue details")],
-        structuredContent={"issueKey": "AQM-1", "summary": "Fix issue"},
-        isError=False
-    )
-    with mock.patch("backlog_mcp.server._invoke", return_value=success_result):
+    with mock.patch("backlog_mcp.server.issue_service.get_issue", return_value={"issueKey": "AQM-1", "summary": "Fix issue"}):
         res_json = server.issue_resource("AQM-1")
         res = json.loads(res_json)
         assert res["issueKey"] == "AQM-1"
         assert res["summary"] == "Fix issue"
 
-    # Test error scenario
-    error_result = CallToolResult(
-        content=[TextContent(type="text", text="Error: Issue not found")],
-        structuredContent=None,
-        isError=True
-    )
-    with mock.patch("backlog_mcp.server._invoke", return_value=error_result):
+    with mock.patch("backlog_mcp.server.issue_service.get_issue", side_effect=ValueError("Issue not found")):
         res_json = server.issue_resource("AQM-999")
         res = json.loads(res_json)
         assert res["ok"] is False
