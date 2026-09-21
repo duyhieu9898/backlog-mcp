@@ -5,9 +5,10 @@ from datetime import date
 
 from .bug_template import bug_context
 from backlog_tool.client import BacklogClient
-from backlog_tool.resolver import find_option, issue_type_options, resolve_custom_field_defaults, resolve_status, status_options
+from backlog_tool.resolver import find_option, issue_type_options, status_options
 from backlog_tool.settings import load_workflow_config, log_event, resolve_project, resolve_project_key, resolve_user_id
 from .config import require_int, require_list, require_value, require_mapping
+from .resolution_plan import ResolutionPlan, resolution_plan_to_payload
 from .resolve_policy import (
     ALWAYS_OVERWRITE_FIELDS,
     ASSIGNMENT_SOURCE,
@@ -235,7 +236,7 @@ def detected_roles(issue, project):
     ]
 
 
-def build_resolve_bug_payload(
+def build_resolution_plan(
     config,
     issue_key,
     status=None,
@@ -252,6 +253,7 @@ def build_resolve_bug_payload(
     today=None,
     start_path=None,
 ):
+    """Build semantic resolve intent without Backlog wire-field IDs."""
     project_key = issue_key.split("-")[0]
     workflow = merge_resolve_defaults(config, project_key)
     client = BacklogClient(config)
@@ -265,17 +267,20 @@ def build_resolve_bug_payload(
         due_in_days,
         fallback_date=start_date,
     ).strftime("%Y-%m-%d")
-    status = status or require_value(workflow, "status", WORKFLOW_NAME)
+    target_status = status or require_value(workflow, "status", WORKFLOW_NAME)
     custom_defaults = require_mapping(workflow, "custom_fields", WORKFLOW_NAME)
 
-    cause_key = "bug_category" if "bug_category" in project.get("bug", {}).get("custom_fields", {}) else "cause_category"
+    project_fields = project.get("bug", {}).get("custom_fields", {})
+    cause_key = "bug_category" if "bug_category" in project_fields else "cause_category"
 
     def get_custom_val(key, required=True):
         val = custom_defaults.get(key)
         if required and not val:
             if key in OPTIONAL_FIELDS:
                 return None
-            raise ValueError(f"Missing required custom field '{key}' in workflow.custom_fields configuration.")
+            raise ValueError(
+                f"Missing required custom field '{key}' in workflow.custom_fields configuration."
+            )
         return val
 
     field_values = {
@@ -303,44 +308,61 @@ def build_resolve_bug_payload(
     if user_id(issue.get("assignee")) != expected_assignee_id:
         raise ValueError(f"{issue_key} is not assigned to the configured resolve user.")
 
-    payload = {
-        "statusId": resolve_status(project, status),
-        "assigneeId": created_user_ref(issue),
-    }
-    if not issue.get("startDate"):
-        payload["startDate"] = today_text
-    if not issue.get("dueDate"):
-        payload["dueDate"] = due_date_text
-    if issue.get("estimatedHours") is None and estimated_hours is not None:
-        payload["estimatedHours"] = estimated_hours
-    elif issue.get("estimatedHours") is None:
-        payload["estimatedHours"] = require_value(workflow, "estimated_hours", WORKFLOW_NAME)
-    if issue.get("actualHours") is None and actual_hours is not None:
-        payload["actualHours"] = actual_hours
-    elif issue.get("actualHours") is None:
-        payload["actualHours"] = require_value(workflow, "actual_hours", WORKFLOW_NAME)
-    comment = comment_with_commit(comment, commit)
-    if comment:
-        payload["comment"] = comment
+    semantic_custom_fields = {}
 
-    def get_project_field_key(key):
-        if key == "cause_category":
-            return cause_key
-        return key
+    def project_field_key(key):
+        return cause_key if key == "cause_category" else key
 
     for policy_key in ONLY_WHEN_EMPTY_FIELDS:
-        field_key = get_project_field_key(policy_key)
-        add_custom_default_if_missing(
-            payload,
-            issue,
-            project,
-            field_key,
-            field_values[field_key],
-            optional=policy_key in OPTIONAL_FIELDS,
-        )
+        field_key = project_field_key(policy_key)
+        optional = policy_key in OPTIONAL_FIELDS
+        if field_key not in project_fields:
+            if optional:
+                continue
+            available = ", ".join(sorted(project_fields))
+            raise ValueError(
+                f"Unknown custom field '{field_key}'. Available: {available}"
+            )
+        if issue_has_custom_value(issue, project, field_key):
+            continue
+        selected_value = field_values[field_key]
+        if selected_value is None and optional:
+            continue
+        semantic_custom_fields[field_key] = selected_value
+
     for policy_key in ALWAYS_OVERWRITE_FIELDS:
-        field_key = get_project_field_key(policy_key)
-        add_custom_value(payload, project, field_key, field_values[field_key])
+        field_key = project_field_key(policy_key)
+        if field_key not in project_fields:
+            available = ", ".join(sorted(project_fields))
+            raise ValueError(
+                f"Unknown custom field '{field_key}'. Available: {available}"
+            )
+        semantic_custom_fields[field_key] = field_values[field_key]
+
+    effective_comment = comment_with_commit(comment, commit)
+    plan = ResolutionPlan(
+        status=target_status,
+        assignee_id=created_user_ref(issue),
+        start_date=today_text if not issue.get("startDate") else None,
+        due_date=due_date_text if not issue.get("dueDate") else None,
+        estimated_hours=(
+            estimated_hours
+            if issue.get("estimatedHours") is None and estimated_hours is not None
+            else require_value(workflow, "estimated_hours", WORKFLOW_NAME)
+            if issue.get("estimatedHours") is None
+            else None
+        ),
+        actual_hours=(
+            actual_hours
+            if issue.get("actualHours") is None and actual_hours is not None
+            else require_value(workflow, "actual_hours", WORKFLOW_NAME)
+            if issue.get("actualHours") is None
+            else None
+        ),
+        comment=effective_comment,
+        custom_fields=semantic_custom_fields,
+    )
+
     warnings = []
     if not fix_description:
         warnings.append(
@@ -352,19 +374,42 @@ def build_resolve_bug_payload(
             f"Detected Role is {', '.join(roles)}, not Tester; confirm the reporter is the intended QC assignee."
         )
 
-    built = {
-        "issue": issue_key,
-        "project": project["key"],
-        "payload": payload,
-        "context": bug_context(issue),
+    return {
+        "issue": issue,
+        "issue_key": issue_key,
+        "project": project,
+        "plan": plan,
+        "warnings": warnings,
         "assignment": {
             "from": user_summary(issue.get("assignee")),
             "to": user_summary(issue.get("createdUser")),
             "source": ASSIGNMENT_SOURCE,
         },
     }
-    built["changes"] = summarize_changes(issue, project, payload, status)
-    built["warnings"] = warnings
+
+
+def build_resolve_bug_payload(config, issue_key, start_path=None, **kwargs):
+    """Compatibility boundary: map a semantic plan to the existing Backlog payload."""
+    planned = build_resolution_plan(
+        config,
+        issue_key,
+        start_path=start_path,
+        **kwargs,
+    )
+    issue = planned["issue"]
+    project = planned["project"]
+    plan = planned["plan"]
+    payload = resolution_plan_to_payload(project, plan)
+
+    built = {
+        "issue": issue_key,
+        "project": project["key"],
+        "payload": payload,
+        "context": bug_context(issue),
+        "assignment": planned["assignment"],
+    }
+    built["changes"] = summarize_changes(issue, project, payload, plan.status)
+    built["warnings"] = planned["warnings"]
     return built
 
 

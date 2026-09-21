@@ -199,6 +199,54 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertEqual([4], call_kwargs["status_ids"])
         self.assertEqual(778617, call_kwargs["assignee_id"])
 
+    def test_build_resolution_plan_keeps_semantic_field_names(self):
+        planned = bug_workflow.build_resolution_plan(
+            CONFIG,
+            "AQM-123",
+            today=date(2026, 6, 2),
+            actual_hours=1.5,
+            comment="Fixed save issue",
+        )
+
+        plan = planned["plan"]
+        self.assertEqual("Resolved", plan.status)
+        self.assertEqual(1001, plan.assignee_id)
+        self.assertEqual("2026-06-02", plan.start_date)
+        self.assertEqual("2026-06-04", plan.due_date)
+        self.assertEqual(1.5, plan.actual_hours)
+        self.assertEqual("Fixed save issue", plan.comment)
+        self.assertEqual(
+            {
+                "qc_activity": "Integration Test",
+                "cause_category": "Not Applicable",
+                "bug_origin": "FUN_Incomplete Function",
+                "resolution": "fixed",
+                "impacted": "no",
+                "corrective_action": "fixed save fails",
+            },
+            plan.custom_fields,
+        )
+        self.assertFalse(any(key.startswith("customField_") for key in plan.custom_fields))
+
+    def test_resolution_plan_mapper_is_only_backlog_wire_translation_step(self):
+        plan = bug_workflow.ResolutionPlan(
+            status="Resolved",
+            assignee_id=1001,
+            start_date="2026-06-02",
+            custom_fields={
+                "qc_activity": "Integration Test",
+                "corrective_action": "fixed save fails",
+            },
+        )
+
+        payload = bug_workflow.resolution_plan_to_payload(PROJECT, plan)
+
+        self.assertEqual(4, payload["statusId"])
+        self.assertEqual(1001, payload["assigneeId"])
+        self.assertEqual("2026-06-02", payload["startDate"])
+        self.assertEqual(10, payload["customField_1"])
+        self.assertEqual("fixed save fails", payload["customField_5"])
+
     def test_resolve_bug_dry_run_builds_personal_update_payload(self):
         result = bug_workflow.resolve_bug(
             CONFIG,
