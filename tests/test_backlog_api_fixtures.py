@@ -31,11 +31,26 @@ CONFIG = {
 }
 
 
+ISSUE_TYPE_OPTIONS = {
+    "AQM": [
+        {"id": 703415, "name": "Story"},
+        {"id": 676899, "name": "Task"},
+        {"id": 676898, "name": "Bug"},
+    ],
+    "OOP": [
+        {"id": 527228, "name": "Story"},
+        {"id": 351796, "name": "Task"},
+        {"id": 351795, "name": "Bug"},
+    ],
+}
+
+
 def project_from_fixtures(project_key):
     return {
         "key": project_key,
         "id": 158425 if project_key == "AQM" else 82531,
         "bug": {
+            "issue_type_options": ISSUE_TYPE_OPTIONS[project_key],
             "status_options": load_fixture(f"{project_key}_statuses.json"),
             "custom_fields": load_fixture(f"{project_key}_custom_fields.json"),
         },
