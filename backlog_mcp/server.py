@@ -66,28 +66,39 @@ mcp = FastMCP(
 )
 
 _config: dict[str, Any] | None = None
+_bootstrap_error: Exception | None = None
 
 
 def bootstrap_config() -> dict[str, Any]:
     """Load env and config once at startup."""
-    global _config
+    global _config, _bootstrap_error
     load_env_file()
-    _config = load_config()
-    return _config
+    try:
+        _config = load_config()
+        _bootstrap_error = None
+        return _config
+    except Exception as error:
+        _config = None
+        _bootstrap_error = error
+        raise
 
 
 def get_config_instance() -> dict[str, Any]:
-    """Retrieve the singleton config or load it if not initialized."""
-    global _config
-    if _config is None:
-        _config = bootstrap_config()
-    return _config
+    """Retrieve the singleton config or surface the startup configuration error."""
+    global _config, _bootstrap_error
+    if _config is not None:
+        return _config
+    if _bootstrap_error is not None:
+        raise RuntimeError(f"Backlog MCP configuration failed to load: {_bootstrap_error}") from _bootstrap_error
+    return bootstrap_config()
 
 
 # Bootstrap on module import
 try:
     bootstrap_config()
 except Exception:
+    # Keep module importable for MCP discovery/tests, but retain the error so
+    # the first config-dependent tool call fails clearly instead of retrying silently.
     pass
 
 
@@ -495,7 +506,10 @@ def create_ut_bug(
             {
                 "issueKey": e.issue_key,
                 "committed": {"created": True, "postCreateUpdate": False},
+                "retrySafe": False,
                 "recovery": {
+                    "action": "update_existing_issue",
+                    "issueKey": e.issue_key,
                     "targetStatus": e.target_status,
                     "updatePayload": e.payload,
                 },

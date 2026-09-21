@@ -15,6 +15,27 @@ def test_runtime_state_is_rooted_in_local_mcp_directory():
     assert settings.CONFIG_PATH == os.path.join(settings.MCP_ROOT, "config", "backlog.json")
 
 
+
+def test_get_config_instance_surfaces_bootstrap_error_without_silent_retry():
+    original_config = server._config
+    original_error = server._bootstrap_error
+    try:
+        server._config = None
+        server._bootstrap_error = ValueError("bad config")
+
+        with mock.patch("backlog_mcp.server.bootstrap_config") as bootstrap_mock:
+            try:
+                server.get_config_instance()
+                assert False, "expected startup config error"
+            except RuntimeError as error:
+                assert "configuration failed to load" in str(error)
+                assert "bad config" in str(error)
+
+        bootstrap_mock.assert_not_called()
+    finally:
+        server._config = original_config
+        server._bootstrap_error = original_error
+
 def test_create_issue_previews_by_default():
     with mock.patch("backlog_mcp.server.issue_service.create_issue", return_value={"dryRun": True, "payload": {}}) as create_mock:
         result = server.create_issue("Summary", issue_type="Bug")
@@ -310,6 +331,9 @@ def test_create_ut_bug_returns_structured_partial_write_error():
     assert detail["kind"] == "partial_write"
     assert detail["issueKey"] == "AQM-123"
     assert detail["committed"] == {"created": True, "postCreateUpdate": False}
+    assert detail["retrySafe"] is False
+    assert detail["recovery"]["action"] == "update_existing_issue"
+    assert detail["recovery"]["issueKey"] == "AQM-123"
     assert detail["recovery"]["targetStatus"] == "Closed"
     assert detail["recovery"]["updatePayload"] == {"statusId": 4, "assigneeId": 9}
 
