@@ -165,3 +165,40 @@ def _build_result(
             "resourceUris": uris,
         },
     )
+
+
+def _partial_write_result(
+    tool: str,
+    message: str,
+    data: dict[str, Any],
+    started: float | None = None,
+    project: str | None = None,
+) -> CallToolResult:
+    """Return a machine-readable error when a multi-step mutation partially commits."""
+    if started is not None:
+        duration_ms = (time.monotonic() - started) * 1000
+        try:
+            log_metric(tool, 0, duration_ms, "partial_write", dry_run=False, project=project)
+            log_event(
+                "error",
+                "tool_partial_write",
+                tool=tool,
+                duration_ms=round(duration_ms, 1),
+                project=project,
+            )
+        except Exception:
+            pass
+
+    return CallToolResult(
+        content=[TextContent(type="text", text=f"Partial write: {message}")],
+        structuredContent={
+            "ok": False,
+            "error": {
+                "kind": "partial_write",
+                "message": message,
+                **data,
+            },
+        },
+        isError=True,
+        _meta={"tool": tool, "command": tool},
+    )
