@@ -7,6 +7,7 @@ from .resolver import (
     resolve_custom_fields,
     resolve_custom_field_defaults,
     resolve_issue_type,
+    resolve_status,
 )
 from .settings import log_event, resolve_project, resolve_project_for_issue
 
@@ -22,16 +23,6 @@ def resolve_priority(config, selected):
         return int(selected)
     priorities = request_json(config, "GET", "/priorities")
     return find_option(priorities, selected, "priority")
-
-
-def resolve_status(config, project, selected):
-    """Resolve a status name or ID to a Backlog status ID (fetches from API)."""
-    if selected is None:
-        return None
-    if str(selected).isdigit():
-        return int(selected)
-    statuses = request_json(config, "GET", f"/projects/{project['key']}/statuses")
-    return find_option(statuses, selected, "status")
 
 
 def resolve_parent_issue_id(config, parent_issue_key):
@@ -279,7 +270,7 @@ def build_update_payload(
     optional_values = {
         "summary": summary or None,
         "description": description or None,
-        "statusId": resolve_status(config, project, status) if status else None,
+        "statusId": resolve_status(project, status) if status else None,
         "priorityId": resolve_priority(config, priority) if priority else None,
         "assigneeId": resolve_assignee(config, assignee) if assignee else None,
         "startDate": start_date or None,
