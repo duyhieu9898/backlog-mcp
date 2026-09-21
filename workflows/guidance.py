@@ -6,7 +6,7 @@ This replaces long prose docs: the agent runs `backlog.py bug rules` or
 reading multiple markdown files into context.
 """
 
-from backlog_tool.settings import load_workflow_config, resolve_project_key
+from backlog_tool.settings import load_workflow_config, resolve_project, resolve_project_key
 from .resolve_bug import merge_resolve_defaults
 from .resolve_policy import (
     GUIDED_FIELDS,
@@ -25,6 +25,33 @@ def custom_default(custom_fields, field_key):
     if field_key == "cause_category":
         return custom_fields.get("cause_category") or custom_fields.get("bug_category")
     return custom_fields.get(field_key)
+
+
+def project_field_config(config, project_key, field_key, start_path=None):
+    if not config:
+        return None
+    resolved_key = resolve_project_key(config, project_key, start_path=start_path)
+    project = resolve_project(config, resolved_key, start_path=start_path)
+    fields = project.get("bug", {}).get("custom_fields", {})
+    resolved_field_key = field_key
+    if field_key == "cause_category" and field_key not in fields and "bug_category" in fields:
+        resolved_field_key = "bug_category"
+    field_config = fields.get(resolved_field_key)
+    if not field_config:
+        available = ", ".join(sorted(fields))
+        raise ValueError(
+            f"Unknown custom field '{field_key}' for project {resolved_key}. Available: {available}"
+        )
+    return resolved_key, resolved_field_key, field_config
+
+
+def guidance_for_option(option_name, descriptions):
+    if option_name in descriptions:
+        return descriptions[option_name]
+    for pattern, description in descriptions.items():
+        if pattern.endswith("*") and option_name.startswith(pattern[:-1]):
+            return description
+    return None
 
 
 def resolve_rules(config=None, project_key=None, start_path=None):
@@ -117,8 +144,34 @@ def field_guidance(field=None, config=None, project_key=None, start_path=None):
     if field not in FIELD_GUIDANCE:
         available = ", ".join(FIELD_GUIDANCE.keys())
         raise ValueError(f"Unknown field '{field}'. Available: {available}")
-    return {
+
+    field_info = dict(FIELD_GUIDANCE[field])
+    result = {
         "field": field,
-        **FIELD_GUIDANCE[field],
+        "summary": field_info["summary"],
         "default": get_val(field),
     }
+    project_field = project_field_config(config, project_key, field, start_path=start_path)
+    if project_field is None:
+        result["options"] = dict(field_info["options"])
+        result["allowedValues"] = list(field_info["options"])
+        return result
+
+    resolved_key, resolved_field_key, field_config = project_field
+    allowed_values = [
+        option.get("name")
+        for option in field_config.get("value_options", [])
+        if option.get("name") is not None
+    ]
+    result.update(
+        {
+            "project": resolved_key,
+            "projectField": resolved_field_key,
+            "allowedValues": allowed_values,
+            "options": {
+                value: guidance_for_option(value, field_info["options"])
+                for value in allowed_values
+            },
+        }
+    )
+    return result
