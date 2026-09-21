@@ -387,3 +387,66 @@ def test_error_metrics_count_error_response_bytes():
     assert kwargs["text_bytes"] > 0
     assert kwargs["total_response_bytes"] > 0
     assert result.meta["traceId"]
+
+
+def test_personal_project_status_aggregates_work_and_bugs_in_one_tool():
+    with mock.patch(
+        "backlog_mcp.server.personal_status.get_my_project_status",
+        return_value={
+            "storiesAndTasks": [{"issueKey": "OOP-1"}],
+            "openBugs": [{"issueKey": "OOP-2"}],
+            "summary": {
+                "storyTaskCount": 1,
+                "openBugCount": 1,
+                "overdueCount": 0,
+                "dueSoonCount": 0,
+            },
+        },
+    ) as status_mock:
+        result = server.get_my_project_status("OOP")
+
+    assert result.isError is False
+    assert result.structuredContent["data"]["summary"]["openBugCount"] == 1
+    status_mock.assert_called_once_with(
+        server.get_config_instance(),
+        project_key="OOP",
+        start_path=server._workspace_path(),
+    )
+
+
+def test_personal_routing_contract_is_explicit_and_domain_first():
+    async def load_tools():
+        return await server.mcp.list_tools()
+
+    tools = {tool.name: tool for tool in anyio.run(load_tools)}
+
+    assert "Backlog is explicitly invoked" in tools["get_my_project_status"].description
+    assert "not a PM/team/project-health dashboard" in tools["get_my_project_status"].description
+    assert "Do not call get_issue first" in tools["get_bug_context"].description
+    assert "Do not pre-call get_bug_rules or get_bug_fields" in tools["resolve_bug"].description
+    assert "escape hatch" in tools["get_issues"].description
+    assert "personal Backlog status" in tools["get_issues"].description
+
+
+def test_server_instructions_require_backlog_activation():
+    instructions = server.SERVER_INSTRUCTIONS.lower()
+    assert "only route user requests here when backlog is explicitly invoked" in instructions
+    assert "backlog issue key or backlog url" in instructions
+    assert "do not claim generic requests" in instructions
+
+
+def test_personal_prompts_use_minimal_domain_paths():
+    resolve_prompt = server.resolve_bug_prompt("OOP-123")
+    assert "resolve_bug" in resolve_prompt
+    assert "Call `get_bug_context`" not in resolve_prompt
+    assert "Call `get_bug_rules`" not in resolve_prompt
+    assert "Call `get_bug_fields`" not in resolve_prompt
+
+    ut_prompt = server.create_ut_bug_prompt("OOP-1", "admin", "fails")
+    assert "create_ut_bug" in ut_prompt
+    assert "get_issue" not in ut_prompt
+
+    status_prompt = server.project_status_prompt("OOP")
+    assert "get_my_project_status" in status_prompt
+    assert "get_my_work_overview" not in status_prompt
+    assert "get_my_open_bugs" not in status_prompt
