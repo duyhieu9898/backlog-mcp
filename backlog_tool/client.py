@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import time
+
 import requests
 
 from .settings import (
@@ -8,6 +10,7 @@ from .settings import (
     require_api_key,
     response_error_body,
 )
+from .telemetry import current_trace_id, current_tool_name, ensure_trace, log_telemetry, serialized_bytes
 
 
 def log_response(method, path, response):
@@ -33,6 +36,12 @@ class BacklogClient:
         if params:
             request_params.update(params)
 
+        trace_id = ensure_trace()
+        started = time.monotonic()
+        request_body = {
+            "params": {k: v for k, v in request_params.items() if k != "apiKey"},
+            "data": data,
+        }
         response = requests.request(
             method,
             f"{api_base_url(self.config)}{path}",
@@ -40,7 +49,23 @@ class BacklogClient:
             data=data,
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
+        duration_ms = (time.monotonic() - started) * 1000
         log_response(method, path, response)
+        response_bytes = len((response.text or "").encode("utf-8"))
+        log_telemetry(
+            "api_call",
+            traceId=trace_id,
+            tool=current_tool_name(),
+            method=method,
+            path=path,
+            status=response.status_code,
+            ok=response.ok,
+            durationMs=round(duration_ms, 1),
+            requestBytes=serialized_bytes(request_body),
+            responseBytes=response_bytes,
+            request=request_body,
+            responseBody=response.text,
+        )
         try:
             response.raise_for_status()
         except requests.HTTPError as error:
