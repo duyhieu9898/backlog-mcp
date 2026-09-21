@@ -209,6 +209,11 @@ def test_resources_have_json_mime_type_and_issue_template():
 
     assert resource_by_uri["backlog://config"].mimeType == "application/json"
     assert resource_by_uri["backlog://config"].meta == {"kind": "config", "scope": "workstation"}
+    assert resource_by_uri["backlog://workflow-efficiency"].mimeType == "application/json"
+    assert resource_by_uri["backlog://workflow-efficiency"].meta == {
+        "kind": "workflow_efficiency",
+        "scope": "workstation",
+    }
     assert template_by_uri["backlog://issue/{issue_key}"].mimeType == "application/json"
     assert template_by_uri["backlog://issue/{issue_key}"].meta == {"kind": "issue", "scope": "project"}
 
@@ -450,3 +455,18 @@ def test_personal_prompts_use_minimal_domain_paths():
     assert "get_my_project_status" in status_prompt
     assert "get_my_work_overview" not in status_prompt
     assert "get_my_open_bugs" not in status_prompt
+
+
+def test_workflow_efficiency_resource_serializes_analyzer():
+    payload = {
+        "schemaVersion": 1,
+        "overview": {"candidateTasks": 2},
+        "tasks": [],
+    }
+    with mock.patch(
+        "backlog_mcp.server.summarize_workflow_efficiency",
+        return_value=payload,
+    ):
+        result = json.loads(server.workflow_efficiency_resource())
+
+    assert result == payload
