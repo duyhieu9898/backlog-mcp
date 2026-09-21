@@ -280,3 +280,32 @@ def test_issue_resource_success_and_error():
         res = json.loads(res_json)
         assert res["ok"] is False
         assert res["error"] == "Issue not found"
+
+
+def test_create_ut_bug_returns_structured_partial_write_error():
+    error = server.ut_bug.PostCreateUpdateError(
+        "AQM-123",
+        {"statusId": 4, "assigneeId": 9},
+        "Closed",
+        RuntimeError("update failed"),
+    )
+    with mock.patch(
+        "backlog_mcp.server.ut_bug.create_subtask_bug",
+        side_effect=error,
+    ):
+        result = server.create_ut_bug(
+            parent_key="AQM-1",
+            module="payments",
+            description="fails",
+            project_key="AQM",
+            mode="apply",
+        )
+
+    assert result.isError is True
+    assert result.structuredContent["ok"] is False
+    detail = result.structuredContent["error"]
+    assert detail["kind"] == "partial_write"
+    assert detail["issueKey"] == "AQM-123"
+    assert detail["committed"] == {"created": True, "postCreateUpdate": False}
+    assert detail["recovery"]["targetStatus"] == "Closed"
+    assert detail["recovery"]["updatePayload"] == {"statusId": 4, "assigneeId": 9}
