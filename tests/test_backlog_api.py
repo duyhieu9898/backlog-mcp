@@ -39,6 +39,12 @@ PROJECT = {
         "category_options": [
             {"id": 165807, "name": "112_DHP"},
         ],
+        "status_options": [
+            {"id": 1, "name": "Open"},
+            {"id": 2, "name": "In Progress"},
+            {"id": 3, "name": "Resolved"},
+            {"id": 4, "name": "Closed"},
+        ],
         "custom_fields": {
             "qc_activity": {
                 "label": "QC Activity",
@@ -170,8 +176,6 @@ class BacklogApiPayloadTest(unittest.TestCase):
         )
 
         def fake_request_json(config, method, path, data=None):
-            if path == "/projects/OOP/statuses":
-                return [{"id": 2, "name": "In Progress"}]
             if path == "/priorities":
                 return [{"id": 2, "name": "High"}]
             raise AssertionError(path)
