@@ -132,11 +132,10 @@ def test_build_result_returns_stable_success_envelope_with_pagination():
             "hasMore": True,
         },
     }
-    assert result.meta == {
-        "tool": "get_issues",
-        "command": "get_issues",
-        "resourceUris": ["backlog://issue/AQM-1"],
-    }
+    assert result.meta["tool"] == "get_issues"
+    assert result.meta["command"] == "get_issues"
+    assert result.meta["resourceUris"] == ["backlog://issue/AQM-1"]
+    assert result.meta["traceId"]
     assert "Retrieved 1 items via 'get_issues'." in result.content[0].text
 
 
@@ -354,3 +353,37 @@ def test_audit_config_workflows_live_mode_is_read_only():
     assert result.isError is False
     audit_mock.assert_called_once_with(server.get_config_instance(), mode="live")
     assert result.structuredContent["data"]["writesPerformed"] is False
+
+
+def test_result_metrics_include_structured_and_total_response_bytes():
+    with mock.patch("backlog_mcp.results.log_metric") as metric:
+        result = server._build_result(
+            {"issueKey": "AQM-1", "description": "x" * 2000},
+            tool="get_issue",
+            started=0.0,
+        )
+
+    kwargs = metric.call_args.kwargs
+    assert kwargs["text_bytes"] > 0
+    assert kwargs["structured_bytes"] > 0
+    assert kwargs["total_response_bytes"] >= kwargs["text_bytes"]
+    assert kwargs["total_response_bytes"] >= kwargs["structured_bytes"]
+    assert kwargs["total_response_bytes"] > max(
+        kwargs["text_bytes"],
+        kwargs["structured_bytes"],
+    )
+    assert kwargs["trace_id"] == result.meta["traceId"]
+
+
+def test_error_metrics_count_error_response_bytes():
+    with mock.patch("backlog_mcp.results.log_metric") as metric:
+        result = server._error_result(
+            "get_issue",
+            ValueError("x" * 500),
+            started=0.0,
+        )
+
+    kwargs = metric.call_args.kwargs
+    assert kwargs["text_bytes"] > 0
+    assert kwargs["total_response_bytes"] > 0
+    assert result.meta["traceId"]

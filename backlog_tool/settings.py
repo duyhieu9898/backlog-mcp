@@ -16,6 +16,7 @@ ENV_PATH = os.path.join(MCP_ROOT, ".env")
 LOG_DIR = os.path.join(MCP_ROOT, "logs")
 LOG_PATH = os.path.join(LOG_DIR, "backlog.log")
 METRICS_PATH = os.path.join(LOG_DIR, "metrics.log")
+TELEMETRY_PATH = os.path.join(LOG_DIR, "telemetry.jsonl")
 REQUEST_TIMEOUT_SECONDS = 20
 MAX_LOG_VALUE_LENGTH = 500
 
@@ -276,24 +277,48 @@ def response_error_body(response):
     return text[:MAX_LOG_VALUE_LENGTH]
 
 
-def log_metric(command, output_bytes, duration_ms, status, dry_run=None, project=None):
-    """Append one JSON line per CLI invocation to logs/metrics.log.
+def log_metric(
+    command,
+    output_bytes,
+    duration_ms,
+    status,
+    dry_run=None,
+    project=None,
+    *,
+    text_bytes=None,
+    structured_bytes=None,
+    total_response_bytes=None,
+    item_count=None,
+    trace_id=None,
+    client=None,
+):
+    """Append one vendor-neutral metric record.
 
-    output_bytes is a proxy for token cost; comparing compact vs --json-full
-    runs over time shows the real saving during live testing."""
+    outputBytes is retained for compatibility and now represents total MCP response
+    bytes when that value is available. Token counts are deliberately estimates:
+    actual model tokenization/caching is client-specific.
+    """
     try:
         os.makedirs(LOG_DIR, exist_ok=True)
         rotate_file_if_needed(METRICS_PATH)
-        estimated_tokens = round(output_bytes / 4)
+        total_bytes = total_response_bytes if total_response_bytes is not None else output_bytes
+        estimated_tokens = round((total_bytes or 0) / 4)
         record = {
+            "schemaVersion": 2,
             "ts": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
             "command": command,
             "status": status,
-            "outputBytes": output_bytes,
+            "outputBytes": total_bytes or 0,
+            "textBytes": text_bytes,
+            "structuredBytes": structured_bytes,
+            "totalResponseBytes": total_bytes or 0,
             "estimatedTokens": estimated_tokens,
             "durationMs": duration_ms,
             "dryRun": dry_run,
             "project": project,
+            "itemCount": item_count,
+            "traceId": trace_id,
+            "client": client,
         }
         with open(METRICS_PATH, "a", encoding="utf-8") as metrics_file:
             metrics_file.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -329,14 +354,21 @@ def summarize_metrics():
                 "totalOutputBytes": 0,
                 "totalEstimatedTokens": 0,
                 "errors": 0,
+                "partialWrites": 0,
+                "totalTextBytes": 0,
+                "totalStructuredBytes": 0,
                 "_durations": []
             }
         )
         bucket["runs"] += 1
-        bucket["totalOutputBytes"] += record.get("outputBytes") or 0
+        bucket["totalOutputBytes"] += record.get("totalResponseBytes") or record.get("outputBytes") or 0
+        bucket["totalTextBytes"] += record.get("textBytes") or 0
+        bucket["totalStructuredBytes"] += record.get("structuredBytes") or 0
         bucket["totalEstimatedTokens"] += record.get("estimatedTokens") or round((record.get("outputBytes") or 0) / 4)
         if record.get("status") == "error":
             bucket["errors"] += 1
+        if record.get("status") == "partial_write":
+            bucket["partialWrites"] += 1
         duration = record.get("durationMs")
         if duration is not None:
             bucket["_durations"].append(duration)
@@ -347,6 +379,9 @@ def summarize_metrics():
         durations = sorted(bucket.pop("_durations"))
         bucket["avgOutputBytes"] = round(bucket["totalOutputBytes"] / runs) if runs else 0
         bucket["avgEstimatedTokens"] = round(bucket["totalEstimatedTokens"] / runs) if runs else 0
+        bucket["avgTextBytes"] = round(bucket["totalTextBytes"] / runs) if runs else 0
+        bucket["avgStructuredBytes"] = round(bucket["totalStructuredBytes"] / runs) if runs else 0
+        bucket["errorRate"] = round(bucket["errors"] / runs, 4) if runs else 0
         bucket["p95DurationMs"] = durations[max(0, int(len(durations) * 0.95) - 1)] if durations else None
         summary.append(bucket)
     summary.sort(key=lambda item: item["totalOutputBytes"], reverse=True)

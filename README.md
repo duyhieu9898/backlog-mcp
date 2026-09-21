@@ -187,8 +187,35 @@ The active project is also resolved from the `BACKLOG_WORKSPACE_PATH` or
 hieund-backlog-mcp/
 ├── .env          # credentials, git-ignored
 ├── config/       # shared workstation config and project catalogs
-└── logs/         # operational logs, metrics, sessions (git-ignored)
+└── logs/
+    ├── backlog.log       # human-oriented operational events
+    ├── metrics.log       # compact per-tool metrics / token-cost proxy
+    ├── telemetry.jsonl   # canonical vendor-neutral trace events
+    └── sessions/         # CLI session journal
 ```
+
+### Telemetry
+
+`telemetry.jsonl` is the source of truth for MCP observability. Each MCP tool
+invocation receives a `traceId` that correlates tool arguments, Backlog API
+calls, latency, response sizes, errors, and the final MCP result.
+
+Token counts are intentionally estimates. The server records text,
+`structuredContent`, and total serialized response bytes so the same metric is
+comparable across Claude, Codex, Gemini/Antigravity, and other MCP clients even
+though their actual tokenizers and caching differ.
+
+Client metadata is optional. Set these per client process if you want
+cross-client comparisons:
+
+```bash
+BACKLOG_MCP_CLIENT=codex
+BACKLOG_MCP_CLIENT_VERSION=<optional>
+BACKLOG_MCP_TRANSPORT=stdio
+```
+
+The API key itself is never written to telemetry. Request parameters/payloads
+and Backlog response bodies are retained locally for debugging.
 
 ## Running CLI from Other Directories
 

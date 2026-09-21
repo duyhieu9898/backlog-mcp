@@ -6,6 +6,14 @@ from typing import Any
 from mcp.types import CallToolResult, TextContent
 
 from backlog_tool.settings import log_event, log_metric
+from backlog_tool.telemetry import (
+    clear_trace,
+    client_metadata,
+    current_trace_id,
+    ensure_trace,
+    log_telemetry,
+    serialized_bytes,
+)
 
 
 def _to_markdown(data: Any, tool_name: str) -> str:
@@ -89,24 +97,60 @@ def _error_result(
     project: str | None = None,
 ) -> CallToolResult:
     message = str(error)
+    text = f"Error: {message}"
+    trace_id = ensure_trace(tool)
+    text_bytes = len(text.encode("utf-8"))
+    response_shape = {
+        "content": [{"type": "text", "text": text}],
+        "structuredContent": None,
+        "isError": True,
+    }
+    total_bytes = serialized_bytes(response_shape)
     if started is not None:
         duration_ms = (time.monotonic() - started) * 1000
         try:
-            log_metric(tool, 0, duration_ms, "error", dry_run=dry_run, project=project)
+            log_metric(
+                tool,
+                total_bytes,
+                duration_ms,
+                "error",
+                dry_run=dry_run,
+                project=project,
+                text_bytes=text_bytes,
+                structured_bytes=0,
+                total_response_bytes=total_bytes,
+                trace_id=trace_id,
+                client=client_metadata(),
+            )
+            log_telemetry(
+                "tool_end",
+                status="error",
+                durationMs=round(duration_ms, 1),
+                project=project,
+                dryRun=dry_run,
+                textBytes=text_bytes,
+                structuredBytes=0,
+                totalResponseBytes=total_bytes,
+                estimatedTokens=round(total_bytes / 4),
+                error=message,
+            )
             log_event(
                 "error",
                 "tool_error",
                 tool=tool,
+                trace_id=trace_id,
                 duration_ms=round(duration_ms, 1),
                 error=message,
             )
         except Exception:
             pass
+    clear_trace()
 
     return CallToolResult(
-        content=[TextContent(type="text", text=f"Error: {message}")],
+        content=[TextContent(type="text", text=text)],
         structuredContent=None,
         isError=True,
+        _meta={"tool": tool, "command": tool, "traceId": trace_id},
     )
 
 
@@ -133,37 +177,71 @@ def _build_result(
         envelope_data["pagination"] = _pagination(limit, offset, returned, paginated)
 
     uris = _resource_uris(data)
+    trace_id = ensure_trace(tool)
+    meta = {
+        "tool": tool,
+        "command": tool,
+        "resourceUris": uris,
+        "traceId": trace_id,
+    }
+    text_bytes = len(text.encode("utf-8"))
+    structured_bytes = serialized_bytes(envelope_data)
+    total_bytes = serialized_bytes(
+        {
+            "content": [{"type": "text", "text": text}],
+            "structuredContent": envelope_data,
+            "_meta": meta,
+            "isError": False,
+        }
+    )
 
     if started is not None:
         duration_ms = (time.monotonic() - started) * 1000
-        output_bytes = len(text.encode("utf-8"))
         try:
             log_metric(
                 tool,
-                output_bytes,
+                total_bytes,
                 duration_ms,
                 "ok",
                 dry_run=dry_run,
                 project=project,
+                text_bytes=text_bytes,
+                structured_bytes=structured_bytes,
+                total_response_bytes=total_bytes,
+                item_count=returned,
+                trace_id=trace_id,
+                client=client_metadata(),
+            )
+            log_telemetry(
+                "tool_end",
+                status="ok",
+                durationMs=round(duration_ms, 1),
+                project=project,
+                dryRun=dry_run,
+                itemCount=returned,
+                pagination=envelope_data.get("pagination"),
+                textBytes=text_bytes,
+                structuredBytes=structured_bytes,
+                totalResponseBytes=total_bytes,
+                estimatedTokens=round(total_bytes / 4),
             )
             log_event(
                 "info",
                 "tool_done",
                 tool=tool,
+                trace_id=trace_id,
                 duration_ms=round(duration_ms, 1),
                 status="ok",
+                total_response_bytes=total_bytes,
             )
         except Exception:
             pass
+    clear_trace()
 
     return CallToolResult(
         content=[TextContent(type="text", text=text)],
         structuredContent=envelope_data,
-        _meta={
-            "tool": tool,
-            "command": tool,
-            "resourceUris": uris,
-        },
+        _meta=meta,
     )
 
 
@@ -175,30 +253,70 @@ def _partial_write_result(
     project: str | None = None,
 ) -> CallToolResult:
     """Return a machine-readable error when a multi-step mutation partially commits."""
+    text = f"Partial write: {message}"
+    structured = {
+        "ok": False,
+        "error": {
+            "kind": "partial_write",
+            "message": message,
+            **data,
+        },
+    }
+    trace_id = ensure_trace(tool)
+    meta = {"tool": tool, "command": tool, "traceId": trace_id}
+    text_bytes = len(text.encode("utf-8"))
+    structured_bytes = serialized_bytes(structured)
+    total_bytes = serialized_bytes(
+        {
+            "content": [{"type": "text", "text": text}],
+            "structuredContent": structured,
+            "_meta": meta,
+            "isError": True,
+        }
+    )
     if started is not None:
         duration_ms = (time.monotonic() - started) * 1000
         try:
-            log_metric(tool, 0, duration_ms, "partial_write", dry_run=False, project=project)
+            log_metric(
+                tool,
+                total_bytes,
+                duration_ms,
+                "partial_write",
+                dry_run=False,
+                project=project,
+                text_bytes=text_bytes,
+                structured_bytes=structured_bytes,
+                total_response_bytes=total_bytes,
+                trace_id=trace_id,
+                client=client_metadata(),
+            )
+            log_telemetry(
+                "tool_end",
+                status="partial_write",
+                durationMs=round(duration_ms, 1),
+                project=project,
+                dryRun=False,
+                textBytes=text_bytes,
+                structuredBytes=structured_bytes,
+                totalResponseBytes=total_bytes,
+                estimatedTokens=round(total_bytes / 4),
+                partialWrite=data,
+            )
             log_event(
                 "error",
                 "tool_partial_write",
                 tool=tool,
+                trace_id=trace_id,
                 duration_ms=round(duration_ms, 1),
                 project=project,
             )
         except Exception:
             pass
+    clear_trace()
 
     return CallToolResult(
-        content=[TextContent(type="text", text=f"Partial write: {message}")],
-        structuredContent={
-            "ok": False,
-            "error": {
-                "kind": "partial_write",
-                "message": message,
-                **data,
-            },
-        },
+        content=[TextContent(type="text", text=text)],
+        structuredContent=structured,
         isError=True,
-        _meta={"tool": tool, "command": tool},
+        _meta=meta,
     )

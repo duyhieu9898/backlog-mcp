@@ -26,6 +26,7 @@ from workflows import guidance, ut_bug, story_task_overview
 import workflows.resolve_bug as bug_workflow
 from workflows.audit import audit_config
 from backlog_tool.inspect import build_project_config, write_catalog
+from backlog_tool.telemetry import begin_tool_trace
 
 IssueView = Literal["compact", "full"]
 SortOrder = Literal["asc", "desc"]
@@ -122,6 +123,7 @@ def get_issue(
     Do not use when you need to discover multiple issues; use get_issues instead.
     """
     started = time.monotonic()
+    begin_tool_trace("get_issue", locals())
     try:
         config = get_config_instance()
         raw_issue = issue_service.get_issue(config, issue_id)
@@ -162,6 +164,7 @@ def get_issues(
     Do not use when the user asks specifically for open personal bugs; use get_my_open_bugs.
     """
     started = time.monotonic()
+    begin_tool_trace("get_issues", locals())
     try:
         offset = _parse_cursor(cursor)
     except ValueError as e:
@@ -223,6 +226,7 @@ def create_issue(
     Do not use when the user asks for the opinionated Unit Test bug workflow; use create_ut_bug.
     """
     started = time.monotonic()
+    begin_tool_trace("create_issue", locals())
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
@@ -284,6 +288,7 @@ def update_issue(
     Do not use when the user asks to complete the bug resolution workflow; use resolve_bug.
     """
     started = time.monotonic()
+    begin_tool_trace("update_issue", locals())
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
@@ -347,6 +352,7 @@ def get_my_open_bugs(
     Do not use for generic issue search across issue types; use get_issues.
     """
     started = time.monotonic()
+    begin_tool_trace("get_my_open_bugs", locals())
     try:
         offset = _parse_cursor(cursor)
     except ValueError as e:
@@ -390,6 +396,7 @@ def get_bug_context(
     Do not use for listing bugs; use get_my_open_bugs.
     """
     started = time.monotonic()
+    begin_tool_trace("get_bug_context", locals())
     try:
         config = get_config_instance()
         data = bug_workflow.get_bug_context(config, issue_key)
@@ -420,6 +427,7 @@ def resolve_bug(
     Do not use for generic issue updates unrelated to bug resolution; use update_issue.
     """
     started = time.monotonic()
+    begin_tool_trace("resolve_bug", locals())
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
@@ -476,6 +484,7 @@ def create_ut_bug(
     Do not use for generic bugs or tasks; use create_issue.
     """
     started = time.monotonic()
+    begin_tool_trace("create_ut_bug", locals())
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
@@ -531,6 +540,7 @@ def get_bug_rules(
     Do not use for issue data; use get_bug_context or get_issue.
     """
     started = time.monotonic()
+    begin_tool_trace("get_bug_rules", locals())
     try:
         config = get_config_instance()
         data = guidance.resolve_rules(config, project_key or None, start_path=_workspace_path())
@@ -550,6 +560,7 @@ def get_bug_fields(
     Do not use to update an issue; use resolve_bug or update_issue.
     """
     started = time.monotonic()
+    begin_tool_trace("get_bug_fields", locals())
     try:
         config = get_config_instance()
         data = guidance.field_guidance(field or None, config, project_key or None, start_path=_workspace_path())
@@ -583,6 +594,7 @@ def get_my_work_overview(
     Do not use for generic issue search or bug triage; use get_issues or get_my_open_bugs.
     """
     started = time.monotonic()
+    begin_tool_trace("get_my_work_overview", locals())
     try:
         offset = _parse_cursor(cursor)
     except ValueError as e:
@@ -622,6 +634,7 @@ def list_configured_projects() -> CallToolResult:
     Do not use to fetch live project metadata; use inspect_project for one explicit project.
     """
     started = time.monotonic()
+    begin_tool_trace("list_configured_projects", locals())
     try:
         config = get_config_instance()
         rows = []
@@ -644,6 +657,7 @@ def get_config() -> CallToolResult:
     Do not use to retrieve secrets; credentials are intentionally excluded.
     """
     started = time.monotonic()
+    begin_tool_trace("get_config", locals())
     try:
         config = get_config_instance()
         return _build_result(redact_config(config), "get_config", started=started)
@@ -667,6 +681,7 @@ def audit_config_workflows(
     Do not use to refresh catalogs; live mode is read-only.
     """
     started = time.monotonic()
+    begin_tool_trace("audit_config_workflows", locals())
     try:
         config = get_config_instance()
         data = audit_config(config, mode=mode)
@@ -686,6 +701,7 @@ def inspect_project(
     Do not use to enumerate every project; use list_configured_projects.
     """
     started = time.monotonic()
+    begin_tool_trace("inspect_project", locals())
     try:
         config = get_config_instance()
         project_config = build_project_config(config, project_key)
