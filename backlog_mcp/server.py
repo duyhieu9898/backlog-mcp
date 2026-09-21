@@ -22,7 +22,7 @@ from backlog_tool.settings import (
 )
 from backlog_tool import issue_service, presenter
 from backlog_tool.resolver import resolve_user_id
-from workflows import guidance, ut_bug, story_task_overview
+from workflows import guidance, ut_bug, story_task_overview, personal_status
 import workflows.resolve_bug as bug_workflow
 from workflows.audit import audit_config
 from backlog_tool.inspect import build_project_config, write_catalog
@@ -54,9 +54,16 @@ IssueSort = Literal[
 ]
 
 SERVER_INSTRUCTIONS = (
-    "Use this server for configured Backlog projects. Read before mutating. "
-    "Preview mutations first and use apply mode only when the user explicitly requests the write. "
-    "When a project is omitted, resolve it from workspace configuration or workspace path only if unambiguous. If the project cannot be resolved confidently, return an error instead of guessing. "
+    "This is a personal Backlog MCP for the configured user, not a generic project-management assistant. "
+    "Only route user requests here when Backlog is explicitly invoked (for example 'backlog' or 'backlog mcp'), "
+    "or when the user supplies an identifiable Backlog issue key or Backlog URL. "
+    "Do not claim generic requests such as 'what should I do?' or 'project status' without a Backlog activation signal. "
+    "Prefer personal domain tools over generic escape-hatch tools: use get_my_project_status for personal Backlog status, "
+    "get_my_open_bugs for the user's open bugs, and get_bug_context for investigating/fixing a specific bug. "
+    "Use get_issue/get_issues/update_issue only when the specialized personal workflow does not fit. "
+    "Read before mutating. Preview mutations first and use apply mode only when the user explicitly requests the write. "
+    "When a project is omitted, resolve it from workspace configuration or workspace path only if unambiguous. "
+    "If the project cannot be resolved confidently, return an error instead of guessing. "
     "Never expose API keys or full request URLs containing query strings."
 )
 
@@ -117,10 +124,11 @@ def get_issue(
     issue_id: Annotated[str, Field(description="Issue key (e.g., 'PROJ-123') or numeric ID")],
     view: Annotated[Literal["compact", "full"], Field(description="Detail level: compact for general triage, full for raw Backlog fields.")] = "compact",
 ) -> CallToolResult:
-    """Get the current details of one Backlog issue by key or numeric ID.
+    """Get raw/current details of one Backlog issue by key or numeric ID.
 
-    Use when the user names a specific Backlog issue and you need its current details.
-    Do not use when you need to discover multiple issues; use get_issues instead.
+    Use as an escape hatch for generic or non-bug Backlog issue inspection, or when raw fields are explicitly needed.
+    Do not use as the first step for investigating or fixing a Bug; use get_bug_context instead.
+    Do not use for discovery; use a personal domain list/status tool when possible.
     """
     started = time.monotonic()
     begin_tool_trace("get_issue", locals())
@@ -158,10 +166,12 @@ def get_issues(
         ),
     ] = None,
 ) -> CallToolResult:
-    """List issues assigned to the configured user in one project.
+    """Run a custom Backlog issue search across issue types for the configured user.
 
-    Use when you need a paginated, filterable issue search across types.
-    Do not use when the user asks specifically for open personal bugs; use get_my_open_bugs.
+    Use as an escape hatch when the user explicitly needs filters/search that the personal domain tools do not provide.
+    Do not use for personal Backlog status; use get_my_project_status.
+    Do not use for open personal bugs; use get_my_open_bugs.
+    Do not use to investigate a specific bug; use get_bug_context.
     """
     started = time.monotonic()
     begin_tool_trace("get_issues", locals())
@@ -282,10 +292,10 @@ def update_issue(
     custom_fields: Annotated[dict[str, Any] | None, Field(description="Custom field updates keyed by configured custom field key.")] = None,
     mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned change without writing; apply submits it to Backlog.")] = "preview",
 ) -> CallToolResult:
-    """Update a Backlog issue.
+    """Update arbitrary fields on an existing Backlog issue.
 
-    Use when the user asks to change fields on an existing issue.
-    Do not use when the user asks to complete the bug resolution workflow; use resolve_bug.
+    Use as an escape hatch for explicit field changes outside a specialized personal workflow.
+    Do not use to complete a bug resolution workflow; use resolve_bug.
     """
     started = time.monotonic()
     begin_tool_trace("update_issue", locals())
@@ -346,10 +356,10 @@ def get_my_open_bugs(
         ),
     ] = None,
 ) -> CallToolResult:
-    """List open bugs assigned to the configured user in one project.
+    """List open Backlog bugs assigned to the configured user in one project.
 
-    Use when the user asks for their current open bugs or bug triage queue.
-    Do not use for generic issue search across issue types; use get_issues.
+    Use when Backlog is explicitly invoked and the user asks for their current bugs/bug queue.
+    Prefer this one-call personal workflow over generic get_issues filtering.
     """
     started = time.monotonic()
     begin_tool_trace("get_my_open_bugs", locals())
@@ -390,9 +400,10 @@ def get_my_open_bugs(
 def get_bug_context(
     issue_key: Annotated[str, Field(description="Bug issue key (e.g., 'PRJ-123') to analyze")],
 ) -> CallToolResult:
-    """Get AI-ready context for a specific bug, including fields needed to understand, discuss, or resolve it.
+    """Get AI-ready Backlog context for a specific bug.
 
-    Use when preparing to understand, fix, discuss, or resolve a specific bug.
+    This is the primary entry point when a Backlog bug key/link is supplied and the user wants to understand, investigate, fix, discuss, or prepare to resolve it.
+    Do not call get_issue first just to inspect the same bug.
     Do not use for listing bugs; use get_my_open_bugs.
     """
     started = time.monotonic()
@@ -421,10 +432,12 @@ def resolve_bug(
     fix_description: Annotated[str, Field(description="Corrective action or fix description text.")] = "",
     mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned resolution without writing; apply submits it to Backlog.")] = "preview",
 ) -> CallToolResult:
-    """Resolve a bug with workflow defaults.
+    """Resolve a Backlog bug using the configured business workflow and defaults.
 
-    Use when the user asks to resolve/close a bug and wants project workflow fields filled.
-    Do not use for generic issue updates unrelated to bug resolution; use update_issue.
+    Use when the user explicitly asks to resolve/close a specific Backlog bug.
+    The workflow already loads issue context, rules, field mappings, defaults, and validation internally.
+    Do not pre-call get_bug_rules or get_bug_fields unless resolve_bug reports ambiguity/missing guidance.
+    Do not use for unrelated generic issue updates; use update_issue.
     """
     started = time.monotonic()
     begin_tool_trace("resolve_bug", locals())
@@ -478,9 +491,10 @@ def create_ut_bug(
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
     mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned bug without writing; apply submits it to Backlog.")] = "preview",
 ) -> CallToolResult:
-    """Create a Unit Test sub-task bug under a parent issue.
+    """Create a Unit Test Backlog sub-task bug under a parent issue.
 
-    Use when the user asks to create a UT bug with the configured workflow defaults.
+    Use when the user explicitly asks Backlog to create a UT bug with configured workflow defaults.
+    The workflow validates/loads the parent internally; do not call get_issue first just to prepare this action.
     Do not use for generic bugs or tasks; use create_issue.
     """
     started = time.monotonic()
@@ -534,10 +548,10 @@ def create_ut_bug(
 def get_bug_rules(
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
 ) -> CallToolResult:
-    """Get current resolve-bug workflow rules for one project.
+    """Inspect configured resolve-bug workflow rules for diagnostics or ambiguity.
 
-    Use when preparing a bug resolution and you need required workflow defaults.
-    Do not use for issue data; use get_bug_context or get_issue.
+    This is a support/debug tool, not a normal step before resolve_bug.
+    Use only when the user asks for the rules or resolve_bug needs clarification.
     """
     started = time.monotonic()
     begin_tool_trace("get_bug_rules", locals())
@@ -554,10 +568,10 @@ def get_bug_fields(
     field: Annotated[str, Field(description="Field name to get guidance for, e.g. qc_activity, bug_origin, cause_category. Omit for all fields.")] = "",
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
 ) -> CallToolResult:
-    """Get configured guidance for bug workflow fields.
+    """Inspect allowed values/guidance for configured bug workflow fields.
 
-    Use when you need allowed values or guidance for resolve_bug fields.
-    Do not use to update an issue; use resolve_bug or update_issue.
+    This is a support/debug tool, not a normal step before resolve_bug.
+    Use only when a field is ambiguous, missing, or explicitly requested.
     """
     started = time.monotonic()
     begin_tool_trace("get_bug_fields", locals())
@@ -588,10 +602,10 @@ def get_my_work_overview(
         ),
     ] = None,
 ) -> CallToolResult:
-    """Get assigned Story and Task work items with deadline and status context.
+    """List the configured user's Backlog Stories and Tasks with due-date/status context.
 
-    Use when the user asks for assigned stories/tasks, due dates, or project status.
-    Do not use for generic issue search or bug triage; use get_issues or get_my_open_bugs.
+    Use when Backlog is explicitly invoked and the user specifically asks for Stories/Tasks or deadlines.
+    For the broader personal Backlog status including bugs, prefer get_my_project_status.
     """
     started = time.monotonic()
     begin_tool_trace("get_my_work_overview", locals())
@@ -624,6 +638,35 @@ def get_my_work_overview(
         )
     except Exception as e:
         return _error_result("get_my_work_overview", e, started=started, project=project_key)
+
+
+@mcp.tool()
+def get_my_project_status(
+    project_key: Annotated[str, Field(description="Backlog project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace.")]= "",
+) -> CallToolResult:
+    """Get one personal Backlog status view for the configured user in a project.
+
+    Use when Backlog is explicitly invoked and the user asks what they have to do, their Backlog/project status, or a combined view of current personal work.
+    This is a personal work view, not a PM/team/project-health dashboard.
+    It combines assigned Stories/Tasks and open Bugs in one MCP call.
+    """
+    started = time.monotonic()
+    begin_tool_trace("get_my_project_status", locals())
+    try:
+        config = get_config_instance()
+        data = personal_status.get_my_project_status(
+            config,
+            project_key=project_key or None,
+            start_path=_workspace_path(),
+        )
+        return _build_result(
+            data,
+            "get_my_project_status",
+            started=started,
+            project=project_key,
+        )
+    except Exception as e:
+        return _error_result("get_my_project_status", e, started=started, project=project_key)
 
 
 @mcp.tool()
@@ -726,13 +769,11 @@ def resolve_bug_prompt(
 ) -> str:
     """Guide the agent to resolve a bug following project workflow policies."""
     return (
-        f"Please guide me to resolve the bug {issue_key} following our project's workflow rules.\n\n"
-        f"Steps to take:\n"
-        f"1. Fetch the bug context using `get_bug_context` for {issue_key}.\n"
-        f"2. Fetch the resolve-bug rules using `get_bug_rules` for the project.\n"
-        f"3. Retrieve guidelines for any required guided fields using `get_bug_fields`.\n"
-        f"4. Summarize the required values and ask for confirmation if any value is inferred or missing.\n"
-        f"5. Execute `resolve_bug` only after the user explicitly confirms the final values or has clearly requested resolution."
+        f"Resolve Backlog bug {issue_key} using the configured personal workflow.\n\n"
+        f"Normal path:\n"
+        f"1. Call `resolve_bug` in preview mode. The tool already loads issue context, workflow rules, mappings, defaults, and validation.\n"
+        f"2. Review preview changes/warnings. Only call `get_bug_fields` or `get_bug_rules` if preview reports ambiguity/missing guidance or the user asks for those details.\n"
+        f"3. Call `resolve_bug` in apply mode only after the user has explicitly requested/confirmed the write."
     )
 
 
@@ -745,12 +786,12 @@ def create_ut_bug_prompt(
     """Guide the agent to create a Unit Test sub-task bug under a parent issue."""
     desc_val = f"'{description}'" if description else "(not specified yet)"
     return (
-        f"I need to create a Unit Test (UT) child bug for the parent issue {parent_key} and module {module}.\n"
+        f"Create a Backlog Unit Test (UT) child bug for parent {parent_key} and module {module}.\n"
         f"Current failure description: {desc_val}\n\n"
-        f"Steps to take:\n"
-        f"1. Inspect the parent issue context using `get_issue` for {parent_key}.\n"
-        f"2. If the failure description is empty, inspect the parent issue and ask for or draft a concise UT failure description before calling `create_ut_bug`.\n"
-        f"3. Once parent, module, and description are confirmed, execute `create_ut_bug` to create the task on Backlog."
+        f"Normal path:\n"
+        f"1. If the failure description is missing, ask for/draft it from the existing coding context.\n"
+        f"2. Call `create_ut_bug` in preview mode; it loads and validates the parent internally.\n"
+        f"3. Review the preview, then call `create_ut_bug` in apply mode only after explicit write confirmation."
     )
 
 
@@ -761,12 +802,10 @@ def project_status_prompt(
     """Guide the agent to check the current project status overview."""
     proj_desc = f"project '{project}'" if project else "the active workspace"
     return (
-        f"Please check and summarize the current status of {proj_desc}.\n\n"
-        f"Steps to take:\n"
-        f"0. If the project is omitted and cannot be resolved unambiguously, stop and report the ambiguity instead of guessing.\n"
-        f"1. Retrieve story and task deadlines using `get_my_work_overview`.\n"
-        f"2. List open bugs assigned to me using `get_my_open_bugs`.\n"
-        f"3. Present a clear, consolidated status report highlighting any overdue deadlines or critical bugs."
+        f"Check my personal Backlog status for {proj_desc}.\n\n"
+        f"Use `get_my_project_status` once. It combines my assigned Stories/Tasks, deadlines, and open Bugs. "
+        f"This is my personal work view, not a team/PM project-health report. "
+        f"If the project is omitted and cannot be resolved unambiguously, stop instead of guessing."
     )
 
 
