@@ -1,0 +1,19 @@
+{
+  "issue_types": [
+    "Story",
+    "Task"
+  ],
+  "excluded_statuses": [
+    "Closed"
+  ],
+  "assignee": "me",
+  "fields": [
+    "issueKey",
+    "summary",
+    "description",
+    "status",
+    "dueDate",
+    "daysUntilDue",
+    "dueAlertLevel"
+  ]
+}

@@ -1,0 +1,270 @@
+{
+  "qc_activity": {
+    "label": "QC Activity",
+    "field": "customField_9864",
+    "value_options": [
+      {
+        "id": 1,
+        "name": "Integration Test"
+      },
+      {
+        "id": 2,
+        "name": "Acceptance Test"
+      },
+      {
+        "id": 4,
+        "name": "Not Applicable"
+      },
+      {
+        "id": 5,
+        "name": "Code Review"
+      },
+      {
+        "id": 6,
+        "name": "Document Review"
+      },
+      {
+        "id": 7,
+        "name": "Unit Test"
+      },
+      {
+        "id": 8,
+        "name": "SystemTest"
+      }
+    ]
+  },
+  "bug_origin": {
+    "label": "Bug Origin",
+    "field": "customField_10150",
+    "value_options": [
+      {
+        "id": 1,
+        "name": "COD_Coding Standard"
+      },
+      {
+        "id": 2,
+        "name": "COD_Compile"
+      },
+      {
+        "id": 3,
+        "name": "COD_Hard Code"
+      },
+      {
+        "id": 4,
+        "name": "COD_Coding Logic"
+      },
+      {
+        "id": 5,
+        "name": "COD_Redundancy Code"
+      },
+      {
+        "id": 6,
+        "name": "COD_Other"
+      },
+      {
+        "id": 7,
+        "name": "DES_Data Flow"
+      },
+      {
+        "id": 8,
+        "name": "DES_Logic Function"
+      },
+      {
+        "id": 9,
+        "name": "DES_Interface  Between Modules"
+      },
+      {
+        "id": 10,
+        "name": "DES_Table Design"
+      },
+      {
+        "id": 11,
+        "name": "DOC_Documentation"
+      },
+      {
+        "id": 12,
+        "name": "DOC_Format/Template"
+      },
+      {
+        "id": 13,
+        "name": "DOC_Grammar"
+      },
+      {
+        "id": 14,
+        "name": "FUN_Feature Missing"
+      },
+      {
+        "id": 15,
+        "name": "FUN_Incomplete Function"
+      },
+      {
+        "id": 16,
+        "name": "FUN_Wrong Business Logic"
+      },
+      {
+        "id": 17,
+        "name": "UI_Position Size"
+      },
+      {
+        "id": 18,
+        "name": "UI_Label Message"
+      },
+      {
+        "id": 19,
+        "name": "UI_Layout"
+      }
+    ]
+  },
+  "cause_category": {
+    "label": "Cause Category",
+    "field": "customField_9865",
+    "value_options": [
+      {
+        "id": 1,
+        "name": "REQ_Missing or incomplete"
+      },
+      {
+        "id": 2,
+        "name": "IMP_Insufficient analysis  before implementation"
+      },
+      {
+        "id": 3,
+        "name": "REQ_Unclear Or Ambiguous"
+      },
+      {
+        "id": 4,
+        "name": "DEP_Environment Issue"
+      },
+      {
+        "id": 5,
+        "name": "DEP_Deployment Issue"
+      },
+      {
+        "id": 6,
+        "name": "COM_Missing communication"
+      },
+      {
+        "id": 7,
+        "name": "DES_Missing or incomplete"
+      },
+      {
+        "id": 8,
+        "name": "FUN_Integration Problem"
+      },
+      {
+        "id": 9,
+        "name": "IMP_Discipline/process non-compliance"
+      },
+      {
+        "id": 10,
+        "name": "IMP_Shortage of time"
+      },
+      {
+        "id": 11,
+        "name": "SKI_Inadequate language proficiency"
+      },
+      {
+        "id": 12,
+        "name": "SKI_Shortage of technology  expertise"
+      },
+      {
+        "id": 13,
+        "name": "SKI_Shortage of business domain expertise"
+      },
+      {
+        "id": 14,
+        "name": "SKI_Lack of professional skill"
+      },
+      {
+        "id": 15,
+        "name": "CAR_Carelessness"
+      },
+      {
+        "id": 16,
+        "name": "PRO_Missing or incomplete"
+      },
+      {
+        "id": 17,
+        "name": "Not Applicable"
+      }
+    ]
+  },
+  "impacted": {
+    "label": "Impacted",
+    "field": "customField_9866"
+  },
+  "corrective_action": {
+    "label": "Corrective Action",
+    "field": "customField_9867"
+  },
+  "detected_role": {
+    "label": "Detected Role",
+    "field": "customField_10151",
+    "value_options": [
+      {
+        "id": 1,
+        "name": "Developer"
+      },
+      {
+        "id": 2,
+        "name": "Tester"
+      },
+      {
+        "id": 3,
+        "name": "PM/TL"
+      },
+      {
+        "id": 4,
+        "name": "BA/BRSE"
+      },
+      {
+        "id": 5,
+        "name": "Designer"
+      },
+      {
+        "id": 6,
+        "name": "Customer"
+      }
+    ]
+  },
+  "env": {
+    "label": "ENV",
+    "field": "customField_18531",
+    "value_options": [
+      {
+        "id": 1,
+        "name": "DEV"
+      },
+      {
+        "id": 2,
+        "name": "STG"
+      },
+      {
+        "id": 3,
+        "name": "PROD"
+      }
+    ]
+  },
+  "reopen_bug": {
+    "label": "Reopen Bug",
+    "field": "customField_19891",
+    "value_options": [
+      {
+        "id": 1,
+        "name": "Yes"
+      },
+      {
+        "id": 2,
+        "name": "No"
+      }
+    ]
+  },
+  "weekly_report": {
+    "label": "Weekly Report",
+    "field": "customField_25103"
+  },
+  "git_tag": {
+    "label": "Git Tag",
+    "field": "customField_25104"
+  }
+}

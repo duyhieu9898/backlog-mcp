@@ -1,0 +1,47 @@
+{
+  "issue_type": "Bug",
+  "excluded_statuses": [
+    "Closed"
+  ],
+  "status": "Resolved",
+  "assignee": "me",
+  "estimated_hours": 1,
+  "actual_hours": 1,
+  "due_in_days": 2,
+  "corrective_action": "fixed {description_lower}",
+  "custom_fields": {},
+  "project_overrides": {
+    "VTO": {
+      "custom_fields": {
+        "qc_activity": "Integration Test",
+        "bug_origin": "FUN_Wrong Business Logic",
+        "bug_category": "Not Applicable",
+        "impacted": "no"
+      }
+    },
+    "AQM": {
+      "custom_fields": {
+        "qc_activity": "Integration Test",
+        "bug_origin": "FUN_Incomplete Function",
+        "cause_category": "Not Applicable",
+        "impacted": "no"
+      }
+    },
+    "OOP": {
+      "custom_fields": {
+        "qc_activity": "Integration Test",
+        "bug_origin": "FUN_Incomplete Function",
+        "cause_category": "Not Applicable",
+        "impacted": "no"
+      }
+    },
+    "NLN": {
+      "custom_fields": {
+        "qc_activity": "Integration Test",
+        "bug_origin": "COD_Coding Logic",
+        "cause_category": "Not Applicable",
+        "impacted": "no"
+      }
+    }
+  }
+}

@@ -1,0 +1,145 @@
+{
+  "id": 8363736,
+  "projectId": 158425,
+  "issueKey": "AQM-271",
+  "keyId": 271,
+  "issueType": {
+    "id": 676898,
+    "projectId": 158425,
+    "name": "Bug",
+    "color": "#e30000",
+    "displayOrder": 4
+  },
+  "summary": "[AQM-128][TEST|FE] UT automation validation",
+  "description": "**Environment**:\n\n **Pre-Condition**:\n-\n\n **Steps to reproduce**:\n1.\n2.\n\n**Actual**:\n\n**Expected**:\n\n **Evidence**:\n",
+  "resolution": null,
+  "priority": {
+    "id": 3,
+    "name": "Normal"
+  },
+  "status": {
+    "id": 4,
+    "projectId": 158425,
+    "name": "Closed",
+    "color": "#b0be3c",
+    "displayOrder": 4000
+  },
+  "assignee": {
+    "id": 778617,
+    "userId": "*VwrnoeczDO",
+    "name": "Hieu Nguyen Duy (DN.DEV)",
+    "roleType": 2,
+    "lang": "en",
+    "mailAddress": "hieund@bap.jp",
+    "nulabAccount": {
+      "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "uniqueId": "hieund-Ep3",
+      "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+    },
+    "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+    "lastLoginTime": "2026-06-02T01:21:01Z"
+  },
+  "category": [],
+  "versions": [],
+  "milestone": [],
+  "startDate": "2026-06-02T00:00:00Z",
+  "dueDate": "2026-06-04T00:00:00Z",
+  "estimatedHours": 1,
+  "actualHours": 1,
+  "parentIssueId": 8279058,
+  "createdUser": {
+    "id": 778617,
+    "userId": "*VwrnoeczDO",
+    "name": "Hieu Nguyen Duy (DN.DEV)",
+    "roleType": 2,
+    "lang": "en",
+    "mailAddress": "hieund@bap.jp",
+    "nulabAccount": {
+      "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "uniqueId": "hieund-Ep3",
+      "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+    },
+    "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+    "lastLoginTime": "2026-06-02T01:21:01Z"
+  },
+  "created": "2026-06-02T08:54:27Z",
+  "updatedUser": {
+    "id": 778617,
+    "userId": "*VwrnoeczDO",
+    "name": "Hieu Nguyen Duy (DN.DEV)",
+    "roleType": 2,
+    "lang": "en",
+    "mailAddress": "hieund@bap.jp",
+    "nulabAccount": {
+      "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "uniqueId": "hieund-Ep3",
+      "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+    },
+    "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+    "lastLoginTime": "2026-06-02T01:21:01Z"
+  },
+  "updated": "2026-06-02T08:54:28Z",
+  "customFields": [
+    {
+      "id": 30187,
+      "fieldTypeId": 5,
+      "name": "QC Activity",
+      "value": {
+        "id": 4,
+        "name": "Unit Test",
+        "displayOrder": 3
+      }
+    },
+    {
+      "id": 30188,
+      "fieldTypeId": 5,
+      "name": "Bug Origin",
+      "value": {
+        "id": 6,
+        "name": "COD_Other",
+        "displayOrder": 5
+      }
+    },
+    {
+      "id": 30189,
+      "fieldTypeId": 5,
+      "name": "Cause Category",
+      "value": {
+        "id": 17,
+        "name": "Not Applicable",
+        "displayOrder": 16
+      }
+    },
+    {
+      "id": 30190,
+      "fieldTypeId": 2,
+      "name": "Impacted",
+      "value": "no"
+    },
+    {
+      "id": 30191,
+      "fieldTypeId": 2,
+      "name": "Corrective Action",
+      "value": "fixed ut automation validation"
+    },
+    {
+      "id": 30192,
+      "fieldTypeId": 6,
+      "name": "Detected Role",
+      "value": [
+        {
+          "id": 1,
+          "name": "Developer",
+          "displayOrder": 0
+        }
+      ]
+    }
+  ],
+  "attachments": [],
+  "sharedFiles": [],
+  "externalFileLinks": [],
+  "stars": []
+}

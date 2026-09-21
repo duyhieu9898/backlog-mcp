@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hieund-backlog-mcp"
+version = "0.1.0"
+description = "Workstation-local MCP server for Backlog workflows"
+requires-python = ">=3.10"
+dependencies = [
+  "mcp>=1.27,<2",
+  "requests>=2.31,<3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9"]
+
+[project.scripts]
+backlog-mcp-server = "backlog_mcp.server:main"
+backlog-cli = "backlog_tool.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backlog_mcp*", "backlog_tool*", "workflows*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

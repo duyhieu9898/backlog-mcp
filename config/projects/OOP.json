@@ -1,0 +1,451 @@
+{
+  "key": "OOP",
+  "name": "bapsw.s0030.OSAKA_PROJECT",
+  "id": 82531,
+  "bug": {
+    "category_options": [
+      {
+        "id": 161750,
+        "name": "111_MMP"
+      },
+      {
+        "id": 165807,
+        "name": "112_DHP"
+      },
+      {
+        "id": 175402,
+        "name": "113_GP"
+      },
+      {
+        "id": 184158,
+        "name": "116_VVG"
+      },
+      {
+        "id": 170450,
+        "name": "115_SWG"
+      },
+      {
+        "id": 184159,
+        "name": "117_LRG"
+      },
+      {
+        "id": 104299,
+        "name": "121_H2H"
+      },
+      {
+        "id": 104300,
+        "name": "122_KYH"
+      },
+      {
+        "id": 104508,
+        "name": "123_SAN"
+      },
+      {
+        "id": 129358,
+        "name": "124_MH"
+      },
+      {
+        "id": 116692,
+        "name": "125_MKP"
+      },
+      {
+        "id": 177889,
+        "name": "126_ADC_ADILChain"
+      },
+      {
+        "id": 105053,
+        "name": "130_KBA_KeibaAI"
+      },
+      {
+        "id": 184160,
+        "name": "800_OLD"
+      },
+      {
+        "id": 141372,
+        "name": "910_Infra"
+      },
+      {
+        "id": 182612,
+        "name": "920_ETA"
+      },
+      {
+        "id": 141387,
+        "name": "990_Internal"
+      },
+      {
+        "id": 167156,
+        "name": "114_MPG"
+      },
+      {
+        "id": 132322,
+        "name": "812_CS_CryptoStakes"
+      },
+      {
+        "id": 104298,
+        "name": "823_SGP_SGPPlatform"
+      },
+      {
+        "id": 104304,
+        "name": "821_PGW_PaymentGateway"
+      },
+      {
+        "id": 111594,
+        "name": "815_GFL_GFILManagement"
+      },
+      {
+        "id": 127609,
+        "name": "825_TRC_TriamChainNetwork"
+      },
+      {
+        "id": 113197,
+        "name": "824_TMS_TokenManagement"
+      },
+      {
+        "id": 104303,
+        "name": "822_POM_POM"
+      },
+      {
+        "id": 179446,
+        "name": "820_MDS_MiddleSystem"
+      },
+      {
+        "id": 179447,
+        "name": "816_GLV_GloverPlatform"
+      },
+      {
+        "id": 179448,
+        "name": "819_HVS_HuvStylePlatform"
+      },
+      {
+        "id": 184161,
+        "name": "811_CCT_CCTWallet"
+      },
+      {
+        "id": 184162,
+        "name": "813_EZP_EZPayPayment"
+      },
+      {
+        "id": 184163,
+        "name": "817_GMS_GeneralManagement"
+      }
+    ],
+    "issue_type_options": [
+      {
+        "id": 527227,
+        "name": "Requirement"
+      },
+      {
+        "id": 527226,
+        "name": "Epic"
+      },
+      {
+        "id": 527228,
+        "name": "Story"
+      },
+      {
+        "id": 351796,
+        "name": "Task"
+      },
+      {
+        "id": 351795,
+        "name": "Bug"
+      },
+      {
+        "id": 368393,
+        "name": "Issue|Risk"
+      },
+      {
+        "id": 366019,
+        "name": "Q&A"
+      }
+    ],
+    "status_options": [
+      {
+        "id": 1,
+        "name": "Open"
+      },
+      {
+        "id": 2,
+        "name": "In Progress"
+      },
+      {
+        "id": 3,
+        "name": "Resolved"
+      },
+      {
+        "id": 4,
+        "name": "Closed"
+      }
+    ],
+    "custom_fields": {
+      "qc_activity": {
+        "label": "QC Activity",
+        "field": "customField_9864",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "Integration Test"
+          },
+          {
+            "id": 2,
+            "name": "Acceptance Test"
+          },
+          {
+            "id": 4,
+            "name": "Not Applicable"
+          },
+          {
+            "id": 5,
+            "name": "Code Review"
+          },
+          {
+            "id": 6,
+            "name": "Document Review"
+          },
+          {
+            "id": 7,
+            "name": "Unit Test"
+          },
+          {
+            "id": 8,
+            "name": "SystemTest"
+          }
+        ]
+      },
+      "bug_origin": {
+        "label": "Bug Origin",
+        "field": "customField_10150",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "COD_Coding Standard"
+          },
+          {
+            "id": 2,
+            "name": "COD_Compile"
+          },
+          {
+            "id": 3,
+            "name": "COD_Hard Code"
+          },
+          {
+            "id": 4,
+            "name": "COD_Coding Logic"
+          },
+          {
+            "id": 5,
+            "name": "COD_Redundancy Code"
+          },
+          {
+            "id": 6,
+            "name": "COD_Other"
+          },
+          {
+            "id": 7,
+            "name": "DES_Data Flow"
+          },
+          {
+            "id": 8,
+            "name": "DES_Logic Function"
+          },
+          {
+            "id": 9,
+            "name": "DES_Interface  Between Modules"
+          },
+          {
+            "id": 10,
+            "name": "DES_Table Design"
+          },
+          {
+            "id": 11,
+            "name": "DOC_Documentation"
+          },
+          {
+            "id": 12,
+            "name": "DOC_Format/Template"
+          },
+          {
+            "id": 13,
+            "name": "DOC_Grammar"
+          },
+          {
+            "id": 14,
+            "name": "FUN_Feature Missing"
+          },
+          {
+            "id": 15,
+            "name": "FUN_Incomplete Function"
+          },
+          {
+            "id": 16,
+            "name": "FUN_Wrong Business Logic"
+          },
+          {
+            "id": 17,
+            "name": "UI_Position Size"
+          },
+          {
+            "id": 18,
+            "name": "UI_Label Message"
+          },
+          {
+            "id": 19,
+            "name": "UI_Layout"
+          }
+        ]
+      },
+      "cause_category": {
+        "label": "Cause Category",
+        "field": "customField_9865",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "REQ_Missing or incomplete"
+          },
+          {
+            "id": 2,
+            "name": "IMP_Insufficient analysis  before implementation"
+          },
+          {
+            "id": 3,
+            "name": "REQ_Unclear Or Ambiguous"
+          },
+          {
+            "id": 4,
+            "name": "DEP_Environment Issue"
+          },
+          {
+            "id": 5,
+            "name": "DEP_Deployment Issue"
+          },
+          {
+            "id": 6,
+            "name": "COM_Missing communication"
+          },
+          {
+            "id": 7,
+            "name": "DES_Missing or incomplete"
+          },
+          {
+            "id": 8,
+            "name": "FUN_Integration Problem"
+          },
+          {
+            "id": 9,
+            "name": "IMP_Discipline/process non-compliance"
+          },
+          {
+            "id": 10,
+            "name": "IMP_Shortage of time"
+          },
+          {
+            "id": 11,
+            "name": "SKI_Inadequate language proficiency"
+          },
+          {
+            "id": 12,
+            "name": "SKI_Shortage of technology  expertise"
+          },
+          {
+            "id": 13,
+            "name": "SKI_Shortage of business domain expertise"
+          },
+          {
+            "id": 14,
+            "name": "SKI_Lack of professional skill"
+          },
+          {
+            "id": 15,
+            "name": "CAR_Carelessness"
+          },
+          {
+            "id": 16,
+            "name": "PRO_Missing or incomplete"
+          },
+          {
+            "id": 17,
+            "name": "Not Applicable"
+          }
+        ]
+      },
+      "impacted": {
+        "label": "Impacted",
+        "field": "customField_9866"
+      },
+      "corrective_action": {
+        "label": "Corrective Action",
+        "field": "customField_9867"
+      },
+      "detected_role": {
+        "label": "Detected Role",
+        "field": "customField_10151",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "Developer"
+          },
+          {
+            "id": 2,
+            "name": "Tester"
+          },
+          {
+            "id": 3,
+            "name": "PM/TL"
+          },
+          {
+            "id": 4,
+            "name": "BA/BRSE"
+          },
+          {
+            "id": 5,
+            "name": "Designer"
+          },
+          {
+            "id": 6,
+            "name": "Customer"
+          }
+        ]
+      },
+      "env": {
+        "label": "ENV",
+        "field": "customField_18531",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "DEV"
+          },
+          {
+            "id": 2,
+            "name": "STG"
+          },
+          {
+            "id": 3,
+            "name": "PROD"
+          }
+        ]
+      },
+      "reopen_bug": {
+        "label": "Reopen Bug",
+        "field": "customField_19891",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "Yes"
+          },
+          {
+            "id": 2,
+            "name": "No"
+          }
+        ]
+      },
+      "weekly_report": {
+        "label": "Weekly Report",
+        "field": "customField_25103"
+      },
+      "git_tag": {
+        "label": "Git Tag",
+        "field": "customField_25104"
+      }
+    }
+  }
+}

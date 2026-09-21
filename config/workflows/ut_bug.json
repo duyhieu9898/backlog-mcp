@@ -1,0 +1,54 @@
+{
+  "issue_type": "Bug",
+  "status": "Closed",
+  "estimated_hours": 1,
+  "actual_hours": 1,
+  "due_in_days": 2,
+  "corrective_action": "fixed {description_lower}",
+  "description_template": "**Environment**:\n\n **Pre-Condition**:\n-\n\n **Steps to reproduce**:\n1.\n2.\n\n**Actual**:\n\n**Expected**:\n\n **Evidence**:\n",
+  "custom_fields": {},
+  "project_overrides": {
+    "VTO": {
+      "category": null,
+      "custom_fields": {
+        "qc_activity": "Unit Test",
+        "bug_origin": "Cod_Other",
+        "bug_category": "Not Applicable",
+        "impacted": "no",
+        "detected_role": "Developer"
+      }
+    },
+    "AQM": {
+      "category": null,
+      "custom_fields": {
+        "qc_activity": "Unit Test",
+        "bug_origin": "COD_Other",
+        "cause_category": "Not Applicable",
+        "impacted": "no",
+        "detected_role": "Developer"
+      }
+    },
+    "OOP": {
+      "category": "112_DHP",
+      "custom_fields": {
+        "qc_activity": "Unit Test",
+        "bug_origin": "COD_Other",
+        "cause_category": "Not Applicable",
+        "impacted": "no",
+        "detected_role": "Developer",
+        "env": "DEV",
+        "reopen_bug": "No"
+      }
+    },
+    "NLN": {
+      "category": null,
+      "custom_fields": {
+        "qc_activity": "Unit Test",
+        "bug_origin": "COD_Other",
+        "cause_category": "Not Applicable",
+        "impacted": "no",
+        "detected_role": "Developer"
+      }
+    }
+  }
+}

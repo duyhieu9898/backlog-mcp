@@ -1,0 +1,278 @@
+{
+  "key": "NLN",
+  "name": "bapit.0317.NeuraLink_Nplu",
+  "id": 166141,
+  "bug": {
+    "category_options": [],
+    "issue_type_options": [
+      {
+        "id": 708744,
+        "name": "Requirement"
+      },
+      {
+        "id": 708745,
+        "name": "Issue"
+      },
+      {
+        "id": 708746,
+        "name": "Story"
+      },
+      {
+        "id": 708747,
+        "name": "Q&A"
+      },
+      {
+        "id": 708716,
+        "name": "Task"
+      },
+      {
+        "id": 708715,
+        "name": "Bug"
+      }
+    ],
+    "status_options": [
+      {
+        "id": 1,
+        "name": "Open"
+      },
+      {
+        "id": 2,
+        "name": "In Progress"
+      },
+      {
+        "id": 3,
+        "name": "Resolved"
+      },
+      {
+        "id": 4,
+        "name": "Closed"
+      }
+    ],
+    "custom_fields": {
+      "qc_activity": {
+        "label": "QC Activity",
+        "field": "customField_32190",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "Code Review"
+          },
+          {
+            "id": 6,
+            "name": "Document Review"
+          },
+          {
+            "id": 2,
+            "name": "Unit Test"
+          },
+          {
+            "id": 3,
+            "name": "Integration Test"
+          },
+          {
+            "id": 7,
+            "name": "SystemTest"
+          },
+          {
+            "id": 8,
+            "name": "Acceptance Test"
+          },
+          {
+            "id": 9,
+            "name": "Not Applicable"
+          }
+        ]
+      },
+      "cause_category": {
+        "label": "Cause Category",
+        "field": "customField_32191",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "REQ_Missing Or Incomplete"
+          },
+          {
+            "id": 2,
+            "name": "IMP_Insufficient analysis  before implementation"
+          },
+          {
+            "id": 3,
+            "name": "REQ_Unclear Or Ambiguous"
+          },
+          {
+            "id": 4,
+            "name": "DEP_Environment Issue"
+          },
+          {
+            "id": 5,
+            "name": "DEP_Deployment Issue"
+          },
+          {
+            "id": 6,
+            "name": "COM_Missing communication"
+          },
+          {
+            "id": 7,
+            "name": "DES_Missing Or Incomplete"
+          },
+          {
+            "id": 8,
+            "name": "FUN_Integration Problem"
+          },
+          {
+            "id": 9,
+            "name": "IMP_Discipline/Process Non-compliance"
+          },
+          {
+            "id": 10,
+            "name": "IMP_Shortage of time"
+          },
+          {
+            "id": 11,
+            "name": "SKI_Inadequate Language Proficiency"
+          },
+          {
+            "id": 12,
+            "name": "SKI_Shortage Of Technology  Expertise"
+          },
+          {
+            "id": 13,
+            "name": "SKI_Shortage of Business Domain Expertise"
+          },
+          {
+            "id": 14,
+            "name": "CAR_Carelessness"
+          },
+          {
+            "id": 15,
+            "name": "PRO_Missing or incomplete"
+          },
+          {
+            "id": 16,
+            "name": "Not Applicable"
+          }
+        ]
+      },
+      "impacted": {
+        "label": "Impacted",
+        "field": "customField_32192"
+      },
+      "corrective_action": {
+        "label": "Corrective Action",
+        "field": "customField_32193"
+      },
+      "detected_role": {
+        "label": "Detected Role",
+        "field": "customField_32194",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "Developer"
+          },
+          {
+            "id": 2,
+            "name": "Tester"
+          },
+          {
+            "id": 3,
+            "name": "PM/TL"
+          },
+          {
+            "id": 4,
+            "name": "BA/BRSE"
+          },
+          {
+            "id": 5,
+            "name": "Designer"
+          },
+          {
+            "id": 6,
+            "name": "Customer"
+          }
+        ]
+      },
+      "bug_origin": {
+        "label": "Bug Origin",
+        "field": "customField_32195",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "COD_Coding Standard"
+          },
+          {
+            "id": 2,
+            "name": "COD_Compile"
+          },
+          {
+            "id": 3,
+            "name": "COD_Hard Code"
+          },
+          {
+            "id": 4,
+            "name": "COD_Coding Logic"
+          },
+          {
+            "id": 5,
+            "name": "COD_Redundancy Code"
+          },
+          {
+            "id": 6,
+            "name": "COD_Other"
+          },
+          {
+            "id": 7,
+            "name": "DES_Data Flow"
+          },
+          {
+            "id": 8,
+            "name": "DES_Logic Function"
+          },
+          {
+            "id": 9,
+            "name": "DES_Interface  Between Modules"
+          },
+          {
+            "id": 10,
+            "name": "DES_Table Design"
+          },
+          {
+            "id": 11,
+            "name": "DOC_Documentation"
+          },
+          {
+            "id": 12,
+            "name": "DOC_Format/Template"
+          },
+          {
+            "id": 13,
+            "name": "DOC_Grammar"
+          },
+          {
+            "id": 14,
+            "name": "FUN_Feature Missing"
+          },
+          {
+            "id": 15,
+            "name": "FUN_Incomplete Function"
+          },
+          {
+            "id": 16,
+            "name": "FUN_Wrong Business Logic"
+          },
+          {
+            "id": 17,
+            "name": "UI_Position Size"
+          },
+          {
+            "id": 18,
+            "name": "UI_Label Message"
+          },
+          {
+            "id": 19,
+            "name": "UI_Layout"
+          }
+        ]
+      }
+    }
+  }
+}

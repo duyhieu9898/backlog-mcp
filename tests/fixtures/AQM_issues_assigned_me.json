@@ -1,0 +1,2546 @@
+[
+  {
+    "id": 8348687,
+    "projectId": 158425,
+    "issueKey": "AQM-266",
+    "keyId": 266,
+    "issueType": {
+      "id": 676898,
+      "projectId": 158425,
+      "name": "Bug",
+      "color": "#e30000",
+      "displayOrder": 4
+    },
+    "summary": "[BUG][AQM-74][Workflow Detail] Run - Chưa chuyển đến màn hình Run History Detail sau khi run thành công",
+    "description": "**Environment: Local**\n\n **Pre-Condition:** \n- \n\n **Steps to reproduce:** \n1. Vào Workflow detail\n2. Click vào tab Versions\n3. Click button Run\n4. Nhập Target Data\n5. Run version\n6. Check màn hình chuyển hướng sau khi run thành công\n7. Tương tự check màn hình sau khi run ở Workflow version detail\n\n**Actual: Show popup Run REesult, click OK thì tắt popup và ở màn hình hiện tại\n\n**Expected: Sau khi run thành công thì chuyển sang màn hình Run history detail\n\n **Evidence: https://bapjsc-my.sharepoint.com/:v:/g/personal/administration_bap_jp/IQAQY8HJuvsIR6A3Vv682UCAASM6HJUmJt-ReyWtxWba2iE?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0&e=lsG8Sn",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 1,
+      "projectId": 158425,
+      "name": "Open",
+      "color": "#ed8077",
+      "displayOrder": 1000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158706,
+        "projectId": 158425,
+        "name": "sp-03-20260608",
+        "description": null,
+        "startDate": "2026-06-08T00:00:00Z",
+        "releaseDueDate": "2026-06-12T00:00:00Z",
+        "archived": false,
+        "displayOrder": 7
+      },
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-28T00:00:00Z",
+    "dueDate": "2026-06-03T00:00:00Z",
+    "estimatedHours": 1,
+    "actualHours": 1,
+    "parentIssueId": 8279082,
+    "createdUser": {
+      "id": 57612,
+      "userId": null,
+      "name": "ThuyTT",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "q7vX6z3a68129trXr2kXzbaxXGxW1ytG21jgYEEUwS6CdNFQSt",
+        "name": "ThuyTT",
+        "uniqueId": "thuytt1",
+        "iconUrl": "https://apps.nulab.com/account/q7vX6z3a68129trXr2kXzbaxXGxW1ytG21jgYEEUwS6CdNFQSt/photo/large?t=1758680331"
+      },
+      "keyword": "ThuyTT ThuyTT",
+      "lastLoginTime": "2026-06-02T00:57:56Z"
+    },
+    "created": "2026-05-28T08:53:24Z",
+    "updatedUser": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "updated": "2026-06-02T03:29:09Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": {
+          "id": 5,
+          "name": "Integration Test",
+          "displayOrder": 4
+        }
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": {
+          "id": 15,
+          "name": "FUN_Incomplete Function",
+          "displayOrder": 14
+        }
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": {
+          "id": 4,
+          "name": "FUN_Integration Problem",
+          "displayOrder": 3
+        }
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": "no"
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": "Run History Detail "
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": [
+          {
+            "id": 2,
+            "name": "Tester",
+            "displayOrder": 1
+          }
+        ]
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279058,
+    "projectId": 158425,
+    "issueKey": "AQM-128",
+    "keyId": 128,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] Global - Navigation & layout",
+    "description": "Implement global layout: module navigation (Module 1/2/3/4), sidebar layout cho Module 4, routing giữa các màn hình. Shared components: status badges (Active/Inactive/Completed/Failed/Running với animated spinner), pagination component, search bar với debounce, date range picker, empty state illustrations, error banner với retry, loading skeleton.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 4,
+      "projectId": 158425,
+      "name": "Closed",
+      "color": "#b0be3c",
+      "displayOrder": 4000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-05-21T00:00:00Z",
+    "estimatedHours": 8,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:13Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:24Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279057,
+    "projectId": 158425,
+    "issueKey": "AQM-127",
+    "keyId": 127,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M4-SCR-03 - Chat History screen",
+    "description": "Implement màn hình Chat History: sidebar nav, search bar (debounce 300ms), session table (date, first_message truncated 60 chars, workflow, status), pagination 10/page, sort. Click row → M4-SCR-02 load session read-only (input disabled, View Full Results link vẫn hoạt động). States: loading, empty, empty search, error, normal.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 2,
+      "projectId": 158425,
+      "name": "In Progress",
+      "color": "#4488c5",
+      "displayOrder": 2000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-06-04T00:00:00Z",
+    "estimatedHours": 6,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:12Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:23Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279056,
+    "projectId": 158425,
+    "issueKey": "AQM-126",
+    "keyId": 126,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M4-SCR-02 - Chatbox screen",
+    "description": "Implement màn hình Chatbox chính: sidebar (+ New Chat, recent sessions grouped by date, Settings link, History link), chat area với các message types (user bubble, system clarification với action buttons, confirmation card với Confirm/Cancel, running progress bar, result card với rendered Markdown truncated + Show more + View Full Results link, out-of-scope message). Input area (multi-line auto-expand, Enter send, Shift+Enter newline, disabled khi processing). Poll run status mỗi 3s, timeout 10 phút.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 2,
+      "projectId": 158425,
+      "name": "In Progress",
+      "color": "#4488c5",
+      "displayOrder": 2000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-06-04T00:00:00Z",
+    "estimatedHours": 12,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:12Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:23Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279055,
+    "projectId": 158425,
+    "issueKey": "AQM-125",
+    "keyId": 125,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M4-SCR-01 - Chatbox Settings screen",
+    "description": "Implement màn hình Chatbox Settings: sidebar nav (Chatbox/Settings/History), danh sách workflow cards. Mỗi card: toggle ON/OFF, khi ON hiển thị Default Pipeline dropdown (filter version theo pipeline), Active Version dropdown (active only), Default Test Case radio buttons (theo workflow type 1 hoặc 3). Save Settings button với validation. Toast success/error.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 2,
+      "projectId": 158425,
+      "name": "In Progress",
+      "color": "#4488c5",
+      "displayOrder": 2000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-06-04T00:00:00Z",
+    "estimatedHours": 6,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:12Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:23Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279054,
+    "projectId": 158425,
+    "issueKey": "AQM-124",
+    "keyId": 124,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M3-SCR-02 - Run Detail screen",
+    "description": "Implement màn hình Run Detail (read-only): header (back link, run_id, workflow+version, target_data, status badge, duration, started), 5 tabs động theo workflow type. Tab Analysis Log: run summary + execution log table + LLM evaluation summary table (★ best). Tab Test {n}-{m} ×3: test case info (ingest_type, llm_mode, score, duration, verdict), rendered Markdown report content, prompt chain log table. Tab Diff Analysis: score comparison matrix (★), improvement analysis, text diff (left/right selector, side-by-side/unified), Export .pptx button.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 4,
+      "projectId": 158425,
+      "name": "Closed",
+      "color": "#b0be3c",
+      "displayOrder": 4000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-05-21T00:00:00Z",
+    "estimatedHours": 12,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:11Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:23Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279053,
+    "projectId": 158425,
+    "issueKey": "AQM-123",
+    "keyId": 123,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M3-SCR-01 - Run History screen",
+    "description": "Implement màn hình Run History (Module 3): filter bar (Workflow dropdown, Type dropdown, Status dropdown, Month dropdown YYYY-MM, Date range picker) hiển thị dạng removable chips, bảng runs (run_id, workflow, version, month, status badge animated khi Running, started, [▶]), sort, pagination 10/page. Click [▶] → M3-SCR-02.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 4,
+      "projectId": 158425,
+      "name": "Closed",
+      "color": "#b0be3c",
+      "displayOrder": 4000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-05-21T00:00:00Z",
+    "estimatedHours": 6,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:11Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:23Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279052,
+    "projectId": 158425,
+    "issueKey": "AQM-122",
+    "keyId": 122,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M2-POP-01 - Run Detail popup",
+    "description": "Implement popup Run Detail: input field Target Data (required), button Confirm Run, live log stream (polling 3s) hiển thị từng step test case đang chạy. Đóng popup khi completed/failed hoặc user click Close (run vẫn tiếp tục ở BE). Sau khi đóng refresh Run History.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 4,
+      "projectId": 158425,
+      "name": "Closed",
+      "color": "#b0be3c",
+      "displayOrder": 4000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-05-21T00:00:00Z",
+    "estimatedHours": 6,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:11Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:22Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279051,
+    "projectId": 158425,
+    "issueKey": "AQM-121",
+    "keyId": 121,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M2-SCR-04 - Create Workflow Version screen",
+    "description": "Implement màn hình tạo Workflow Version: Step 1 Data Version dropdown (active only) + preview card khi chọn. Step 2 Pipeline Version dropdown + preview card. Step 3 Description textarea (optional, max 500 chars). Version preview tự động tính vX.Y.Z. Validation: required fields, warning khi data version đã dùng. Cancel → M2-SCR-02, Create → M2-SCR-03.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 4,
+      "projectId": 158425,
+      "name": "Closed",
+      "color": "#b0be3c",
+      "displayOrder": 4000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-05-21T00:00:00Z",
+    "estimatedHours": 6,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:10Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:22Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279050,
+    "projectId": 158425,
+    "issueKey": "AQM-120",
+    "keyId": 120,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M2-SCR-03 - Workflow Version Detail screen",
+    "description": "Implement màn hình chi tiết Workflow Version: header (back link, breadcrumb, status badge, data version, pipeline version), 2 tabs. Tab Overview: version config fields, data config fields, pipeline config fields, test cases list, Target Data input + Run button → M2-POP-01. Tab Run History: bảng runs với filter (status, date range) + button [▶] → M3-SCR-02.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 4,
+      "projectId": 158425,
+      "name": "Closed",
+      "color": "#b0be3c",
+      "displayOrder": 4000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-05-21T00:00:00Z",
+    "estimatedHours": 6,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:10Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:22Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279049,
+    "projectId": 158425,
+    "issueKey": "AQM-119",
+    "keyId": 119,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M2-SCR-02 - Workflow Detail screen",
+    "description": "Implement màn hình chi tiết Workflow: header (back link, name, type badge, version count), 4 tabs. Tab Workflows: general info fields. Tab Pipelines: bảng pipeline với inline expand/collapse description (read-only). Tab Versions: bảng versions (version, data_version, pipeline#, status, created_at) + button Create Version → M2-SCR-04 + button Run per row → M2-POP-01. Tab Run History: bảng runs với filter (version, status, date range) + button [▶] → M3-SCR-02.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 4,
+      "projectId": 158425,
+      "name": "Closed",
+      "color": "#b0be3c",
+      "displayOrder": 4000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-05-21T00:00:00Z",
+    "estimatedHours": 10,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:10Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:22Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279048,
+    "projectId": 158425,
+    "issueKey": "AQM-118",
+    "keyId": 118,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M2-SCR-01 - Workflow List screen",
+    "description": "Implement màn hình danh sách Workflow: search bar, table (name, type badge, versions count, created_at, sortable), pagination 20/page, click row → M2-SCR-02. States: loading, empty (no CTA), error, normal.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 4,
+      "projectId": 158425,
+      "name": "Closed",
+      "color": "#b0be3c",
+      "displayOrder": 4000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-05-21T00:00:00Z",
+    "estimatedHours": 4,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:09Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:22Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279047,
+    "projectId": 158425,
+    "issueKey": "AQM-117",
+    "keyId": 117,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M1-POP-01 - Upload Asset popup",
+    "description": "Implement popup Upload Asset 2 bước: Step 1 - form chọn mode (New/Append radio), pipeline version dropdown, file upload slots theo nhóm SD/UD/TK (validate format .xlsx/.pptx/.docx), validation messages, Cancel/Submit buttons. Step 2 - processing view: bảng steps với status icons (pending/running/done/failed), progress bar, nút Close disabled khi đang xử lý. Completion state: View version / Close. Error state: Back to Form / Close.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 4,
+      "projectId": 158425,
+      "name": "Closed",
+      "color": "#b0be3c",
+      "displayOrder": 4000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-05-21T00:00:00Z",
+    "estimatedHours": 8,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:09Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:22Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279046,
+    "projectId": 158425,
+    "issueKey": "AQM-116",
+    "keyId": 116,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M1-SCR-04 - Pipeline Detail screen",
+    "description": "Implement màn hình chi tiết Pipeline (read-only): header (back link, name, version, created_at), Overview section (description text/markdown), 3 Output Type sections (Type1/2/3) mỗi section có Input Files table + Processing Steps table.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 4,
+      "projectId": 158425,
+      "name": "Closed",
+      "color": "#b0be3c",
+      "displayOrder": 4000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-05-21T00:00:00Z",
+    "estimatedHours": 5,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:09Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:22Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279045,
+    "projectId": 158425,
+    "issueKey": "AQM-115",
+    "keyId": 115,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M1-SCR-03 - Pipeline List screen",
+    "description": "Implement màn hình danh sách Pipeline: module nav tab active=Pipelines, search bar, table (name, version, created_at, sortable), pagination, click row → M1-SCR-04. States: loading, empty, error, normal.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 4,
+      "projectId": 158425,
+      "name": "Closed",
+      "color": "#b0be3c",
+      "displayOrder": 4000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-05-21T00:00:00Z",
+    "estimatedHours": 4,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:09Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:22Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279044,
+    "projectId": 158425,
+    "issueKey": "AQM-114",
+    "keyId": 114,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M1-SCR-02 - Data Version Detail screen",
+    "description": "Implement màn hình chi tiết Data Version: header (back link, version badge, status badge, pipeline, created_at), 3 tabs (Overview / Assets / Pipeline Detail). Tab Overview: SQL DB card + Vector DB card. Tab Assets: bảng file theo version grouping (current expanded, parent collapsed), button Upload Asset (mode=Append). Tab Pipeline Detail: pipeline info + ingest log table (read-only).",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 4,
+      "projectId": 158425,
+      "name": "Closed",
+      "color": "#b0be3c",
+      "displayOrder": 4000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-05-21T00:00:00Z",
+    "estimatedHours": 8,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:08Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:22Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  },
+  {
+    "id": 8279043,
+    "projectId": 158425,
+    "issueKey": "AQM-113",
+    "keyId": 113,
+    "issueType": {
+      "id": 703415,
+      "projectId": 158425,
+      "name": "Story",
+      "color": "#007e9a",
+      "displayOrder": 2
+    },
+    "summary": "[AQM-74][FE] M1-SCR-01 - Data Version List screen",
+    "description": "Implement màn hình danh sách Data Version: module nav tabs (Data Versions / Pipelines), search bar (debounce 300ms), data table (version, status, created_at, sortable), pagination 10/page, button Upload Asset mở M1-POP-01. Inactive rows hiển thị mờ. States: loading skeleton, empty, error, normal.",
+    "resolution": null,
+    "priority": {
+      "id": 3,
+      "name": "Normal"
+    },
+    "status": {
+      "id": 4,
+      "projectId": 158425,
+      "name": "Closed",
+      "color": "#b0be3c",
+      "displayOrder": 4000
+    },
+    "assignee": {
+      "id": 778617,
+      "userId": "*VwrnoeczDO",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": "hieund@bap.jp",
+      "nulabAccount": {
+        "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+        "name": "Hieu Nguyen Duy (DN.DEV)",
+        "uniqueId": "hieund-Ep3",
+        "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+      },
+      "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+      "lastLoginTime": "2026-06-02T01:21:01Z"
+    },
+    "category": [],
+    "versions": [],
+    "milestone": [
+      {
+        "id": 158705,
+        "projectId": 158425,
+        "name": "sp-02-20260601",
+        "description": null,
+        "startDate": "2026-06-01T00:00:00Z",
+        "releaseDueDate": "2026-06-05T00:00:00Z",
+        "archived": false,
+        "displayOrder": 8
+      },
+      {
+        "id": 158704,
+        "projectId": 158425,
+        "name": "sp-01-20260525",
+        "description": null,
+        "startDate": "2026-05-25T00:00:00Z",
+        "releaseDueDate": "2026-05-29T00:00:00Z",
+        "archived": false,
+        "displayOrder": 9
+      }
+    ],
+    "startDate": "2026-05-14T00:00:00Z",
+    "dueDate": "2026-05-21T00:00:00Z",
+    "estimatedHours": 5,
+    "actualHours": null,
+    "parentIssueId": null,
+    "createdUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "created": "2026-05-14T04:15:08Z",
+    "updatedUser": {
+      "id": 280712,
+      "userId": null,
+      "name": "TuPV",
+      "roleType": 2,
+      "lang": "en",
+      "mailAddress": null,
+      "nulabAccount": {
+        "nulabId": "9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH",
+        "name": "BAP_ファムバントゥ",
+        "uniqueId": "tupv",
+        "iconUrl": "https://apps.nulab.com/account/9ALXdpVIqx2G2UxHnVqlymTH4QysB0tdahnpqE3Hd4n4aLTnWH/photo/large?t=1732077081"
+      },
+      "keyword": "TuPV TuPV",
+      "lastLoginTime": "2026-06-01T22:22:44Z"
+    },
+    "updated": "2026-05-27T02:35:22Z",
+    "customFields": [
+      {
+        "id": 30187,
+        "fieldTypeId": 5,
+        "name": "QC Activity",
+        "value": null
+      },
+      {
+        "id": 30188,
+        "fieldTypeId": 5,
+        "name": "Bug Origin",
+        "value": null
+      },
+      {
+        "id": 30189,
+        "fieldTypeId": 5,
+        "name": "Cause Category",
+        "value": null
+      },
+      {
+        "id": 30190,
+        "fieldTypeId": 2,
+        "name": "Impacted",
+        "value": null
+      },
+      {
+        "id": 30191,
+        "fieldTypeId": 2,
+        "name": "Corrective Action",
+        "value": null
+      },
+      {
+        "id": 30192,
+        "fieldTypeId": 6,
+        "name": "Detected Role",
+        "value": []
+      }
+    ],
+    "attachments": [],
+    "sharedFiles": [],
+    "externalFileLinks": [],
+    "stars": []
+  }
+]

@@ -1,0 +1,638 @@
+{
+  "qc_activity": {
+    "label": "QC Activity",
+    "field": "customField_30187",
+    "value_options": [
+      {
+        "id": 1,
+        "name": "Not Applicable"
+      },
+      {
+        "id": 2,
+        "name": "Code Review"
+      },
+      {
+        "id": 3,
+        "name": "Document Review"
+      },
+      {
+        "id": 4,
+        "name": "Unit Test"
+      },
+      {
+        "id": 5,
+        "name": "Integration Test"
+      },
+      {
+        "id": 6,
+        "name": "SystemTest"
+      },
+      {
+        "id": 7,
+        "name": "Acceptance Test"
+      }
+    ]
+  },
+  "bug_origin": {
+    "label": "Bug Origin",
+    "field": "customField_30188",
+    "value_options": [
+      {
+        "id": 1,
+        "name": "COD_Coding Standard"
+      },
+      {
+        "id": 2,
+        "name": "COD_Compile"
+      },
+      {
+        "id": 3,
+        "name": "COD_Hard Code"
+      },
+      {
+        "id": 4,
+        "name": "COD_Coding Logic"
+      },
+      {
+        "id": 5,
+        "name": "COD_Redundancy Code"
+      },
+      {
+        "id": 6,
+        "name": "COD_Other"
+      },
+      {
+        "id": 7,
+        "name": "DES_Data Flow"
+      },
+      {
+        "id": 8,
+        "name": "DES_Logic Function"
+      },
+      {
+        "id": 9,
+        "name": "DES_Interface  Between Modules"
+      },
+      {
+        "id": 10,
+        "name": "DES_Table Design"
+      },
+      {
+        "id": 11,
+        "name": "DOC_Documentation"
+      },
+      {
+        "id": 12,
+        "name": "DOC_Format/Template"
+      },
+      {
+        "id": 13,
+        "name": "DOC_Grammar"
+      },
+      {
+        "id": 14,
+        "name": "FUN_Feature Missing"
+      },
+      {
+        "id": 15,
+        "name": "FUN_Incomplete Function"
+      },
+      {
+        "id": 16,
+        "name": "FUN_Wrong Business Logic"
+      },
+      {
+        "id": 17,
+        "name": "UI_Position Size"
+      },
+      {
+        "id": 18,
+        "name": "UI_Label Message"
+      },
+      {
+        "id": 19,
+        "name": "UI_Layout"
+      }
+    ]
+  },
+  "cause_category": {
+    "label": "Cause Category",
+    "field": "customField_30189",
+    "value_options": [
+      {
+        "id": 1,
+        "name": "REQ_Missing or incomplete"
+      },
+      {
+        "id": 2,
+        "name": "REQ_Unclear Or Ambiguous"
+      },
+      {
+        "id": 3,
+        "name": "DES_Missing or incomplete"
+      },
+      {
+        "id": 4,
+        "name": "FUN_Integration Problem"
+      },
+      {
+        "id": 5,
+        "name": "DEP_Environment Issue"
+      },
+      {
+        "id": 6,
+        "name": "DEP_Deployment Issue"
+      },
+      {
+        "id": 7,
+        "name": "IMP_Discipline/process non-compliance"
+      },
+      {
+        "id": 8,
+        "name": "IMP_Insufficient analysis  before implementation"
+      },
+      {
+        "id": 9,
+        "name": "IMP_Shortage of time"
+      },
+      {
+        "id": 10,
+        "name": "SKI_Inadequate language proficiency"
+      },
+      {
+        "id": 11,
+        "name": "SKI_Shortage of technology  expertise"
+      },
+      {
+        "id": 12,
+        "name": "SKI_Shortage of business domain expertise"
+      },
+      {
+        "id": 13,
+        "name": "SKI_Lack of professional skill"
+      },
+      {
+        "id": 14,
+        "name": "COM_Missing communication"
+      },
+      {
+        "id": 15,
+        "name": "CAR_Carelessness"
+      },
+      {
+        "id": 16,
+        "name": "PRO_Missing or incomplete"
+      },
+      {
+        "id": 17,
+        "name": "Not Applicable"
+      },
+      {
+        "id": 18,
+        "name": "REQ_Missing or incomplete"
+      },
+      {
+        "id": 19,
+        "name": "REQ_Unclear Or Ambiguous"
+      },
+      {
+        "id": 20,
+        "name": "DES_Missing or incomplete"
+      },
+      {
+        "id": 21,
+        "name": "FUN_Integration Problem"
+      },
+      {
+        "id": 22,
+        "name": "DEP_Environment Issue"
+      },
+      {
+        "id": 23,
+        "name": "DEP_Deployment Issue"
+      },
+      {
+        "id": 24,
+        "name": "IMP_Discipline/process non-compliance"
+      },
+      {
+        "id": 25,
+        "name": "IMP_Insufficient analysis  before implementation"
+      },
+      {
+        "id": 26,
+        "name": "IMP_Shortage of time"
+      },
+      {
+        "id": 27,
+        "name": "SKI_Inadequate language proficiency"
+      },
+      {
+        "id": 28,
+        "name": "SKI_Shortage of technology  expertise"
+      },
+      {
+        "id": 29,
+        "name": "SKI_Shortage of business domain expertise"
+      },
+      {
+        "id": 30,
+        "name": "SKI_Lack of professional skill"
+      },
+      {
+        "id": 31,
+        "name": "COM_Missing communication"
+      },
+      {
+        "id": 32,
+        "name": "CAR_Carelessness"
+      },
+      {
+        "id": 33,
+        "name": "PRO_Missing or incomplete"
+      },
+      {
+        "id": 34,
+        "name": "Not Applicable"
+      },
+      {
+        "id": 35,
+        "name": "REQ_Missing or incomplete"
+      },
+      {
+        "id": 36,
+        "name": "REQ_Unclear Or Ambiguous"
+      },
+      {
+        "id": 37,
+        "name": "DES_Missing or incomplete"
+      },
+      {
+        "id": 38,
+        "name": "FUN_Integration Problem"
+      },
+      {
+        "id": 39,
+        "name": "DEP_Environment Issue"
+      },
+      {
+        "id": 40,
+        "name": "DEP_Deployment Issue"
+      },
+      {
+        "id": 41,
+        "name": "IMP_Discipline/process non-compliance"
+      },
+      {
+        "id": 42,
+        "name": "IMP_Insufficient analysis  before implementation"
+      },
+      {
+        "id": 43,
+        "name": "IMP_Shortage of time"
+      },
+      {
+        "id": 44,
+        "name": "SKI_Inadequate language proficiency"
+      },
+      {
+        "id": 45,
+        "name": "SKI_Shortage of technology  expertise"
+      },
+      {
+        "id": 46,
+        "name": "SKI_Shortage of business domain expertise"
+      },
+      {
+        "id": 47,
+        "name": "SKI_Lack of professional skill"
+      },
+      {
+        "id": 48,
+        "name": "COM_Missing communication"
+      },
+      {
+        "id": 49,
+        "name": "CAR_Carelessness"
+      },
+      {
+        "id": 50,
+        "name": "PRO_Missing or incomplete"
+      },
+      {
+        "id": 51,
+        "name": "Not Applicable"
+      },
+      {
+        "id": 52,
+        "name": "REQ_Missing or incomplete"
+      },
+      {
+        "id": 53,
+        "name": "REQ_Unclear Or Ambiguous"
+      },
+      {
+        "id": 54,
+        "name": "DES_Missing or incomplete"
+      },
+      {
+        "id": 55,
+        "name": "FUN_Integration Problem"
+      },
+      {
+        "id": 56,
+        "name": "DEP_Environment Issue"
+      },
+      {
+        "id": 57,
+        "name": "DEP_Deployment Issue"
+      },
+      {
+        "id": 58,
+        "name": "IMP_Discipline/process non-compliance"
+      },
+      {
+        "id": 59,
+        "name": "IMP_Insufficient analysis  before implementation"
+      },
+      {
+        "id": 60,
+        "name": "IMP_Shortage of time"
+      },
+      {
+        "id": 61,
+        "name": "SKI_Inadequate language proficiency"
+      },
+      {
+        "id": 62,
+        "name": "SKI_Shortage of technology  expertise"
+      },
+      {
+        "id": 63,
+        "name": "SKI_Shortage of business domain expertise"
+      },
+      {
+        "id": 64,
+        "name": "SKI_Lack of professional skill"
+      },
+      {
+        "id": 65,
+        "name": "COM_Missing communication"
+      },
+      {
+        "id": 66,
+        "name": "CAR_Carelessness"
+      },
+      {
+        "id": 67,
+        "name": "PRO_Missing or incomplete"
+      },
+      {
+        "id": 68,
+        "name": "Not Applicable"
+      },
+      {
+        "id": 69,
+        "name": "REQ_Missing or incomplete"
+      },
+      {
+        "id": 70,
+        "name": "REQ_Unclear Or Ambiguous"
+      },
+      {
+        "id": 71,
+        "name": "DES_Missing or incomplete"
+      },
+      {
+        "id": 72,
+        "name": "FUN_Integration Problem"
+      },
+      {
+        "id": 73,
+        "name": "DEP_Environment Issue"
+      },
+      {
+        "id": 74,
+        "name": "DEP_Deployment Issue"
+      },
+      {
+        "id": 75,
+        "name": "IMP_Discipline/process non-compliance"
+      },
+      {
+        "id": 76,
+        "name": "IMP_Insufficient analysis  before implementation"
+      },
+      {
+        "id": 77,
+        "name": "IMP_Shortage of time"
+      },
+      {
+        "id": 78,
+        "name": "SKI_Inadequate language proficiency"
+      },
+      {
+        "id": 79,
+        "name": "SKI_Shortage of technology  expertise"
+      },
+      {
+        "id": 80,
+        "name": "SKI_Shortage of business domain expertise"
+      },
+      {
+        "id": 81,
+        "name": "SKI_Lack of professional skill"
+      },
+      {
+        "id": 82,
+        "name": "COM_Missing communication"
+      },
+      {
+        "id": 83,
+        "name": "CAR_Carelessness"
+      },
+      {
+        "id": 84,
+        "name": "PRO_Missing or incomplete"
+      },
+      {
+        "id": 85,
+        "name": "Not Applicable"
+      },
+      {
+        "id": 86,
+        "name": "REQ_Missing or incomplete"
+      },
+      {
+        "id": 87,
+        "name": "REQ_Unclear Or Ambiguous"
+      },
+      {
+        "id": 88,
+        "name": "DES_Missing or incomplete"
+      },
+      {
+        "id": 89,
+        "name": "FUN_Integration Problem"
+      },
+      {
+        "id": 90,
+        "name": "DEP_Environment Issue"
+      },
+      {
+        "id": 91,
+        "name": "DEP_Deployment Issue"
+      },
+      {
+        "id": 92,
+        "name": "IMP_Discipline/process non-compliance"
+      },
+      {
+        "id": 93,
+        "name": "IMP_Insufficient analysis  before implementation"
+      },
+      {
+        "id": 94,
+        "name": "IMP_Shortage of time"
+      },
+      {
+        "id": 95,
+        "name": "SKI_Inadequate language proficiency"
+      },
+      {
+        "id": 96,
+        "name": "SKI_Shortage of technology  expertise"
+      },
+      {
+        "id": 97,
+        "name": "SKI_Shortage of business domain expertise"
+      },
+      {
+        "id": 98,
+        "name": "SKI_Lack of professional skill"
+      },
+      {
+        "id": 99,
+        "name": "COM_Missing communication"
+      },
+      {
+        "id": 100,
+        "name": "CAR_Carelessness"
+      },
+      {
+        "id": 101,
+        "name": "PRO_Missing or incomplete"
+      },
+      {
+        "id": 102,
+        "name": "Not Applicable"
+      },
+      {
+        "id": 103,
+        "name": "REQ_Missing or incomplete"
+      },
+      {
+        "id": 104,
+        "name": "REQ_Unclear Or Ambiguous"
+      },
+      {
+        "id": 105,
+        "name": "DES_Missing or incomplete"
+      },
+      {
+        "id": 106,
+        "name": "FUN_Integration Problem"
+      },
+      {
+        "id": 107,
+        "name": "DEP_Environment Issue"
+      },
+      {
+        "id": 108,
+        "name": "DEP_Deployment Issue"
+      },
+      {
+        "id": 109,
+        "name": "IMP_Discipline/process non-compliance"
+      },
+      {
+        "id": 110,
+        "name": "IMP_Insufficient analysis  before implementation"
+      },
+      {
+        "id": 111,
+        "name": "IMP_Shortage of time"
+      },
+      {
+        "id": 112,
+        "name": "SKI_Inadequate language proficiency"
+      },
+      {
+        "id": 113,
+        "name": "SKI_Shortage of technology  expertise"
+      },
+      {
+        "id": 114,
+        "name": "SKI_Shortage of business domain expertise"
+      },
+      {
+        "id": 115,
+        "name": "SKI_Lack of professional skill"
+      },
+      {
+        "id": 116,
+        "name": "COM_Missing communication"
+      },
+      {
+        "id": 117,
+        "name": "CAR_Carelessness"
+      },
+      {
+        "id": 118,
+        "name": "PRO_Missing or incomplete"
+      },
+      {
+        "id": 119,
+        "name": "Not Applicable"
+      }
+    ]
+  },
+  "impacted": {
+    "label": "Impacted",
+    "field": "customField_30190"
+  },
+  "corrective_action": {
+    "label": "Corrective Action",
+    "field": "customField_30191"
+  },
+  "detected_role": {
+    "label": "Detected Role",
+    "field": "customField_30192",
+    "value_options": [
+      {
+        "id": 1,
+        "name": "Developer"
+      },
+      {
+        "id": 2,
+        "name": "Tester"
+      },
+      {
+        "id": 3,
+        "name": "PM/TL"
+      },
+      {
+        "id": 4,
+        "name": "BA/BRSE"
+      },
+      {
+        "id": 5,
+        "name": "Designer"
+      },
+      {
+        "id": 6,
+        "name": "Customer"
+      }
+    ]
+  }
+}

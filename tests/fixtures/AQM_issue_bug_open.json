@@ -1,0 +1,176 @@
+{
+  "id": 8348687,
+  "projectId": 158425,
+  "issueKey": "AQM-266",
+  "keyId": 266,
+  "issueType": {
+    "id": 676898,
+    "projectId": 158425,
+    "name": "Bug",
+    "color": "#e30000",
+    "displayOrder": 4
+  },
+  "summary": "[BUG][AQM-74][Workflow Detail] Run - Chưa chuyển đến màn hình Run History Detail sau khi run thành công",
+  "description": "**Environment: Local**\n\n **Pre-Condition:** \n- \n\n **Steps to reproduce:** \n1. Vào Workflow detail\n2. Click vào tab Versions\n3. Click button Run\n4. Nhập Target Data\n5. Run version\n6. Check màn hình chuyển hướng sau khi run thành công\n7. Tương tự check màn hình sau khi run ở Workflow version detail\n\n**Actual: Show popup Run REesult, click OK thì tắt popup và ở màn hình hiện tại\n\n**Expected: Sau khi run thành công thì chuyển sang màn hình Run history detail\n\n **Evidence: https://bapjsc-my.sharepoint.com/:v:/g/personal/administration_bap_jp/IQAQY8HJuvsIR6A3Vv682UCAASM6HJUmJt-ReyWtxWba2iE?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0&e=lsG8Sn",
+  "resolution": null,
+  "priority": {
+    "id": 3,
+    "name": "Normal"
+  },
+  "status": {
+    "id": 1,
+    "projectId": 158425,
+    "name": "Open",
+    "color": "#ed8077",
+    "displayOrder": 1000
+  },
+  "assignee": {
+    "id": 778617,
+    "userId": "*VwrnoeczDO",
+    "name": "Hieu Nguyen Duy (DN.DEV)",
+    "roleType": 2,
+    "lang": "en",
+    "mailAddress": "hieund@bap.jp",
+    "nulabAccount": {
+      "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "uniqueId": "hieund-Ep3",
+      "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+    },
+    "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+    "lastLoginTime": "2026-06-02T01:21:01Z"
+  },
+  "category": [],
+  "versions": [],
+  "milestone": [
+    {
+      "id": 158706,
+      "projectId": 158425,
+      "name": "sp-03-20260608",
+      "description": null,
+      "startDate": "2026-06-08T00:00:00Z",
+      "releaseDueDate": "2026-06-12T00:00:00Z",
+      "archived": false,
+      "displayOrder": 7
+    },
+    {
+      "id": 158705,
+      "projectId": 158425,
+      "name": "sp-02-20260601",
+      "description": null,
+      "startDate": "2026-06-01T00:00:00Z",
+      "releaseDueDate": "2026-06-05T00:00:00Z",
+      "archived": false,
+      "displayOrder": 8
+    },
+    {
+      "id": 158704,
+      "projectId": 158425,
+      "name": "sp-01-20260525",
+      "description": null,
+      "startDate": "2026-05-25T00:00:00Z",
+      "releaseDueDate": "2026-05-29T00:00:00Z",
+      "archived": false,
+      "displayOrder": 9
+    }
+  ],
+  "startDate": "2026-05-28T00:00:00Z",
+  "dueDate": "2026-06-03T00:00:00Z",
+  "estimatedHours": 1,
+  "actualHours": 1,
+  "parentIssueId": 8279082,
+  "createdUser": {
+    "id": 57612,
+    "userId": null,
+    "name": "ThuyTT",
+    "roleType": 2,
+    "lang": "en",
+    "mailAddress": null,
+    "nulabAccount": {
+      "nulabId": "q7vX6z3a68129trXr2kXzbaxXGxW1ytG21jgYEEUwS6CdNFQSt",
+      "name": "ThuyTT",
+      "uniqueId": "thuytt1",
+      "iconUrl": "https://apps.nulab.com/account/q7vX6z3a68129trXr2kXzbaxXGxW1ytG21jgYEEUwS6CdNFQSt/photo/large?t=1758680331"
+    },
+    "keyword": "ThuyTT ThuyTT",
+    "lastLoginTime": "2026-06-02T00:57:56Z"
+  },
+  "created": "2026-05-28T08:53:24Z",
+  "updatedUser": {
+    "id": 778617,
+    "userId": "*VwrnoeczDO",
+    "name": "Hieu Nguyen Duy (DN.DEV)",
+    "roleType": 2,
+    "lang": "en",
+    "mailAddress": "hieund@bap.jp",
+    "nulabAccount": {
+      "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "uniqueId": "hieund-Ep3",
+      "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+    },
+    "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+    "lastLoginTime": "2026-06-02T01:21:01Z"
+  },
+  "updated": "2026-06-02T03:29:09Z",
+  "customFields": [
+    {
+      "id": 30187,
+      "fieldTypeId": 5,
+      "name": "QC Activity",
+      "value": {
+        "id": 5,
+        "name": "Integration Test",
+        "displayOrder": 4
+      }
+    },
+    {
+      "id": 30188,
+      "fieldTypeId": 5,
+      "name": "Bug Origin",
+      "value": {
+        "id": 15,
+        "name": "FUN_Incomplete Function",
+        "displayOrder": 14
+      }
+    },
+    {
+      "id": 30189,
+      "fieldTypeId": 5,
+      "name": "Cause Category",
+      "value": {
+        "id": 4,
+        "name": "FUN_Integration Problem",
+        "displayOrder": 3
+      }
+    },
+    {
+      "id": 30190,
+      "fieldTypeId": 2,
+      "name": "Impacted",
+      "value": "no"
+    },
+    {
+      "id": 30191,
+      "fieldTypeId": 2,
+      "name": "Corrective Action",
+      "value": "Run History Detail "
+    },
+    {
+      "id": 30192,
+      "fieldTypeId": 6,
+      "name": "Detected Role",
+      "value": [
+        {
+          "id": 2,
+          "name": "Tester",
+          "displayOrder": 1
+        }
+      ]
+    }
+  ],
+  "attachments": [],
+  "sharedFiles": [],
+  "externalFileLinks": [],
+  "stars": []
+}

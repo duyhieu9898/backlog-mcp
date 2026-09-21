@@ -1,0 +1,343 @@
+{
+  "key": "VTO",
+  "name": "bapit.0238.VirtualOffice",
+  "id": 134366,
+  "bug": {
+    "category_options": [
+      {
+        "id": 153066,
+        "name": "UI/UX"
+      },
+      {
+        "id": 153067,
+        "name": "DevOps"
+      },
+      {
+        "id": 153068,
+        "name": "BA"
+      },
+      {
+        "id": 153069,
+        "name": "BE"
+      },
+      {
+        "id": 153070,
+        "name": "FE"
+      },
+      {
+        "id": 153071,
+        "name": "QC"
+      },
+      {
+        "id": 153072,
+        "name": "UT"
+      },
+      {
+        "id": 153073,
+        "name": "SIT1"
+      },
+      {
+        "id": 153074,
+        "name": "SIT2"
+      },
+      {
+        "id": 153075,
+        "name": "UAT"
+      },
+      {
+        "id": 153076,
+        "name": "OH"
+      },
+      {
+        "id": 153077,
+        "name": "Meeting"
+      },
+      {
+        "id": 153078,
+        "name": "Review"
+      },
+      {
+        "id": 153079,
+        "name": "Investigate"
+      },
+      {
+        "id": 153080,
+        "name": "Release"
+      },
+      {
+        "id": 153081,
+        "name": "Original"
+      },
+      {
+        "id": 153082,
+        "name": "Internal"
+      },
+      {
+        "id": 153083,
+        "name": "External"
+      },
+      {
+        "id": 153084,
+        "name": "Others"
+      }
+    ],
+    "issue_type_options": [
+      {
+        "id": 573199,
+        "name": "Requirement"
+      },
+      {
+        "id": 573201,
+        "name": "Epic"
+      },
+      {
+        "id": 573202,
+        "name": "Story"
+      },
+      {
+        "id": 572567,
+        "name": "Task"
+      },
+      {
+        "id": 572566,
+        "name": "Bug"
+      },
+      {
+        "id": 573200,
+        "name": "Issue|Risk"
+      },
+      {
+        "id": 572571,
+        "name": "Q&A"
+      }
+    ],
+    "status_options": [
+      {
+        "id": 1,
+        "name": "Open"
+      },
+      {
+        "id": 2,
+        "name": "In Progress"
+      },
+      {
+        "id": 3,
+        "name": "Resolved"
+      },
+      {
+        "id": 4,
+        "name": "Closed"
+      }
+    ],
+    "custom_fields": {
+      "detected_role": {
+        "label": "Detected Role",
+        "field": "customField_21836",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "Developer"
+          },
+          {
+            "id": 2,
+            "name": "Tester"
+          },
+          {
+            "id": 3,
+            "name": "PM/TL"
+          },
+          {
+            "id": 4,
+            "name": "BA/BRSE"
+          },
+          {
+            "id": 5,
+            "name": "Designer"
+          },
+          {
+            "id": 6,
+            "name": "Customer"
+          }
+        ]
+      },
+      "qc_activity": {
+        "label": "QC Activity",
+        "field": "customField_21837",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "Integration Test"
+          },
+          {
+            "id": 2,
+            "name": "Acceptance Test"
+          },
+          {
+            "id": 3,
+            "name": "Unit Test"
+          },
+          {
+            "id": 4,
+            "name": "System Test"
+          },
+          {
+            "id": 5,
+            "name": "Code Review"
+          },
+          {
+            "id": 6,
+            "name": "Document Review"
+          }
+        ]
+      },
+      "bug_origin": {
+        "label": "Bug Origin",
+        "field": "customField_21838",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "DES_Data Flow"
+          },
+          {
+            "id": 2,
+            "name": "Des_Logic Function"
+          },
+          {
+            "id": 3,
+            "name": "Des_Interface  Between Modules"
+          },
+          {
+            "id": 4,
+            "name": "Des_Table Design"
+          },
+          {
+            "id": 5,
+            "name": "Cod_Coding Standard"
+          },
+          {
+            "id": 6,
+            "name": "Cod_Compile"
+          },
+          {
+            "id": 7,
+            "name": "Cod_Hard Code"
+          },
+          {
+            "id": 8,
+            "name": "Cod_Coding logic"
+          },
+          {
+            "id": 9,
+            "name": "Cod_Redundancy Code"
+          },
+          {
+            "id": 10,
+            "name": "Cod_Other"
+          },
+          {
+            "id": 11,
+            "name": "FUN_Feature Missing"
+          },
+          {
+            "id": 12,
+            "name": "FUN_Incomplete Function"
+          },
+          {
+            "id": 13,
+            "name": "FUN_Wrong Business Logic"
+          },
+          {
+            "id": 14,
+            "name": "UI_Position Size"
+          },
+          {
+            "id": 15,
+            "name": "UI_Label Message "
+          },
+          {
+            "id": 16,
+            "name": "UI_Layout"
+          }
+        ]
+      },
+      "bug_category": {
+        "label": "Bug Category",
+        "field": "customField_21839",
+        "value_options": [
+          {
+            "id": 1,
+            "name": "REQ_Missing Or Incomplete"
+          },
+          {
+            "id": 3,
+            "name": "REQ_Unclear Or Ambiguous"
+          },
+          {
+            "id": 7,
+            "name": "DES_Missing or incomplete"
+          },
+          {
+            "id": 8,
+            "name": "FUN_Integration Problem"
+          },
+          {
+            "id": 4,
+            "name": "DEP_Environment Issue"
+          },
+          {
+            "id": 5,
+            "name": "DEP_Deployment Issue"
+          },
+          {
+            "id": 9,
+            "name": "IMP_Discipline /process non-compliance"
+          },
+          {
+            "id": 2,
+            "name": "IMP_Insufficient analysis before implementation"
+          },
+          {
+            "id": 10,
+            "name": "IMP_Shortage of time"
+          },
+          {
+            "id": 11,
+            "name": "SKI_Inadequate language proficiency"
+          },
+          {
+            "id": 12,
+            "name": "SKI_Shortage of Technology Expertise"
+          },
+          {
+            "id": 13,
+            "name": "SKI_Shortage of business domain expertise"
+          },
+          {
+            "id": 6,
+            "name": "COM_Missing communication"
+          },
+          {
+            "id": 14,
+            "name": "CAR_Carelessness"
+          },
+          {
+            "id": 15,
+            "name": "PRO_Missing or incomplete"
+          },
+          {
+            "id": 16,
+            "name": "Not Applicable"
+          }
+        ]
+      },
+      "impacted": {
+        "label": "Impacted",
+        "field": "customField_21840"
+      },
+      "corrective_action": {
+        "label": "Corrective Action",
+        "field": "customField_21841"
+      }
+    }
+  }
+}

@@ -1,0 +1,159 @@
+{
+  "id": 8245080,
+  "projectId": 82531,
+  "issueKey": "OOP-11953",
+  "keyId": 11953,
+  "issueType": {
+    "id": 351796,
+    "projectId": 82531,
+    "name": "Task",
+    "color": "#7ea800",
+    "displayOrder": 3
+  },
+  "summary": "[OOP-11951][GAME] Update hiển thị Total Asset (Estimate POST)",
+  "description": "#### Yêu cầu\n* [ ] Đối ứng xxx\n* [ ] Đối ứng yyy\n\n#### Output | Evidence\n - Gitlab: \n - Evidence: \n\nNote: logwork ở Actual (hour / 1 ngày)",
+  "resolution": null,
+  "priority": {
+    "id": 3,
+    "name": "Normal"
+  },
+  "status": {
+    "id": 4,
+    "projectId": 82531,
+    "name": "Closed",
+    "color": "#b0be3c",
+    "displayOrder": 4000
+  },
+  "assignee": {
+    "id": 778617,
+    "userId": "*VwrnoeczDO",
+    "name": "Hieu Nguyen Duy (DN.DEV)",
+    "roleType": 2,
+    "lang": "en",
+    "mailAddress": "hieund@bap.jp",
+    "nulabAccount": {
+      "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "uniqueId": "hieund-Ep3",
+      "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+    },
+    "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+    "lastLoginTime": "2026-06-02T01:21:01Z"
+  },
+  "category": [
+    {
+      "id": 184158,
+      "projectId": 82531,
+      "name": "116_VVG",
+      "displayOrder": 3
+    }
+  ],
+  "versions": [],
+  "milestone": [],
+  "startDate": "2026-05-05T00:00:00Z",
+  "dueDate": "2026-05-05T00:00:00Z",
+  "estimatedHours": 6,
+  "actualHours": 6,
+  "parentIssueId": 8244719,
+  "createdUser": {
+    "id": 778617,
+    "userId": "*VwrnoeczDO",
+    "name": "Hieu Nguyen Duy (DN.DEV)",
+    "roleType": 2,
+    "lang": "en",
+    "mailAddress": "hieund@bap.jp",
+    "nulabAccount": {
+      "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "uniqueId": "hieund-Ep3",
+      "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+    },
+    "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+    "lastLoginTime": "2026-06-02T01:21:01Z"
+  },
+  "created": "2026-05-05T03:57:28Z",
+  "updatedUser": {
+    "id": 778617,
+    "userId": "*VwrnoeczDO",
+    "name": "Hieu Nguyen Duy (DN.DEV)",
+    "roleType": 2,
+    "lang": "en",
+    "mailAddress": "hieund@bap.jp",
+    "nulabAccount": {
+      "nulabId": "JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf",
+      "name": "Hieu Nguyen Duy (DN.DEV)",
+      "uniqueId": "hieund-Ep3",
+      "iconUrl": "https://apps.nulab.com/account/JylwzM20pqsYzpI7bnio4phMa40p0ufAjEGi27wFA94HSp2VPf/photo/large?t=1715050490"
+    },
+    "keyword": "Hieu Nguyen Duy (DN.DEV) Hieu Nguyen Duy (DN.DEV)",
+    "lastLoginTime": "2026-06-02T01:21:01Z"
+  },
+  "updated": "2026-05-05T07:38:14Z",
+  "customFields": [
+    {
+      "id": 9864,
+      "fieldTypeId": 5,
+      "name": "QC Activity",
+      "value": null
+    },
+    {
+      "id": 10150,
+      "fieldTypeId": 5,
+      "name": "Bug Origin",
+      "value": null
+    },
+    {
+      "id": 9865,
+      "fieldTypeId": 5,
+      "name": "Cause Category",
+      "value": null
+    },
+    {
+      "id": 9866,
+      "fieldTypeId": 2,
+      "name": "Impacted",
+      "value": null
+    },
+    {
+      "id": 9867,
+      "fieldTypeId": 2,
+      "name": "Corrective Action",
+      "value": null
+    },
+    {
+      "id": 10151,
+      "fieldTypeId": 5,
+      "name": "Detected Role",
+      "value": null
+    },
+    {
+      "id": 18531,
+      "fieldTypeId": 7,
+      "name": "ENV",
+      "value": [],
+      "otherValue": null
+    },
+    {
+      "id": 19891,
+      "fieldTypeId": 6,
+      "name": "Reopen Bug",
+      "value": []
+    },
+    {
+      "id": 25103,
+      "fieldTypeId": 2,
+      "name": "Weekly Report",
+      "value": null
+    },
+    {
+      "id": 25104,
+      "fieldTypeId": 1,
+      "name": "Git Tag",
+      "value": null
+    }
+  ],
+  "attachments": [],
+  "sharedFiles": [],
+  "externalFileLinks": [],
+  "stars": []
+}
