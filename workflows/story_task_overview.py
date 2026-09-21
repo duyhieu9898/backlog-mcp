@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
 from backlog_tool.client import BacklogClient
+from backlog_tool.resolver import find_option, issue_type_options, status_options
 from backlog_tool.settings import load_workflow_config, resolve_project, resolve_user_id
 from .config import require_list, require_value
 
@@ -84,11 +85,23 @@ def my_story_task_overview(
     fields = require_list(workflow, "fields", "story_task_overview")
     today = today or date.today()
 
+    issue_type_ids = [
+        find_option(issue_type_options(project), name, "issue type")
+        for name in issue_types
+    ]
+    status_ids = [
+        item["id"]
+        for item in status_options(project)
+        if item.get("name") not in excluded_statuses
+    ]
+
     client = BacklogClient(config)
     issues = client.get_issues(
         client.get_project_id(project),
         query=query,
         assignee_id=assignee_id,
+        status_ids=status_ids,
+        issue_type_ids=issue_type_ids,
         count=limit,
         offset=offset,
         sort=sort,

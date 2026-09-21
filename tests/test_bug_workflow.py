@@ -194,6 +194,10 @@ class BugWorkflowTest(unittest.TestCase):
         result = bug_workflow.my_open_bugs(CONFIG, project_key="AQM")
 
         self.assertEqual(["AQM-123"], [item["issueKey"] for item in result])
+        call_kwargs = self.client.get_issues.call_args.kwargs
+        self.assertEqual([1], call_kwargs["issue_type_ids"])
+        self.assertEqual([4], call_kwargs["status_ids"])
+        self.assertEqual(778617, call_kwargs["assignee_id"])
 
     def test_resolve_bug_dry_run_builds_personal_update_payload(self):
         result = bug_workflow.resolve_bug(

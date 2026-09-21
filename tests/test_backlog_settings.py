@@ -152,6 +152,32 @@ class BacklogSettingsTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Cannot determine Backlog project"):
                 backlog_settings.resolve_project_key(config, start_path=child_dir)
 
+    def test_resolve_project_key_rejects_malformed_workspace_config(self):
+        config = {
+            "base_url": "https://example.backlog.com",
+            "projects": ["AQM", "OOP"],
+        }
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            local_config_file = os.path.join(tmp_dir, ".backlog-project.json")
+            with open(local_config_file, "w", encoding="utf-8") as f:
+                f.write("{not-json")
+
+            with self.assertRaisesRegex(ValueError, "Invalid workspace config"):
+                backlog_settings.resolve_project_key(config, start_path=tmp_dir)
+
+    def test_resolve_project_key_rejects_workspace_config_without_project_key(self):
+        config = {
+            "base_url": "https://example.backlog.com",
+            "projects": ["AQM", "OOP"],
+        }
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            local_config_file = os.path.join(tmp_dir, ".backlog-project.json")
+            with open(local_config_file, "w", encoding="utf-8") as f:
+                f.write("{}")
+
+            with self.assertRaisesRegex(ValueError, "missing project_key"):
+                backlog_settings.resolve_project_key(config, start_path=tmp_dir)
+
     def test_resolve_project_key_invalid_workspace_raises_validation_error(self):
         config = {
             "base_url": "https://example.backlog.com",

@@ -212,7 +212,7 @@ def test_to_markdown_formatting():
 
 
 def test_tool_execution_logs_metrics_on_success_and_error():
-    with mock.patch("backlog_mcp.server.log_metric") as log_metric_mock, \
+    with mock.patch("backlog_mcp.results.log_metric") as log_metric_mock, \
          mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", return_value={"issueKey": "AQM-1"}):
         result = server.get_bug_context("AQM-1")
         assert result.isError is False
@@ -221,7 +221,7 @@ def test_tool_execution_logs_metrics_on_success_and_error():
         assert call_args.args[0] == "get_bug_context"
         assert call_args.args[3] == "ok"
 
-    with mock.patch("backlog_mcp.server.log_metric") as log_metric_mock, \
+    with mock.patch("backlog_mcp.results.log_metric") as log_metric_mock, \
          mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", side_effect=ValueError("Boom")):
         result = server.get_bug_context("AQM-1")
         assert result.isError is True

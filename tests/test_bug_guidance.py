@@ -28,6 +28,36 @@ WORKFLOW = {
 }
 
 
+PROJECT = {
+    "key": "VTO",
+    "bug": {
+        "custom_fields": {
+            "bug_origin": {
+                "field": "customField_3",
+                "value_options": [
+                    {"id": 1, "name": "FUN_Wrong Business Logic"},
+                    {"id": 2, "name": "COD_Other"},
+                ],
+            },
+            "bug_category": {
+                "field": "customField_2",
+                "value_options": [
+                    {"id": 1, "name": "Not Applicable"},
+                    {"id": 2, "name": "CAR_Carelessness"},
+                ],
+            },
+            "qc_activity": {
+                "field": "customField_1",
+                "value_options": [
+                    {"id": 1, "name": "Unit Test"},
+                    {"id": 2, "name": "Integration Test"},
+                ],
+            },
+        },
+    },
+}
+
+
 class GuidanceTest(unittest.TestCase):
     def setUp(self):
         mock.patch.object(guidance, "load_workflow_config", return_value=WORKFLOW).start()
@@ -76,12 +106,30 @@ class GuidanceTest(unittest.TestCase):
         }
         config = {"projects": ["VTO"]}
 
-        with mock.patch.object(guidance, "load_workflow_config", return_value=workflow):
+        with (
+            mock.patch.object(guidance, "load_workflow_config", return_value=workflow),
+            mock.patch.object(guidance, "resolve_project", return_value=PROJECT),
+        ):
             result = guidance.field_guidance("bug_origin", config, "VTO")
             cause = guidance.field_guidance("cause_category", config, "VTO")
 
         self.assertEqual("FUN_Wrong Business Logic", result["default"])
+        self.assertEqual(["FUN_Wrong Business Logic", "COD_Other"], result["allowedValues"])
+        self.assertEqual("VTO", result["project"])
         self.assertEqual("Not Applicable", cause["default"])
+        self.assertEqual("bug_category", cause["projectField"])
+        self.assertEqual(["Not Applicable", "CAR_Carelessness"], cause["allowedValues"])
+
+    def test_field_guidance_catalog_is_source_of_truth_for_allowed_values(self):
+        config = {"projects": ["VTO"]}
+        with mock.patch.object(guidance, "resolve_project", return_value=PROJECT):
+            result = guidance.field_guidance("bug_origin", config, "VTO")
+
+        self.assertNotIn("UI_Layout", result["allowedValues"])
+        self.assertEqual(
+            ["FUN_Wrong Business Logic", "COD_Other"],
+            result["allowedValues"],
+        )
 
     def test_field_guidance_requires_project_when_config_has_no_default(self):
         config = {"projects": ["VTO"]}
