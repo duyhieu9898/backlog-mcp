@@ -137,34 +137,52 @@ def build_calls(records=None):
     return calls
 
 
+def _task_matches_call(task, call):
+    if not task:
+        return False
+    first = task[0]
+    if (first.get("client") or "unknown") != (call.get("client") or "unknown"):
+        return False
+
+    call_project = call.get("project")
+    task_projects = {item.get("project") for item in task if item.get("project")}
+    if call_project and task_projects and call_project not in task_projects:
+        return False
+
+    call_issue = call.get("issueKey")
+    task_issues = {item.get("issueKey") for item in task if item.get("issueKey")}
+    if call_issue and task_issues and call_issue not in task_issues:
+        return False
+
+    return True
+
+
 def group_candidate_tasks(calls):
     tasks = []
-    current_by_key = {}
 
     for call in calls:
-        subject = _call_subject(call)
-        client = call.get("client") or "unknown"
-        key = (client, subject)
         started = _parse_ts(call.get("startedAt"))
-
-        if subject is None or started is None:
+        if started is None:
             tasks.append([call])
             continue
 
-        current_index = current_by_key.get(key)
-        if current_index is None:
-            tasks.append([call])
-            current_by_key[key] = len(tasks) - 1
-            continue
+        matched_index = None
+        for index in range(len(tasks) - 1, -1, -1):
+            task = tasks[index]
+            previous = _parse_ts(task[-1].get("startedAt"))
+            if previous is None:
+                continue
+            gap = (started - previous).total_seconds()
+            if gap > TASK_GAP_SECONDS:
+                break
+            if _task_matches_call(task, call):
+                matched_index = index
+                break
 
-        task = tasks[current_index]
-        previous = _parse_ts(task[-1].get("startedAt"))
-        gap = (started - previous).total_seconds() if previous else TASK_GAP_SECONDS + 1
-        if gap > TASK_GAP_SECONDS:
+        if matched_index is None:
             tasks.append([call])
-            current_by_key[key] = len(tasks) - 1
         else:
-            task.append(call)
+            tasks[matched_index].append(call)
 
     return tasks
 
