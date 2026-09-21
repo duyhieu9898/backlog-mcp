@@ -168,7 +168,7 @@ def get_issues(
 ) -> CallToolResult:
     """Run a custom Backlog issue search across issue types for the configured user.
 
-    Use as an escape hatch when the user explicitly needs filters/search that the personal domain tools do not provide.
+    Use when the user explicitly needs custom Backlog filters/search that the personal domain tools do not provide; treat this as an escape hatch.
     Do not use for personal Backlog status; use get_my_project_status.
     Do not use for open personal bugs; use get_my_open_bugs.
     Do not use to investigate a specific bug; use get_bug_context.
