@@ -27,6 +27,7 @@ import workflows.resolve_bug as bug_workflow
 from workflows.audit import audit_config
 from backlog_tool.inspect import build_project_config, write_catalog
 from backlog_tool.telemetry import begin_tool_trace
+from backlog_tool.workflow_efficiency import summarize_workflow_efficiency
 
 IssueView = Literal["compact", "full"]
 SortOrder = Literal["asc", "desc"]
@@ -853,6 +854,16 @@ def config_resource() -> str:
 def metrics_resource() -> str:
     """Read aggregated local MCP usage metrics as JSON."""
     return json.dumps(summarize_metrics(), indent=2, ensure_ascii=False)
+
+
+@mcp.resource(
+    "backlog://workflow-efficiency",
+    mime_type="application/json",
+    meta={"kind": "workflow_efficiency", "scope": "workstation"},
+)
+def workflow_efficiency_resource() -> str:
+    """Analyze local telemetry for redundant MCP calls and workflow-path inefficiency."""
+    return json.dumps(summarize_workflow_efficiency(), indent=2, ensure_ascii=False)
 
 
 @mcp.resource(
