@@ -196,6 +196,7 @@ The active project is also resolved from the `BACKLOG_WORKSPACE_PATH` or
 |---|---|
 | `backlog://config` | Workstation-wide Backlog configuration as JSON (credentials excluded). |
 | `backlog://metrics` | Aggregated local MCP usage metrics as JSON. |
+| `backlog://workflow-efficiency` | Rule-based analysis of candidate task sequences, redundant calls, and workflow-path deviations. |
 | `backlog://issue/{issue_key}` | One Backlog issue as full JSON by issue key. |
 
 ## Safety
@@ -221,6 +222,28 @@ hieund-backlog-mcp/
     ├── telemetry.jsonl   # canonical vendor-neutral trace events
     └── sessions/         # CLI session journal
 ```
+
+### Workflow Efficiency Analysis
+
+`backlog://workflow-efficiency` analyzes the local telemetry with conservative,
+rule-based heuristics. Candidate tasks are grouped by observable client,
+issue/project, and time proximity; this is not a claim about the model's hidden
+reasoning or the exact user intent.
+
+Current findings include:
+
+- repeated same tool + same arguments
+- generic `get_issue` before `get_bug_context`
+- `get_bug_rules` / `get_bug_fields` before `resolve_bug`
+- generic issue search before the personal bug queue
+- mutation apply without a matching preview
+- separate Story/Task + Bug status calls where the one-call personal status tool
+  may have been sufficient
+
+Findings that depend on the unknown user intent are marked `candidate`; stronger
+observable violations are marked `warning`. The analyzer also summarizes MCP
+calls, Backlog API calls, response bytes, estimated token proxy, and per-client
+behavior.
 
 ### Telemetry
 
