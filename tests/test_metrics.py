@@ -30,6 +30,9 @@ class MetricsTest(unittest.TestCase):
         by_command = {row["command"]: row for row in summary["commands"]}
         self.assertEqual(2, by_command["issue:get"]["runs"])
         self.assertEqual(1500, by_command["issue:get"]["avgOutputBytes"])
+        self.assertEqual(0, by_command["issue:get"]["avgStructuredBytes"])
+        self.assertEqual(0, by_command["issue:get"]["errorRate"])
+        self.assertEqual(1.0, by_command["bug:resolve"]["errorRate"])
         self.assertEqual(1, by_command["bug:resolve"]["errors"])
         # ordered by totalOutputBytes desc
         self.assertEqual("issue:get", summary["commands"][0]["command"])
