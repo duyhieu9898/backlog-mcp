@@ -8,6 +8,8 @@ from backlog_tool.resolver import (
     resolve_custom_field_defaults,
     status_options,
 )
+from backlog_tool.catalog_diff import compare_project_catalog
+from backlog_tool.inspect import build_project_config
 from backlog_tool.settings import load_project_catalog, load_workflow_config, project_keys
 from .resolve_policy import (
     ALWAYS_OVERWRITE_FIELDS,
@@ -224,3 +226,34 @@ def audit_workflows(config):
         "workflowCount": len(workflows),
         "projectCount": len(project_keys(config)),
     }
+
+
+def audit_live_catalogs(config):
+    """Compare every configured local catalog with current Backlog metadata."""
+    projects = []
+    changed_projects = []
+    for project_key in project_keys(config):
+        local = load_project_catalog(project_key)
+        live = build_project_config(config, project_key)
+        diff = compare_project_catalog(local, live)
+        projects.append(diff)
+        if diff["changed"] or diff["projectIdentity"]["changed"]:
+            changed_projects.append(project_key)
+
+    return {
+        "ok": not changed_projects,
+        "mode": "live",
+        "projectCount": len(projects),
+        "changedProjects": changed_projects,
+        "projects": projects,
+        "writesPerformed": False,
+    }
+
+
+def audit_config(config, mode="local"):
+    if mode == "local":
+        result = audit_workflows(config)
+        return {"mode": "local", **result}
+    if mode == "live":
+        return audit_live_catalogs(config)
+    raise ValueError(f"Unknown audit mode '{mode}'. Available: local, live")
