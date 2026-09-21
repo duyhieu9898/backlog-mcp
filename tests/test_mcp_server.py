@@ -365,8 +365,13 @@ def test_result_metrics_include_structured_and_total_response_bytes():
 
     kwargs = metric.call_args.kwargs
     assert kwargs["text_bytes"] > 0
-    assert kwargs["structured_bytes"] > kwargs["text_bytes"]
+    assert kwargs["structured_bytes"] > 0
+    assert kwargs["total_response_bytes"] >= kwargs["text_bytes"]
     assert kwargs["total_response_bytes"] >= kwargs["structured_bytes"]
+    assert kwargs["total_response_bytes"] > max(
+        kwargs["text_bytes"],
+        kwargs["structured_bytes"],
+    )
     assert kwargs["trace_id"] == result.meta["traceId"]
 
 
