@@ -45,6 +45,33 @@ Then register it in your client's user-level MCP configuration:
 
 The server is started on demand; no daemon or remote server is required.
 
+## Personal Routing Contract
+
+This MCP is intentionally personal and narrow. It should only be selected when
+the user explicitly invokes Backlog (for example, says `backlog` or
+`backlog mcp`) or supplies an identifiable Backlog issue key/URL.
+
+Generic requests such as "what should I do?", "project status", or "what is my
+plan?" must not be claimed by this MCP without a Backlog activation signal.
+
+Normal personal intents map to domain tools:
+
+| Personal Backlog intent | Preferred tool |
+|---|---|
+| What do I currently have to do in this Backlog project? | `get_my_project_status` |
+| What open bugs are assigned to me? | `get_my_open_bugs` |
+| Understand/investigate/fix a specific bug | `get_bug_context` |
+| Resolve/close a bug | `resolve_bug` |
+| Create a configured UT bug | `create_ut_bug` |
+
+`get_issue`, `get_issues`, `create_issue`, and `update_issue` are escape
+hatches for generic/custom operations. Diagnostic/config tools such as
+`get_bug_rules`, `get_bug_fields`, `inspect_project`, and
+`audit_config_workflows` are not normal pre-steps for the personal workflows.
+
+For read intents, the design target is usually one MCP call. Mutations normally
+use two calls because preview then apply is intentional.
+
 ## Usage Modes
 
 This server supports two usage modes. Both require `BACKLOG_API_KEY` and a
@@ -139,11 +166,12 @@ The active project is also resolved from the `BACKLOG_WORKSPACE_PATH` or
 | `get_bug_rules` | Get the resolve-bug workflow rules for a project. |
 | `get_bug_fields` | Get allowed values and guidance for bug workflow fields (e.g. `qc_activity`, `cause_category`). |
 
-### Work Overview
+### Personal Work
 
 | Tool | Description |
 |---|---|
-| `get_my_work_overview` | List assigned Stories and Tasks with deadline and status context. |
+| `get_my_project_status` | One-call personal Backlog status: assigned Stories/Tasks, deadlines, and open Bugs. |
+| `get_my_work_overview` | List assigned Stories and Tasks with deadline and status context when that narrower view is explicitly needed. |
 
 ### Project & Config
 
@@ -160,7 +188,7 @@ The active project is also resolved from the `BACKLOG_WORKSPACE_PATH` or
 |---|---|
 | `resolve_bug_prompt` | Guided step-by-step workflow to resolve a bug following project policies. |
 | `create_ut_bug_prompt` | Guided workflow to create a Unit Test sub-task bug under a parent issue. |
-| `project_status_prompt` | Guided status overview: open bugs + story/task deadlines for a project. |
+| `project_status_prompt` | One-call personal Backlog status workflow using `get_my_project_status`. |
 
 ## Resources
 
