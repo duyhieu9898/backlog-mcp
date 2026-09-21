@@ -136,6 +136,52 @@ class WorkflowAuditTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported placeholders: unknown"):
             audit.audit_workflows(CONFIG)
 
+    def test_live_audit_reports_no_drift_without_writing(self):
+        audit.build_project_config = mock.Mock(return_value=PROJECT)
+
+        result = audit.audit_config(CONFIG, mode="live")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual("live", result["mode"])
+        self.assertEqual([], result["changedProjects"])
+        self.assertFalse(result["writesPerformed"])
+        audit.build_project_config.assert_called_once_with(CONFIG, "AQM")
+
+    def test_live_audit_reports_status_and_custom_field_drift(self):
+        live_project = {
+            **PROJECT,
+            "bug": {
+                **PROJECT["bug"],
+                "status_options": [
+                    {"id": 1, "name": "Open"},
+                    {"id": 3, "name": "Ready for QA"},
+                ],
+                "custom_fields": {
+                    **PROJECT["bug"]["custom_fields"],
+                    "qc_activity": {
+                        **PROJECT["bug"]["custom_fields"]["qc_activity"],
+                        "value_options": [
+                            {"id": 10, "name": "Integration Test"},
+                            {"id": 11, "name": "System Test"},
+                        ],
+                    },
+                },
+            },
+        }
+        audit.build_project_config = mock.Mock(return_value=live_project)
+
+        result = audit.audit_config(CONFIG, mode="live")
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(["AQM"], result["changedProjects"])
+        project = result["projects"][0]
+        self.assertTrue(project["statuses"]["changed"])
+        self.assertTrue(project["customFields"]["changed"])
+
+    def test_audit_config_rejects_unknown_mode(self):
+        with self.assertRaisesRegex(ValueError, "Unknown audit mode"):
+            audit.audit_config(CONFIG, mode="nope")
+
     def test_audit_rejects_missing_required_project_field(self):
         audit.load_project_catalog.return_value = {
             **PROJECT,
