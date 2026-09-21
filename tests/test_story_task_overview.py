@@ -24,6 +24,18 @@ CONFIG = {
 PROJECT = {
     "key": "AQM",
     "id": 158425,
+    "bug": {
+        "issue_type_options": [
+            {"id": 11, "name": "Story"},
+            {"id": 12, "name": "Task"},
+            {"id": 13, "name": "Bug"},
+        ],
+        "status_options": [
+            {"id": 1, "name": "Open"},
+            {"id": 2, "name": "In Progress"},
+            {"id": 4, "name": "Closed"},
+        ],
+    },
 }
 
 
@@ -94,6 +106,11 @@ class StoryTaskOverviewTest(unittest.TestCase):
         ]
 
         result = story_task_overview.my_story_task_overview(CONFIG, project_key="AQM", today=date(2026, 6, 2))
+
+        call_kwargs = self.client.get_issues.call_args.kwargs
+        self.assertEqual({11, 12}, set(call_kwargs["issue_type_ids"]))
+        self.assertEqual({1, 2}, set(call_kwargs["status_ids"]))
+        self.assertEqual(778617, call_kwargs["assignee_id"])
 
         self.assertEqual(
             [
