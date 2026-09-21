@@ -5,7 +5,7 @@ from datetime import date
 
 from .bug_template import bug_context
 from backlog_tool.client import BacklogClient
-from backlog_tool.resolver import resolve_custom_field_defaults, resolve_status
+from backlog_tool.resolver import find_option, issue_type_options, resolve_custom_field_defaults, resolve_status, status_options
 from backlog_tool.settings import load_workflow_config, log_event, resolve_project, resolve_project_key, resolve_user_id
 from .config import require_int, require_list, require_value, require_mapping
 from .resolve_policy import (
@@ -66,11 +66,19 @@ def my_open_bugs(config, project_key=None, query=None, limit=100, offset=0, sort
     assignee_id = resolve_user_id(config, require_value(workflow, "assignee", "resolve_bug"))
     issue_type = require_value(workflow, "issue_type", "resolve_bug")
     excluded_statuses = set(require_list(workflow, "excluded_statuses", "resolve_bug"))
+    issue_type_id = find_option(issue_type_options(project), issue_type, "issue type")
+    status_ids = [
+        item["id"]
+        for item in status_options(project)
+        if item.get("name") not in excluded_statuses
+    ]
     client = BacklogClient(config)
     issues = client.get_issues(
         client.get_project_id(project),
         query=query,
         assignee_id=assignee_id,
+        status_ids=status_ids,
+        issue_type_ids=[issue_type_id],
         count=limit,
         offset=offset,
         sort=sort,
@@ -91,11 +99,19 @@ def my_open_bugs_raw(config, project_key=None, query=None, limit=100, offset=0, 
     assignee_id = resolve_user_id(config, require_value(workflow, "assignee", "resolve_bug"))
     issue_type = require_value(workflow, "issue_type", "resolve_bug")
     excluded_statuses = set(require_list(workflow, "excluded_statuses", "resolve_bug"))
+    issue_type_id = find_option(issue_type_options(project), issue_type, "issue type")
+    status_ids = [
+        item["id"]
+        for item in status_options(project)
+        if item.get("name") not in excluded_statuses
+    ]
     client = BacklogClient(config)
     issues = client.get_issues(
         client.get_project_id(project),
         query=query,
         assignee_id=assignee_id,
+        status_ids=status_ids,
+        issue_type_ids=[issue_type_id],
         count=limit,
         offset=offset,
         sort=sort,
