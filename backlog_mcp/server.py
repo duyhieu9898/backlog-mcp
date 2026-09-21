@@ -24,7 +24,7 @@ from backlog_tool import issue_service, presenter
 from backlog_tool.resolver import resolve_user_id
 from workflows import guidance, ut_bug, story_task_overview
 import workflows.resolve_bug as bug_workflow
-from workflows.audit import audit_workflows
+from workflows.audit import audit_config
 from backlog_tool.inspect import build_project_config, write_catalog
 
 IssueView = Literal["compact", "full"]
@@ -638,16 +638,24 @@ def get_config() -> CallToolResult:
 
 
 @mcp.tool()
-def audit_config_workflows() -> CallToolResult:
-    """Validate workflow config, policies, and project catalogs for drift.
+def audit_config_workflows(
+    mode: Annotated[
+        Literal["local", "live"],
+        Field(
+            description="local validates workflow/config compatibility against cached catalogs; live compares cached catalogs with current Backlog metadata without writing files."
+        ),
+    ] = "local",
+) -> CallToolResult:
+    """Validate workflow config and optionally detect live Backlog catalog drift.
 
-    Use when configuration behavior looks wrong or before relying on workflow defaults.
-    Do not use for issue search or project status summaries.
+    Use local mode for config/workflow consistency. Use live mode before relying on
+    catalog-backed mutations when Backlog metadata may have changed.
+    Do not use to refresh catalogs; live mode is read-only.
     """
     started = time.monotonic()
     try:
         config = get_config_instance()
-        data = audit_workflows(config)
+        data = audit_config(config, mode=mode)
         return _build_result(data, "audit_config_workflows", started=started)
     except Exception as e:
         return _error_result("audit_config_workflows", e, started=started)
