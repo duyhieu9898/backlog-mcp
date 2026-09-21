@@ -122,11 +122,15 @@ def find_workspace_project_key(start_path=None):
             try:
                 with open(local_config, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    val = data.get("project_key")
-                    if val:
-                        return str(val)
-            except Exception:
-                pass
+            except (OSError, json.JSONDecodeError) as error:
+                raise ValueError(
+                    f"Invalid workspace config {local_config}: {error}"
+                ) from error
+            if not isinstance(data, dict) or not data.get("project_key"):
+                raise ValueError(
+                    f"Invalid workspace config {local_config}: missing project_key"
+                )
+            return str(data["project_key"])
 
         # Stop traversing if we hit .git directory
         if os.path.exists(os.path.join(curr, ".git")):
