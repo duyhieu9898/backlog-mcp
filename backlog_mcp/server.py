@@ -10,7 +10,7 @@ from pydantic import Field
 from mcp.server.fastmcp import FastMCP
 from mcp.types import CallToolResult
 
-from .results import _build_result, _error_result, _pagination, _parse_cursor, _resource_uris, _to_markdown
+from .results import _build_result, _error_result, _pagination, _parse_cursor, _partial_write_result, _resource_uris, _to_markdown
 
 from backlog_tool.settings import (
     load_config,
@@ -486,6 +486,21 @@ def create_ut_bug(
             "create_ut_bug",
             started=started,
             dry_run=dry_run,
+            project=project_key,
+        )
+    except ut_bug.PostCreateUpdateError as e:
+        return _partial_write_result(
+            "create_ut_bug",
+            str(e),
+            {
+                "issueKey": e.issue_key,
+                "committed": {"created": True, "postCreateUpdate": False},
+                "recovery": {
+                    "targetStatus": e.target_status,
+                    "updatePayload": e.payload,
+                },
+            },
+            started=started,
             project=project_key,
         )
     except Exception as e:
