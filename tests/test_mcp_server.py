@@ -157,6 +157,7 @@ def test_tool_schema_exposes_enums_and_use_when_descriptions():
     get_issues = tools["get_issues"]
     get_issue = tools["get_issue"]
     create_issue = tools["create_issue"]
+    audit_tool = tools["audit_config_workflows"]
 
     assert "Use when" in get_issues.description
     assert "Do not use" in get_issues.description
@@ -174,6 +175,8 @@ def test_tool_schema_exposes_enums_and_use_when_descriptions():
     assert "parent_key" in create_issue.inputSchema["properties"]
     assert create_issue.inputSchema["properties"]["project_key"]["default"] == ""
     assert "issue_type" in create_issue.inputSchema.get("required", [])
+    assert audit_tool.inputSchema["properties"]["mode"]["enum"] == ["local", "live"]
+    assert audit_tool.inputSchema["properties"]["mode"]["default"] == "local"
 
 
 def test_resources_have_json_mime_type_and_issue_template():
@@ -309,3 +312,21 @@ def test_create_ut_bug_returns_structured_partial_write_error():
     assert detail["committed"] == {"created": True, "postCreateUpdate": False}
     assert detail["recovery"]["targetStatus"] == "Closed"
     assert detail["recovery"]["updatePayload"] == {"statusId": 4, "assigneeId": 9}
+
+
+def test_audit_config_workflows_live_mode_is_read_only():
+    with mock.patch(
+        "backlog_mcp.server.audit_config",
+        return_value={
+            "ok": False,
+            "mode": "live",
+            "changedProjects": ["AQM"],
+            "projects": [],
+            "writesPerformed": False,
+        },
+    ) as audit_mock:
+        result = server.audit_config_workflows(mode="live")
+
+    assert result.isError is False
+    audit_mock.assert_called_once_with(server.get_config_instance(), mode="live")
+    assert result.structuredContent["data"]["writesPerformed"] is False
