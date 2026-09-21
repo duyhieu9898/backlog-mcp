@@ -170,3 +170,45 @@ def test_analyzer_keeps_different_clients_separate():
     summary = workflow_efficiency.summarize_workflow_efficiency(records)
     assert summary["overview"]["candidateTasks"] == 2
     assert [item["client"] for item in summary["clients"]] == ["claude", "codex"]
+
+
+def test_grouping_keeps_different_issues_separate_within_same_project():
+    records = []
+    records += tool_trace(
+        "2026-09-21T15:00",
+        "i1",
+        "get_bug_context",
+        {"issue_key": "OOP-100"},
+    )
+    records += tool_trace(
+        "2026-09-21T15:01",
+        "i2",
+        "get_bug_context",
+        {"issue_key": "OOP-200"},
+    )
+
+    summary = workflow_efficiency.summarize_workflow_efficiency(records)
+    assert summary["overview"]["candidateTasks"] == 2
+    assert sorted(task["issueKey"] for task in summary["tasks"]) == ["OOP-100", "OOP-200"]
+
+
+def test_project_scoped_support_call_groups_with_following_issue_workflow():
+    records = []
+    records += tool_trace(
+        "2026-09-21T16:00",
+        "p1",
+        "get_bug_fields",
+        {"project_key": "OOP", "field": "cause_category"},
+        api_calls=0,
+    )
+    records += tool_trace(
+        "2026-09-21T16:01",
+        "p2",
+        "resolve_bug",
+        {"issue_key": "OOP-12754", "mode": "preview"},
+        api_calls=2,
+    )
+
+    summary = workflow_efficiency.summarize_workflow_efficiency(records)
+    assert summary["overview"]["candidateTasks"] == 1
+    assert summary["tasks"][0]["project"] == "OOP"
