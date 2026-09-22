@@ -163,9 +163,9 @@ Generic issue tools use `issue_ref` for a key or numeric ID. Bug-domain tools us
 |---|---|
 | `get_my_open_bugs` | List open bugs assigned to the configured user. |
 | `get_bug_context` | Get AI-ready context for a specific bug (fields needed to understand or resolve it). |
-| `resolve_bug` | Resolve a bug with workflow defaults (`mode="preview"` / `"apply"`). |
+| `resolve_bug` | Resolve a bug with workflow defaults (`mode="preview"` / `"apply"`). Apply requires `fix_description`; guided fields and hours only fill empty values and warn when a passed value is not applied. |
 | `create_ut_bug` | Create a Unit Test sub-task bug under a parent issue (`mode="preview"` / `"apply"`). |
-| `get_bug_rules` | Get the resolve-bug workflow rules for a project. |
+| `get_bug_rules` | Get the resolve-bug workflow rules for a project (or the project of `issue_key`). |
 | `get_bug_fields` | Get allowed values and guidance for bug workflow fields (e.g. `qc_activity`, `cause_category`). |
 
 ### Personal Work
@@ -258,14 +258,19 @@ Token counts are intentionally estimates. The server records text,
 comparable across Claude, Codex, Gemini/Antigravity, and other MCP clients even
 though their actual tokenizers and caching differ.
 
-Client metadata is optional. Set these per client process if you want
-cross-client comparisons:
+Client name/version default to the `clientInfo` the MCP client sends during
+`initialize`. Set these per client process to override it:
 
 ```bash
 BACKLOG_MCP_CLIENT=codex
 BACKLOG_MCP_CLIENT_VERSION=<optional>
 BACKLOG_MCP_TRANSPORT=stdio
 ```
+
+Calls that FastMCP rejects before the tool body runs (unknown or invalid
+arguments) are still recorded, with status `invalid_arguments` or `rejected`.
+The test suite redirects all log paths to a temporary directory, so running
+`pytest` never adds records to the workstation `logs/`.
 
 The API key itself is never written to telemetry. Request parameters/payloads
 and Backlog response bodies are retained locally for debugging.
