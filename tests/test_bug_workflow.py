@@ -467,5 +467,93 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertNotIn("customField_6", payload)
 
 
+    def _issue_with_existing_guided_fields(self):
+        return {
+            **BUG_ISSUE,
+            "estimatedHours": 2,
+            "actualHours": 3,
+            "customFields": [
+                {"id": 1, "name": "QC Activity", "value": {"id": 10, "name": "Integration Test"}},
+                {"id": 2, "name": "Cause Category", "value": {"id": 20, "name": "Not Applicable"}},
+                {"id": 3, "name": "Bug Origin", "value": {"id": 30, "name": "FUN_Incomplete Function"}},
+            ],
+        }
+
+    def test_resolve_warns_when_explicit_guided_value_is_not_applied(self):
+        self.client.get_issue.return_value = self._issue_with_existing_guided_fields()
+
+        result = bug_workflow.resolve_bug(
+            CONFIG,
+            "AQM-123",
+            dry_run=True,
+            today=date(2026, 6, 2),
+            cause_category="Not Applicable",
+            estimated_hours=1,
+            actual_hours=1,
+            fix_description="save button validation",
+        )
+
+        self.assertNotIn("customField_2", result["payload"])
+        self.assertNotIn("estimatedHours", result["payload"])
+        warnings = " ".join(result["warnings"])
+        self.assertIn("cause_category 'Not Applicable' was not applied", warnings)
+        self.assertIn("estimated_hours 1 was not applied", warnings)
+        self.assertIn("actual_hours 1 was not applied", warnings)
+
+    def test_resolve_rejects_invalid_explicit_value_even_when_field_is_set(self):
+        # Seen in production: a Bug Origin option passed as cause_category was
+        # silently dropped because the issue already had a Cause Category.
+        self.client.get_issue.return_value = self._issue_with_existing_guided_fields()
+
+        with self.assertRaisesRegex(ValueError, "COD_Coding Logic"):
+            bug_workflow.resolve_bug(
+                CONFIG,
+                "AQM-123",
+                dry_run=True,
+                today=date(2026, 6, 2),
+                cause_category="COD_Coding Logic",
+            )
+
+    def test_resolve_apply_requires_fix_description(self):
+        with self.assertRaisesRegex(ValueError, "fix_description is required"):
+            bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, today=date(2026, 6, 2))
+        self.client.update_issue.assert_not_called()
+
+        bug_workflow.resolve_bug(
+            CONFIG,
+            "AQM-123",
+            dry_run=False,
+            today=date(2026, 6, 2),
+            fix_description="save button validation",
+        )
+        self.client.update_issue.assert_called_once()
+
+    def test_corrective_action_does_not_duplicate_fixed_verb(self):
+        for fix_description in ("Fixed save button validation", "fix: save button validation"):
+            result = bug_workflow.resolve_bug(
+                CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2), fix_description=fix_description
+            )
+            self.assertEqual("fixed save button validation", result["payload"]["customField_5"])
+
+        result = bug_workflow.resolve_bug(
+            CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2), fix_description="Fixed-width layout"
+        )
+        self.assertEqual("fixed Fixed-width layout", result["payload"]["customField_5"])
+
+    def test_corrective_action_renders_bulleted_description_as_list(self):
+        result = bug_workflow.resolve_bug(
+            CONFIG,
+            "AQM-123",
+            dry_run=True,
+            today=date(2026, 6, 2),
+            fix_description="- UserNav.tsx: split name and email\n- admin-profile-dialog.tsx: move role Badge",
+        )
+
+        self.assertEqual(
+            "fixed:\n- UserNav.tsx: split name and email\n- admin-profile-dialog.tsx: move role Badge",
+            result["payload"]["customField_5"],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

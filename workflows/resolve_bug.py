@@ -5,7 +5,7 @@ from datetime import date
 
 from .bug_template import bug_context
 from backlog_tool.client import BacklogClient
-from backlog_tool.resolver import find_option, issue_type_options, status_options
+from backlog_tool.resolver import find_option, issue_type_options, resolve_custom_field_value, status_options
 from backlog_tool.settings import load_workflow_config, log_event, resolve_project, resolve_project_key, resolve_user_id
 from .config import require_int, require_list, require_value, require_mapping
 from .resolution_plan import ResolutionPlan, resolution_plan_to_payload
@@ -309,6 +309,13 @@ def build_resolution_plan(
         raise ValueError(f"{issue_key} is not assigned to the configured resolve user.")
 
     semantic_custom_fields = {}
+    warnings = []
+    explicit_values = {
+        "qc_activity": qc_activity,
+        "cause_category": cause_category,
+        "bug_origin": bug_origin,
+        "resolution": resolution,
+    }
 
     def project_field_key(key):
         return cause_key if key == "cause_category" else key
@@ -324,6 +331,18 @@ def build_resolution_plan(
                 f"Unknown custom field '{field_key}'. Available: {available}"
             )
         if issue_has_custom_value(issue, project, field_key):
+            explicit = explicit_values.get(policy_key)
+            if explicit:
+                # Validate even though it is not written, so a value from the
+                # wrong field (e.g. a Bug Origin option passed as cause_category)
+                # fails loudly instead of disappearing from the payload.
+                resolve_custom_field_value(project_fields[field_key], explicit)
+                current = display_value(issue_custom_field(issue, project, field_key).get("value"))
+                warnings.append(
+                    f"{policy_key} '{explicit}' was not applied: the issue already has "
+                    f"{project_fields[field_key].get('label') or field_key} '{current}', "
+                    "and resolve_bug only fills empty values."
+                )
             continue
         selected_value = field_values[field_key]
         if selected_value is None and optional:
@@ -363,10 +382,20 @@ def build_resolution_plan(
         custom_fields=semantic_custom_fields,
     )
 
-    warnings = []
+    for hours_key, requested, issue_field in (
+        ("estimated_hours", estimated_hours, "estimatedHours"),
+        ("actual_hours", actual_hours, "actualHours"),
+    ):
+        if requested is not None and issue.get(issue_field) is not None:
+            warnings.append(
+                f"{hours_key} {requested} was not applied: the issue already has "
+                f"{issue_field} {issue.get(issue_field)}, and resolve_bug only fills empty values."
+            )
+
     if not fix_description:
         warnings.append(
-            "corrective_action fell back to the issue summary; pass fix_description for an accurate fix note."
+            "corrective_action fell back to the issue summary; pass fix_description for an accurate fix note. "
+            "Apply mode requires fix_description."
         )
     roles = detected_roles(issue, project)
     if roles and "Tester" not in roles:
@@ -431,15 +460,18 @@ def custom_field_label_map(project):
     return labels
 
 
+def display_value(value):
+    if isinstance(value, dict):
+        return value.get("name")
+    if isinstance(value, list):
+        return ", ".join(str((item or {}).get("name", item)) for item in value)
+    return value
+
+
 def custom_field_current_value(issue, field_id):
     for field in issue.get("customFields", []) or []:
         if field.get("id") == field_id:
-            value = field.get("value")
-            if isinstance(value, dict):
-                return value.get("name")
-            if isinstance(value, list):
-                return ", ".join(str((item or {}).get("name", item)) for item in value)
-            return value
+            return display_value(field.get("value"))
     return None
 
 
@@ -486,6 +518,13 @@ def summarize_changes(issue, project, payload, target_status):
 
 
 def resolve_bug(config, issue_key, dry_run=True, start_path=None, **kwargs):
+    if not dry_run and not (kwargs.get("fix_description") or "").strip():
+        # The summary fallback describes the symptom ("fixed <bug title>"),
+        # not the fix, so it is only acceptable as a preview placeholder.
+        raise ValueError(
+            "fix_description is required to apply resolve_bug: Corrective Action would otherwise "
+            "fall back to the bug summary. Describe what was changed and retry."
+        )
     built = build_resolve_bug_payload(config, issue_key, start_path=start_path, **kwargs)
     if dry_run:
         log_event(
