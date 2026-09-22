@@ -3,6 +3,7 @@ import os
 from unittest import mock
 
 import anyio
+import pytest
 from mcp.types import CallToolResult, TextContent
 
 from backlog_mcp import server
@@ -212,6 +213,36 @@ def test_tool_schema_exposes_enums_and_use_when_descriptions():
     assert audit_tool.inputSchema["properties"]["mode"]["enum"] == ["local", "live"]
     assert audit_tool.inputSchema["properties"]["mode"]["default"] == "local"
 
+
+
+def test_tool_argument_models_reject_unknown_fields():
+    resolve_tool = server.mcp._tool_manager.get_tool("resolve_bug")
+
+    with pytest.raises(Exception) as error:
+        resolve_tool.fn_metadata.arg_model.model_validate(
+            {"issue_key": "OOP-12757", "dry_run": False}
+        )
+
+    assert "extra" in str(error.value).lower()
+    assert "dry_run" in str(error.value)
+
+    with pytest.raises(Exception) as error:
+        resolve_tool.fn_metadata.arg_model.model_validate(
+            {"issue_key": "OOP-12757", "resolution_summary": "fixed"}
+        )
+
+    assert "extra" in str(error.value).lower()
+    assert "resolution_summary" in str(error.value)
+
+
+def test_tool_schemas_disallow_additional_properties():
+    async def load_tools():
+        return await server.mcp.list_tools()
+
+    tools = {tool.name: tool for tool in anyio.run(load_tools)}
+    assert tools["resolve_bug"].inputSchema["additionalProperties"] is False
+    assert tools["get_bug_context"].inputSchema["additionalProperties"] is False
+    assert tools["get_issue"].inputSchema["additionalProperties"] is False
 
 def test_resources_have_json_mime_type_and_issue_template():
     async def load_resources():
