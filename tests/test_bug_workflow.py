@@ -119,7 +119,7 @@ class BugWorkflowTest(unittest.TestCase):
                 "estimated_hours": 1,
                 "actual_hours": 1,
                 "due_in_days": 2,
-                "corrective_action": "fixed {description_lower}",
+                "corrective_action": "fixed {description}",
                 "custom_fields": {
                     "qc_activity": "Integration Test",
                     "cause_category": "Not Applicable",
@@ -222,7 +222,7 @@ class BugWorkflowTest(unittest.TestCase):
                 "bug_origin": "FUN_Incomplete Function",
                 "resolution": "fixed",
                 "impacted": "no",
-                "corrective_action": "fixed save fails",
+                "corrective_action": "fixed Save fails",
             },
             plan.custom_fields,
         )
@@ -235,7 +235,7 @@ class BugWorkflowTest(unittest.TestCase):
             start_date="2026-06-02",
             custom_fields={
                 "qc_activity": "Integration Test",
-                "corrective_action": "fixed save fails",
+                "corrective_action": "fixed Save fails",
             },
         )
 
@@ -245,7 +245,7 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertEqual(1001, payload["assigneeId"])
         self.assertEqual("2026-06-02", payload["startDate"])
         self.assertEqual(10, payload["customField_1"])
-        self.assertEqual("fixed save fails", payload["customField_5"])
+        self.assertEqual("fixed Save fails", payload["customField_5"])
 
     def test_resolve_bug_dry_run_builds_personal_update_payload(self):
         result = bug_workflow.resolve_bug(
@@ -271,7 +271,7 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertEqual(20, payload["customField_2"])
         self.assertEqual(30, payload["customField_3"])
         self.assertEqual("no", payload["customField_4"])
-        self.assertEqual("fixed save fails", payload["customField_5"])
+        self.assertEqual("fixed Save fails", payload["customField_5"])
         self.assertEqual("fixed", payload["customField_6"])
         self.assertEqual(
             {
@@ -298,7 +298,25 @@ class BugWorkflowTest(unittest.TestCase):
             fix_description="Validated save button",
         )
 
-        self.assertEqual("fixed validated save button", result["payload"]["customField_5"])
+        self.assertEqual("fixed Validated save button", result["payload"]["customField_5"])
+
+    def test_resolve_bug_preserves_technical_identifier_casing_in_fix_description(self):
+        fix_description = (
+            "Handle OTP_INVALID and keep retryAfterSeconds in SomeFile.tsx unchanged."
+        )
+
+        result = bug_workflow.resolve_bug(
+            CONFIG,
+            "AQM-123",
+            dry_run=True,
+            today=date(2026, 6, 2),
+            fix_description=fix_description,
+        )
+
+        self.assertEqual(
+            "fixed Handle OTP_INVALID and keep retryAfterSeconds in SomeFile.tsx unchanged.",
+            result["payload"]["customField_5"],
+        )
 
     def test_resolve_bug_appends_commit_to_comment(self):
         result = bug_workflow.resolve_bug(
@@ -375,7 +393,7 @@ class BugWorkflowTest(unittest.TestCase):
 
         result = bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2))
 
-        self.assertEqual("fixed layout broken", result["payload"]["customField_5"])
+        self.assertEqual("fixed Layout broken", result["payload"]["customField_5"])
 
     def test_resolve_dry_run_includes_changes_and_warnings(self):
         result = bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2))
@@ -383,7 +401,7 @@ class BugWorkflowTest(unittest.TestCase):
         change_keys = {change["key"] for change in result["changes"]}
         self.assertIn("statusId", change_keys)
         self.assertIn("customField_5", change_keys)  # corrective_action
-        self.assertTrue(any("fix-description" in w for w in result["warnings"]))
+        self.assertTrue(any("fix_description" in w for w in result["warnings"]))
 
     def test_resolve_no_warning_when_fix_description_given(self):
         result = bug_workflow.resolve_bug(
@@ -445,7 +463,7 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertNotIn("customField_2", payload)
         self.assertNotIn("customField_3", payload)
         self.assertEqual("no", payload["customField_4"])
-        self.assertEqual("fixed save fails", payload["customField_5"])
+        self.assertEqual("fixed Save fails", payload["customField_5"])
         self.assertNotIn("customField_6", payload)
 
 

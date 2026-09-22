@@ -73,7 +73,10 @@ def render_corrective_action(workflow, description):
     template = require_value(workflow, "corrective_action", WORKFLOW_NAME)
     return template.format(
         description=description,
-        description_lower=description.lower(),
+        # Backward-compatible placeholder for older local workflow configs.
+        # Preserve the caller's text exactly; lowercasing can corrupt technical
+        # identifiers such as OTP_INVALID, retryAfterSeconds, or file names.
+        description_lower=description,
     )
 
 
