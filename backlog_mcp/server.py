@@ -122,7 +122,7 @@ def _workspace_path() -> str | None:
 
 @mcp.tool()
 def get_issue(
-    issue_id: Annotated[str, Field(description="Issue key (e.g., 'PROJ-123') or numeric ID")],
+    issue_ref: Annotated[str, Field(description="Issue reference: Backlog issue key (e.g., 'PROJ-123') or numeric ID. Parameter name is issue_ref.")],
     view: Annotated[Literal["compact", "full"], Field(description="Detail level: compact for general triage, full for raw Backlog fields.")] = "compact",
 ) -> CallToolResult:
     """Get raw/current details of one Backlog issue by key or numeric ID.
@@ -135,7 +135,7 @@ def get_issue(
     begin_tool_trace("get_issue", locals())
     try:
         config = get_config_instance()
-        raw_issue = issue_service.get_issue(config, issue_id)
+        raw_issue = issue_service.get_issue(config, issue_ref)
         if view == "full":
             data = raw_issue
         else:
@@ -277,7 +277,7 @@ def create_issue(
 
 @mcp.tool()
 def update_issue(
-    issue_id: Annotated[str, Field(description="Issue key (e.g., 'PROJ-123') or numeric ID")],
+    issue_ref: Annotated[str, Field(description="Issue reference: Backlog issue key (e.g., 'PROJ-123') or numeric ID. Parameter name is issue_ref.")],
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to infer from issue key or active workspace context.")] = "",
     summary: Annotated[str, Field(description="New issue summary title. Omit or pass an empty string to keep current summary.")] = "",
     status: Annotated[str, Field(description="Status name or ID to transition to. Omit to keep current status.")] = "",
@@ -305,7 +305,7 @@ def update_issue(
         config = get_config_instance()
         res = issue_service.update_issue(
             config,
-            issue_id=issue_id,
+            issue_id=issue_ref,
             project_key=project_key,
             summary=summary,
             status=status,
@@ -399,7 +399,7 @@ def get_my_open_bugs(
 
 @mcp.tool()
 def get_bug_context(
-    issue_key: Annotated[str, Field(description="Bug issue key (e.g., 'PRJ-123') to analyze")],
+    issue_key: Annotated[str, Field(description="Bug issue key (e.g., 'PRJ-123') to analyze. Parameter name is issue_key (snake_case).")],
 ) -> CallToolResult:
     """Get AI-ready Backlog context for a specific bug.
 
@@ -419,7 +419,7 @@ def get_bug_context(
 
 @mcp.tool()
 def resolve_bug(
-    issue_key: Annotated[str, Field(description="Bug issue key to resolve (e.g., 'PRJ-123')")],
+    issue_key: Annotated[str, Field(description="Bug issue key to resolve (e.g., 'PRJ-123'). Parameter name is issue_key (snake_case).")],
     status: Annotated[str, Field(description="Target status name or ID. Omit to use the configured resolved/closed status.")] = "",
     actual_hours: Annotated[float | None, Field(description="Actual hours spent fixing the bug. Omit when unknown.")] = None,
     estimated_hours: Annotated[float | None, Field(description="Estimated hours. Omit when unknown.")] = None,
