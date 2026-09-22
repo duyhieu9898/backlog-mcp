@@ -8,7 +8,7 @@
   "estimated_hours": 1,
   "actual_hours": 1,
   "due_in_days": 2,
-  "corrective_action": "fixed {description_lower}",
+  "corrective_action": "fixed {description}",
   "custom_fields": {},
   "project_overrides": {
     "VTO": {
