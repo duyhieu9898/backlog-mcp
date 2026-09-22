@@ -155,6 +155,8 @@ The active project is also resolved from the `BACKLOG_WORKSPACE_PATH` or
 | `create_issue` | Create a Backlog issue (`mode="preview"` by default, `"apply"` to submit). |
 | `update_issue` | Update fields on an existing issue (`mode="preview"` / `"apply"`). |
 
+Generic issue tools use `issue_ref` for a key or numeric ID. Bug-domain tools use `issue_key` for Backlog keys such as `OOP-12748`; MCP tool arguments use snake_case rather than Backlog API camelCase names.
+
 ### Bugs
 
 | Tool | Description |
