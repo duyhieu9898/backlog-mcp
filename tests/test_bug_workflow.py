@@ -245,7 +245,7 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertEqual(1001, payload["assigneeId"])
         self.assertEqual("2026-06-02", payload["startDate"])
         self.assertEqual(10, payload["customField_1"])
-        self.assertEqual("fixed save fails", payload["customField_5"])
+        self.assertEqual("fixed Save fails", payload["customField_5"])
 
     def test_resolve_bug_dry_run_builds_personal_update_payload(self):
         result = bug_workflow.resolve_bug(
@@ -271,7 +271,7 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertEqual(20, payload["customField_2"])
         self.assertEqual(30, payload["customField_3"])
         self.assertEqual("no", payload["customField_4"])
-        self.assertEqual("fixed save fails", payload["customField_5"])
+        self.assertEqual("fixed Save fails", payload["customField_5"])
         self.assertEqual("fixed", payload["customField_6"])
         self.assertEqual(
             {
@@ -463,7 +463,7 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertNotIn("customField_2", payload)
         self.assertNotIn("customField_3", payload)
         self.assertEqual("no", payload["customField_4"])
-        self.assertEqual("fixed save fails", payload["customField_5"])
+        self.assertEqual("fixed Save fails", payload["customField_5"])
         self.assertNotIn("customField_6", payload)
 
 
