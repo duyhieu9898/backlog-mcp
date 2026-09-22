@@ -176,6 +176,9 @@ def test_tool_schema_exposes_enums_and_use_when_descriptions():
     tools = {tool.name: tool for tool in anyio.run(load_tools)}
     get_issues = tools["get_issues"]
     get_issue = tools["get_issue"]
+    update_issue = tools["update_issue"]
+    get_bug_context = tools["get_bug_context"]
+    resolve_bug = tools["resolve_bug"]
     create_issue = tools["create_issue"]
     audit_tool = tools["audit_config_workflows"]
 
@@ -183,6 +186,17 @@ def test_tool_schema_exposes_enums_and_use_when_descriptions():
     assert "Do not use" in get_issues.description
     assert "view" not in get_issues.inputSchema["properties"]
     assert get_issue.inputSchema["properties"]["view"]["enum"] == ["compact", "full"]
+    assert "issue_ref" in get_issue.inputSchema["properties"]
+    assert "issue_id" not in get_issue.inputSchema["properties"]
+    assert "issueKey" not in get_issue.inputSchema["properties"]
+    assert "issue_ref" in update_issue.inputSchema["properties"]
+    assert "issue_id" not in update_issue.inputSchema["properties"]
+    assert "issue_key" in get_bug_context.inputSchema["properties"]
+    assert "issueKey" not in get_bug_context.inputSchema["properties"]
+    assert "snake_case" in get_bug_context.inputSchema["properties"]["issue_key"]["description"]
+    assert "issue_key" in resolve_bug.inputSchema["properties"]
+    assert "issueKey" not in resolve_bug.inputSchema["properties"]
+    assert "snake_case" in resolve_bug.inputSchema["properties"]["issue_key"]["description"]
     assert "cursor" in get_issues.inputSchema["properties"]
     assert "offset" not in get_issues.inputSchema["properties"]
     assert get_issues.inputSchema["properties"]["cursor"]["type"] == "string"
