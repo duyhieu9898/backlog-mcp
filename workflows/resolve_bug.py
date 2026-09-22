@@ -366,7 +366,7 @@ def build_resolution_plan(
     warnings = []
     if not fix_description:
         warnings.append(
-            "corrective_action fell back to the issue summary; pass --fix-description for an accurate fix note."
+            "corrective_action fell back to the issue summary; pass fix_description for an accurate fix note."
         )
     roles = detected_roles(issue, project)
     if roles and "Tester" not in roles:
