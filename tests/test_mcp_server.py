@@ -10,6 +10,7 @@ from backlog_mcp import server
 from backlog_tool import settings
 
 
+@pytest.mark.real_log_paths
 def test_runtime_state_is_rooted_in_local_mcp_directory():
     assert settings.ENV_PATH == os.path.join(settings.MCP_ROOT, ".env")
     assert settings.LOG_DIR == os.path.join(settings.MCP_ROOT, "logs")
@@ -515,3 +516,74 @@ def test_workflow_efficiency_resource_serializes_analyzer():
         result = json.loads(server.workflow_efficiency_resource())
 
     assert result == payload
+
+
+def test_issue_scoped_tools_record_project_from_issue_key():
+    with mock.patch("backlog_mcp.results.log_metric") as metric, \
+         mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", return_value={"issueKey": "OOP-1"}):
+        server.get_bug_context("OOP-1")
+    assert metric.call_args.kwargs["project"] == "OOP"
+
+    with mock.patch("backlog_mcp.results.log_metric") as metric, \
+         mock.patch("backlog_mcp.server.bug_workflow.resolve_bug", side_effect=ValueError("Boom")):
+        server.resolve_bug("OOP-1")
+    assert metric.call_args.kwargs["project"] == "OOP"
+
+    with mock.patch("backlog_mcp.results.log_metric") as metric, \
+         mock.patch("backlog_mcp.server.issue_service.get_issue", return_value={"issueKey": "OOP-1"}):
+        server.get_issue("OOP-1", view="full")
+    assert metric.call_args.kwargs["project"] == "OOP"
+
+
+def test_bug_support_tools_resolve_project_from_issue_key():
+    with mock.patch("backlog_mcp.server.guidance.resolve_rules", return_value={"ok": True}) as rules:
+        result = server.get_bug_rules(issue_key="OOP-12760")
+    assert result.isError is False
+    assert rules.call_args.args[1] == "OOP"
+
+    with mock.patch("backlog_mcp.server.guidance.field_guidance", return_value={"ok": True}) as fields:
+        result = server.get_bug_fields("cause_category", issue_key="OOP-12760")
+    assert result.isError is False
+    assert fields.call_args.args[2] == "OOP"
+
+    result = server.get_bug_rules(project_key="AQM", issue_key="OOP-12760")
+    assert result.isError is True
+    assert "does not match" in result.content[0].text
+
+
+def test_rejected_tool_arguments_are_recorded_in_metrics_and_telemetry():
+    with mock.patch("backlog_mcp.results.log_metric") as metric, \
+         mock.patch("backlog_mcp.server.begin_tool_trace") as trace:
+        with pytest.raises(Exception, match="dry_run"):
+            anyio.run(server.mcp.call_tool, "resolve_bug", {"issue_key": "OOP-1", "dry_run": False})
+
+    trace.assert_called_once_with("resolve_bug", {"issue_key": "OOP-1", "dry_run": False})
+    assert metric.call_args.args[0] == "resolve_bug"
+    assert metric.call_args.args[3] == "invalid_arguments"
+
+
+def test_client_metadata_uses_mcp_client_info(monkeypatch):
+    from types import SimpleNamespace
+
+    from mcp.server.lowlevel.server import request_ctx
+    from backlog_tool import telemetry
+
+    monkeypatch.delenv("BACKLOG_MCP_CLIENT", raising=False)
+    monkeypatch.delenv("BACKLOG_MCP_CLIENT_VERSION", raising=False)
+    assert telemetry.client_metadata()["name"] == "unknown"
+
+    session = SimpleNamespace(client_params=SimpleNamespace(clientInfo=SimpleNamespace(name="claude-code", version="2.1")))
+    token = request_ctx.set(SimpleNamespace(session=session))
+    try:
+        assert telemetry.client_metadata()["name"] == "claude-code"
+        assert telemetry.client_metadata()["version"] == "2.1"
+        monkeypatch.setenv("BACKLOG_MCP_CLIENT", "override")
+        assert telemetry.client_metadata()["name"] == "override"
+    finally:
+        request_ctx.reset(token)
+
+
+def test_tests_never_write_workstation_logs():
+    assert not settings.METRICS_PATH.startswith(os.path.join(settings.MCP_ROOT, "logs"))
+    assert not settings.TELEMETRY_PATH.startswith(os.path.join(settings.MCP_ROOT, "logs"))
+    assert not settings.LOG_PATH.startswith(os.path.join(settings.MCP_ROOT, "logs"))

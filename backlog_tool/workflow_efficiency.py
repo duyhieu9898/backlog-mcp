@@ -54,7 +54,7 @@ def read_telemetry():
 
 
 def _issue_from_arguments(arguments: dict[str, Any]):
-    for key in ("issue_key", "issue_id", "parent_key"):
+    for key in ("issue_key", "issue_ref", "issue_id", "parent_key"):
         value = arguments.get(key)
         if isinstance(value, str) and ISSUE_KEY_RE.match(value):
             return value

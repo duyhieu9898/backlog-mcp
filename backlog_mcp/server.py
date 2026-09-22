@@ -6,8 +6,9 @@ import os
 import time
 from typing import Annotated, Any, Literal, Sequence
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, ValidationError
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase
 from mcp.types import CallToolResult
 
@@ -18,6 +19,7 @@ from backlog_tool.settings import (
     load_env_file,
     project_keys,
     load_project_catalog,
+    project_key_from_issue_id,
     summarize_metrics,
     view_base_url,
 )
@@ -92,6 +94,33 @@ mcp = FastMCP(
     json_response=True,
 )
 
+
+def _record_rejected_tool_calls() -> None:
+    """Log calls FastMCP rejects before the tool body runs.
+
+    Argument validation (including extra="forbid") happens inside FastMCP, so a
+    rejected call never reaches begin_tool_trace and would be invisible in
+    metrics/telemetry. Tool bodies catch their own errors, so any ToolError that
+    escapes the manager is a rejection: invalid arguments or an unknown tool.
+    """
+    manager = mcp._tool_manager
+    call_tool = manager.call_tool
+
+    async def call_tool_with_rejection_log(name, arguments, context=None, convert_result=False):
+        started = time.monotonic()
+        try:
+            return await call_tool(name, arguments, context=context, convert_result=convert_result)
+        except ToolError as error:
+            status = "invalid_arguments" if isinstance(error.__cause__, ValidationError) else "rejected"
+            begin_tool_trace(name, arguments)
+            _error_result(name, error, started=started, status=status)
+            raise
+
+    manager.call_tool = call_tool_with_rejection_log
+
+
+_record_rejected_tool_calls()
+
 _config: dict[str, Any] | None = None
 _bootstrap_error: Exception | None = None
 
@@ -159,9 +188,9 @@ def get_issue(
         else:
             base_url = view_base_url(config)
             data = presenter.compact_issue(raw_issue, view=view, base_url=base_url)
-        return _build_result(data, "get_issue", started=started)
+        return _build_result(data, "get_issue", started=started, project=project_key_from_issue_id(issue_ref))
     except Exception as e:
-        return _error_result("get_issue", e, started=started)
+        return _error_result("get_issue", e, started=started, project=project_key_from_issue_id(issue_ref))
 
 
 @mcp.tool()
@@ -350,10 +379,16 @@ def update_issue(
             "update_issue",
             started=started,
             dry_run=dry_run,
-            project=project_key,
+            project=project_key or project_key_from_issue_id(issue_ref),
         )
     except Exception as e:
-        return _error_result("update_issue", e, started=started, dry_run=dry_run, project=project_key)
+        return _error_result(
+            "update_issue",
+            e,
+            started=started,
+            dry_run=dry_run,
+            project=project_key or project_key_from_issue_id(issue_ref),
+        )
 
 
 @mcp.tool()
@@ -430,31 +465,32 @@ def get_bug_context(
     try:
         config = get_config_instance()
         data = bug_workflow.get_bug_context(config, issue_key)
-        return _build_result(data, "get_bug_context", started=started)
+        return _build_result(data, "get_bug_context", started=started, project=project_key_from_issue_id(issue_key))
     except Exception as e:
-        return _error_result("get_bug_context", e, started=started)
+        return _error_result("get_bug_context", e, started=started, project=project_key_from_issue_id(issue_key))
 
 
 @mcp.tool()
 def resolve_bug(
     issue_key: Annotated[str, Field(description="Bug issue key to resolve (e.g., 'PRJ-123'). Parameter name is issue_key (snake_case).")],
     status: Annotated[str, Field(description="Target status name or ID. Omit to use the configured resolved/closed status.")] = "",
-    actual_hours: Annotated[float | None, Field(description="Actual hours spent fixing the bug. Omit when unknown.")] = None,
-    estimated_hours: Annotated[float | None, Field(description="Estimated hours. Omit when unknown.")] = None,
-    qc_activity: Annotated[str, Field(description="Optional QC Activity override. Normally omit so the workflow preserves the existing value or applies its configured default.")] = "",
-    cause_category: Annotated[str, Field(description="Optional Cause Category override. Normally omit so the workflow preserves the existing value or applies its configured default.")] = "",
-    bug_origin: Annotated[str, Field(description="Optional Bug Origin override, e.g. 'COD_Coding Logic'. Normally omit so the workflow preserves the existing value or applies its configured default.")] = "",
+    actual_hours: Annotated[float | None, Field(description="Actual hours spent fixing the bug. Used only when the issue has no actual hours yet; otherwise ignored with a warning. Omit when unknown.")] = None,
+    estimated_hours: Annotated[float | None, Field(description="Estimated hours. Used only when the issue has no estimate yet; otherwise ignored with a warning. Omit when unknown.")] = None,
+    qc_activity: Annotated[str, Field(description="Optional QC Activity option, used only when the issue field is empty (an existing value is kept and a warning is returned). Normally omit to apply the configured default.")] = "",
+    cause_category: Annotated[str, Field(description="Optional Cause Category option such as 'CAR_Carelessness', used only when the issue field is empty (an existing value is kept and a warning is returned). Not a Bug Origin value. Normally omit to apply the configured default.")] = "",
+    bug_origin: Annotated[str, Field(description="Optional Bug Origin option such as 'COD_Coding Logic', used only when the issue field is empty (an existing value is kept and a warning is returned). Normally omit to apply the configured default.")] = "",
     impacted: Annotated[str, Field(description="Optional configured Impacted-field override. Normally omit and let the workflow apply its configured value.")] = "",
-    resolution: Annotated[str, Field(description="Optional Resolution-field override. Omit to preserve the existing value or use the configured workflow value when applicable.")] = "",
+    resolution: Annotated[str, Field(description="Optional Resolution value, used only when the issue field is empty. Omit to use the configured workflow value when applicable.")] = "",
     comment: Annotated[str, Field(description="Resolve comment text.")] = "",
     commit: Annotated[str, Field(description="Git commit hash/ref related to the fix.")] = "",
-    fix_description: Annotated[str, Field(description="Corrective action or fix description text. Preserved verbatim, including technical identifier casing.")] = "",
+    fix_description: Annotated[str, Field(description="What was changed to fix the bug. Rendered into Corrective Action as 'fixed <text>' with casing preserved, so write the object of 'fixed' (e.g. 'OTP error message to include retry wait time'), not a sentence starting with a verb. Bulleted text renders as 'fixed:' followed by the bullets. Required in apply mode.")] = "",
     mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned resolution without writing; apply submits it to Backlog.")] = "preview",
 ) -> CallToolResult:
     """Resolve a Backlog bug using the configured business workflow and defaults.
 
     Use when the user explicitly asks to resolve/close a specific Backlog bug.
     The workflow already loads issue context, rules, field mappings, defaults, and validation internally.
+    Preview once with the final arguments, then apply with the same arguments after confirmation; do not repeat an identical preview.
     Do not pre-call get_bug_rules or get_bug_fields unless resolve_bug reports ambiguity/missing guidance.
     Do not use for unrelated generic issue updates; use update_issue.
     """
@@ -497,9 +533,16 @@ def resolve_bug(
             "resolve_bug",
             started=started,
             dry_run=dry_run,
+            project=project_key_from_issue_id(issue_key),
         )
     except Exception as e:
-        return _error_result("resolve_bug", e, started=started, dry_run=dry_run)
+        return _error_result(
+            "resolve_bug",
+            e,
+            started=started,
+            dry_run=dry_run,
+            project=project_key_from_issue_id(issue_key),
+        )
 
 
 @mcp.tool()
@@ -563,9 +606,20 @@ def create_ut_bug(
         return _error_result("create_ut_bug", e, started=started, dry_run=dry_run, project=project_key)
 
 
+def _support_project_key(project_key: str, issue_key: str) -> str:
+    """Project for support tools: explicit key, else the prefix of a bug key."""
+    issue_project = project_key_from_issue_id(issue_key) if issue_key else None
+    if issue_key and not issue_project:
+        raise ValueError(f"Invalid issue_key '{issue_key}'. Expected a Backlog key such as 'PRJ-123'.")
+    if project_key and issue_project and project_key != issue_project:
+        raise ValueError(f"project_key '{project_key}' does not match issue_key '{issue_key}'.")
+    return project_key or issue_project or ""
+
+
 @mcp.tool()
 def get_bug_rules(
-    project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
+    project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit when issue_key is given; otherwise resolved from the active workspace path or configuration.")] = "",
+    issue_key: Annotated[str, Field(description="Bug issue key (e.g., 'PRJ-123') whose project rules to show. Preferred over project_key when working on a specific bug.")] = "",
 ) -> CallToolResult:
     """Inspect configured resolve-bug workflow rules for diagnostics or ambiguity.
 
@@ -574,8 +628,10 @@ def get_bug_rules(
     """
     started = time.monotonic()
     begin_tool_trace("get_bug_rules", locals())
+    project_key = project_key or project_key_from_issue_id(issue_key) or ""
     try:
         config = get_config_instance()
+        project_key = _support_project_key(project_key, issue_key)
         data = guidance.resolve_rules(config, project_key or None, start_path=_workspace_path())
         return _build_result(data, "get_bug_rules", started=started, project=project_key)
     except Exception as e:
@@ -585,7 +641,8 @@ def get_bug_rules(
 @mcp.tool()
 def get_bug_fields(
     field: Annotated[str, Field(description="Field name to get guidance for, e.g. qc_activity, bug_origin, cause_category. Omit for all fields.")] = "",
-    project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
+    project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit when issue_key is given; otherwise resolved from the active workspace path or configuration.")] = "",
+    issue_key: Annotated[str, Field(description="Bug issue key (e.g., 'PRJ-123') whose project field options to show. Preferred over project_key when working on a specific bug.")] = "",
 ) -> CallToolResult:
     """Inspect allowed values/guidance for configured bug workflow fields.
 
@@ -594,8 +651,10 @@ def get_bug_fields(
     """
     started = time.monotonic()
     begin_tool_trace("get_bug_fields", locals())
+    project_key = project_key or project_key_from_issue_id(issue_key) or ""
     try:
         config = get_config_instance()
+        project_key = _support_project_key(project_key, issue_key)
         data = guidance.field_guidance(field or None, config, project_key or None, start_path=_workspace_path())
         return _build_result(data, "get_bug_fields", started=started, project=project_key)
     except Exception as e:
@@ -790,9 +849,9 @@ def resolve_bug_prompt(
     return (
         f"Resolve Backlog bug {issue_key} using the configured personal workflow.\n\n"
         f"Normal path:\n"
-        f"1. Call `resolve_bug` in preview mode. The tool already loads issue context, workflow rules, mappings, defaults, and validation.\n"
+        f"1. Call `resolve_bug` in preview mode once, with `fix_description` describing the change. The tool already loads issue context, workflow rules, mappings, defaults, and validation.\n"
         f"2. Review preview changes/warnings. Only call `get_bug_fields` or `get_bug_rules` if preview reports ambiguity/missing guidance or the user asks for those details.\n"
-        f"3. Call `resolve_bug` in apply mode only after the user has explicitly requested/confirmed the write."
+        f"3. Call `resolve_bug` in apply mode with the same arguments only after the user has explicitly requested/confirmed the write."
     )
 
 
