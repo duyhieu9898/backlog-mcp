@@ -6,8 +6,9 @@ import os
 import time
 from typing import Annotated, Any, Literal, Sequence
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase
 from mcp.types import CallToolResult
 
 from .results import _build_result, _error_result, _pagination, _parse_cursor, _partial_write_result, _resource_uris, _to_markdown
@@ -53,6 +54,23 @@ IssueSort = Literal[
     "actualHours",
     "childIssue",
 ]
+
+def _forbid_unknown_tool_arguments() -> None:
+    """Reject tool arguments that are not declared in the generated MCP schema.
+
+    mcp<2 currently inherits Pydantic's extra="ignore" behavior for generated
+    FastMCP argument models, which can silently discard misspelled or
+    hallucinated fields. Configure the shared argument base before any tools are
+    registered so generated schemas also advertise additionalProperties=false.
+    """
+    ArgModelBase.model_config = ConfigDict(
+        **dict(ArgModelBase.model_config),
+        extra="forbid",
+    )
+
+
+_forbid_unknown_tool_arguments()
+
 
 SERVER_INSTRUCTIONS = (
     "This is a personal Backlog MCP for the configured user, not a generic project-management assistant. "
