@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import re
 from datetime import date, timedelta
 
 from .config import require_int, require_list, require_value
@@ -15,11 +16,11 @@ PRESERVED_FIELDS = ("Detected Role", "Summary", "Description", "QC Activity (if 
 WORKFLOW_MANAGED_FIELDS = ("impacted", "corrective_action", "resolution")
 
 OVERRIDES = {
-    "--fix-description": "Text for Corrective Action (fixed <text>). Strongly recommended.",
+    "--fix-description": "Text for Corrective Action (fixed <text>). Required for --apply.",
     "--commit": "Commit hash/ref appended to the update comment.",
-    "--qc-activity": "Override QC Activity label.",
-    "--bug-origin": "Override Bug Origin label.",
-    "--cause-category": "Override Cause Category label.",
+    "--qc-activity": "QC Activity label, used only when the issue field is empty.",
+    "--bug-origin": "Bug Origin label, used only when the issue field is empty.",
+    "--cause-category": "Cause Category label, used only when the issue field is empty.",
     "--estimated-hours / --actual-hours": "Numeric hours.",
     "--comment": "Update comment.",
 }
@@ -69,15 +70,43 @@ def resolve_rules_from_config(workflow):
     }
 
 
+LIST_MARKER_PATTERN = re.compile(r"^(?:[-*•]|\d+[.)])\s+")
+
+
+def _template_verb(template):
+    """Leading word of the template before {description}, e.g. 'fixed'."""
+    head = template.split("{", 1)[0].strip().rstrip(":")
+    return head.split()[-1] if head else ""
+
+
+def normalize_fix_description(template, description):
+    text = str(description).strip()
+    verb = _template_verb(template)
+    if verb:
+        # "fixed {description}" + "Fixed: X" would render "fixed Fixed: X".
+        stem = verb[:-2] if verb.lower().endswith("ed") else verb
+        pattern = rf"^{re.escape(stem)}(?:ed|es|e)?(?:\s*:\s*|\s+)"
+        text = re.sub(pattern, "", text, count=1, flags=re.IGNORECASE) or text
+    return text
+
+
 def render_corrective_action(workflow, description):
     template = require_value(workflow, "corrective_action", WORKFLOW_NAME)
-    return template.format(
-        description=description,
+    text = normalize_fix_description(template, description)
+    is_list = bool(_template_verb(template)) and bool(LIST_MARKER_PATTERN.match(text))
+    if is_list:
+        text = "\n" + text
+    rendered = template.format(
+        description=text,
         # Backward-compatible placeholder for older local workflow configs.
         # Preserve the caller's text exactly; lowercasing can corrupt technical
         # identifiers such as OTP_INVALID, retryAfterSeconds, or file names.
-        description_lower=description,
+        description_lower=text,
     )
+    if is_list:
+        # "fixed \n- a\n- b" -> "fixed:\n- a\n- b"
+        rendered = re.sub(r"[ \t:]*\n", ":\n", rendered, count=1)
+    return rendered
 
 
 def effective_start_date(issue_start_date, fallback_date=None):

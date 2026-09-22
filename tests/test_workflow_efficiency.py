@@ -212,3 +212,14 @@ def test_project_scoped_support_call_groups_with_following_issue_workflow():
     summary = workflow_efficiency.summarize_workflow_efficiency(records)
     assert summary["overview"]["candidateTasks"] == 1
     assert summary["tasks"][0]["project"] == "OOP"
+
+
+def test_issue_ref_argument_correlates_generic_lookup_with_bug_workflow():
+    records = []
+    records += tool_trace("2026-09-22T10:00", "r1", "get_bug_context", {"issue_key": "OOP-12760"})
+    records += tool_trace("2026-09-22T10:01", "r2", "get_issue", {"issue_ref": "OOP-12760", "view": "full"})
+
+    calls = workflow_efficiency.build_calls(records)
+
+    assert [call["issueKey"] for call in calls] == ["OOP-12760", "OOP-12760"]
+    assert workflow_efficiency.summarize_workflow_efficiency(records)["overview"]["candidateTasks"] == 1

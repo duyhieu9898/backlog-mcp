@@ -26,3 +26,6 @@ include = ["backlog_mcp*", "backlog_tool*", "workflows*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+  "real_log_paths: opt out of the autouse fixture that redirects logs to a temp directory",
+]

@@ -95,6 +95,7 @@ def _error_result(
     started: float | None = None,
     dry_run: bool | None = None,
     project: str | None = None,
+    status: str = "error",
 ) -> CallToolResult:
     message = str(error)
     text = f"Error: {message}"
@@ -113,7 +114,7 @@ def _error_result(
                 tool,
                 total_bytes,
                 duration_ms,
-                "error",
+                status,
                 dry_run=dry_run,
                 project=project,
                 text_bytes=text_bytes,
@@ -124,7 +125,7 @@ def _error_result(
             )
             log_telemetry(
                 "tool_end",
-                status="error",
+                status=status,
                 durationMs=round(duration_ms, 1),
                 project=project,
                 dryRun=dry_run,

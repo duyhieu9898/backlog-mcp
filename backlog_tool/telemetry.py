@@ -28,10 +28,22 @@ def _jsonable(value: Any):
     return str(value)
 
 
+def _mcp_client_info():
+    """clientInfo the MCP client sent in initialize, when inside an MCP request."""
+    try:
+        from mcp.server.lowlevel.server import request_ctx
+
+        params = request_ctx.get().session.client_params
+    except Exception:
+        return None
+    return getattr(params, "clientInfo", None)
+
+
 def client_metadata():
+    info = _mcp_client_info()
     return {
-        "name": os.environ.get("BACKLOG_MCP_CLIENT", "unknown"),
-        "version": os.environ.get("BACKLOG_MCP_CLIENT_VERSION"),
+        "name": os.environ.get("BACKLOG_MCP_CLIENT") or getattr(info, "name", None) or "unknown",
+        "version": os.environ.get("BACKLOG_MCP_CLIENT_VERSION") or getattr(info, "version", None),
         "transport": os.environ.get("BACKLOG_MCP_TRANSPORT", "stdio"),
     }
 

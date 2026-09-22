@@ -189,6 +189,7 @@ def resolve_project_key(config, project_key=None, start_path=None):
         f"Available projects:\n"
         f"{projects_str}\n\n"
         f"Please specify project_key explicitly\n"
+        f"(for a bug such as OOP-123, the project_key is its prefix 'OOP')\n"
         f"or run inside a valid workspace."
     )
 

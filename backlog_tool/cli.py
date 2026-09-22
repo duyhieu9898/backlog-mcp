@@ -138,7 +138,7 @@ def build_parser():
     g.add_argument("--resolution")
     g.add_argument("--comment")
     g.add_argument("--commit", help="Commit hash/ref appended to the update comment")
-    g.add_argument("--fix-description", help="Text for Corrective Action: fixed <text lowercased>")
+    g.add_argument("--fix-description", help="Text for Corrective Action, rendered as 'fixed <text>' with casing preserved. Required with --apply.")
     add_apply(g)
 
     g = bug.add_parser("create-ut", help="Create a default UT sub-task bug (dry-run unless --apply)")
