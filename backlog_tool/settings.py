@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import sys
 import tempfile
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -250,6 +251,23 @@ def rotate_file_if_needed(path, max_bytes=5 * 1024 * 1024, backup_count=3):
         pass
 
 
+_reported_log_failures: set[str] = set()
+
+
+def report_log_failure(path, error):
+    """Warn once per log file on stderr; logging must never break a tool call.
+
+    stderr is safe for the stdio MCP transport (only stdout carries protocol).
+    """
+    if path in _reported_log_failures:
+        return
+    _reported_log_failures.add(path)
+    try:
+        print(f"backlog-mcp: failed to write {path}: {error}", file=sys.stderr)
+    except Exception:
+        pass
+
+
 def log_event(level, event, **fields):
     try:
         os.makedirs(LOG_DIR, exist_ok=True)
@@ -269,8 +287,8 @@ def log_event(level, event, **fields):
             record[key] = text
         with open(LOG_PATH, "a", encoding="utf-8") as log_file:
             log_file.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
+    except Exception as error:
+        report_log_failure(LOG_PATH, error)
 
 
 def response_error_body(response):
@@ -323,8 +341,8 @@ def log_metric(
         }
         with open(METRICS_PATH, "a", encoding="utf-8") as metrics_file:
             metrics_file.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
+    except Exception as error:
+        report_log_failure(METRICS_PATH, error)
 
 
 def read_metrics():

@@ -269,6 +269,10 @@ BACKLOG_MCP_TRANSPORT=stdio
 
 Calls that FastMCP rejects before the tool body runs (unknown or invalid
 arguments) are still recorded, with status `invalid_arguments` or `rejected`.
+For MCP calls, `tool_start.arguments` holds the arguments exactly as the client
+sent them; parameters the client omitted (and that took their defaults) are not
+listed. If a log file cannot be written, the server warns once per file on
+stderr instead of failing the tool call.
 The test suite redirects all log paths to a temporary directory, so running
 `pytest` never adds records to the workstation `logs/`.
 
