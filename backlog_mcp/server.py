@@ -29,7 +29,7 @@ from workflows import guidance, ut_bug, story_task_overview, personal_status
 import workflows.resolve_bug as bug_workflow
 from workflows.audit import audit_config
 from backlog_tool.inspect import build_project_config, write_catalog
-from backlog_tool.telemetry import begin_tool_trace
+from backlog_tool.telemetry import begin_tool_trace, reset_client_arguments, set_client_arguments
 from backlog_tool.workflow_efficiency import summarize_workflow_efficiency
 
 IssueView = Literal["compact", "full"]
@@ -120,12 +120,16 @@ def _record_rejected_tool_calls() -> None:
     rejected call never reaches begin_tool_trace and would be invisible in
     metrics/telemetry. Tool bodies catch their own errors, so any ToolError that
     escapes the manager is a rejection: invalid arguments or an unknown tool.
+
+    The raw client arguments are also exposed to begin_tool_trace so tool_start
+    records what the client sent rather than every defaulted parameter.
     """
     manager = mcp._tool_manager
     call_tool = manager.call_tool
 
     async def call_tool_with_rejection_log(name, arguments, context=None, convert_result=False):
         started = time.monotonic()
+        token = set_client_arguments(arguments)
         try:
             return await call_tool(name, arguments, context=context, convert_result=convert_result)
         except ToolError as error:
@@ -133,6 +137,8 @@ def _record_rejected_tool_calls() -> None:
             begin_tool_trace(name, arguments)
             _error_result(name, error, started=started, status=status)
             raise
+        finally:
+            reset_client_arguments(token)
 
     manager.call_tool = call_tool_with_rejection_log
 

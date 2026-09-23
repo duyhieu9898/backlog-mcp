@@ -12,6 +12,9 @@ from . import settings
 SCHEMA_VERSION = 2
 _trace_id: ContextVar[str | None] = ContextVar("backlog_mcp_trace_id", default=None)
 _tool_name: ContextVar[str | None] = ContextVar("backlog_mcp_tool_name", default=None)
+_client_arguments: ContextVar[dict[str, Any] | None] = ContextVar(
+    "backlog_mcp_client_arguments", default=None
+)
 
 
 def _now():
@@ -66,10 +69,24 @@ def ensure_trace(tool: str | None = None):
     return trace_id
 
 
+def set_client_arguments(arguments: dict[str, Any] | None):
+    """Remember the arguments exactly as the MCP client sent them."""
+    return _client_arguments.set(dict(arguments or {}))
+
+
+def reset_client_arguments(token):
+    _client_arguments.reset(token)
+
+
 def begin_tool_trace(tool: str, arguments: dict[str, Any] | None = None):
     trace_id = uuid.uuid4().hex
     _trace_id.set(trace_id)
     _tool_name.set(tool)
+    # Prefer what the client actually sent over the handler's locals(), which
+    # also contain every defaulted parameter and hide what the model chose.
+    client_arguments = _client_arguments.get()
+    if client_arguments is not None:
+        arguments = client_arguments
     args = {
         k: _jsonable(v)
         for k, v in (arguments or {}).items()
@@ -85,12 +102,12 @@ def clear_trace():
 
 
 def log_telemetry(event: str, **fields):
+    path = getattr(
+        settings,
+        "TELEMETRY_PATH",
+        os.path.join(settings.LOG_DIR, "telemetry.jsonl"),
+    )
     try:
-        path = getattr(
-            settings,
-            "TELEMETRY_PATH",
-            os.path.join(settings.LOG_DIR, "telemetry.jsonl"),
-        )
         os.makedirs(os.path.dirname(path), exist_ok=True)
         settings.rotate_file_if_needed(path, max_bytes=20 * 1024 * 1024, backup_count=5)
         record = {
@@ -104,8 +121,8 @@ def log_telemetry(event: str, **fields):
         }
         with open(path, "a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
+    except Exception as error:
+        settings.report_log_failure(path, error)
 
 
 def serialized_bytes(value: Any):

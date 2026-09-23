@@ -596,3 +596,14 @@ def test_tests_never_write_workstation_logs():
     assert not settings.METRICS_PATH.startswith(os.path.join(settings.MCP_ROOT, "logs"))
     assert not settings.TELEMETRY_PATH.startswith(os.path.join(settings.MCP_ROOT, "logs"))
     assert not settings.LOG_PATH.startswith(os.path.join(settings.MCP_ROOT, "logs"))
+
+
+def test_tool_start_omits_defaulted_mutation_arguments():
+    with mock.patch("backlog_mcp.server.bug_workflow.resolve_bug", return_value={"dryRun": True, "warnings": []}), \
+         mock.patch("backlog_mcp.server.get_config_instance", return_value={}):
+        anyio.run(server.mcp.call_tool, "resolve_bug", {"issue_key": "OOP-1", "commit": "abc"})
+
+    with open(settings.TELEMETRY_PATH, "r", encoding="utf-8") as handle:
+        starts = [json.loads(line) for line in handle if '"tool_start"' in line]
+
+    assert starts[-1]["arguments"] == {"issue_key": "OOP-1", "commit": "abc"}
