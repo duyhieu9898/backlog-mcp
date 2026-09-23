@@ -105,13 +105,21 @@ class WorkflowConfigContractTest(unittest.TestCase):
     def test_resolve_policy_field_groups_are_consistent(self):
         self.assertEqual(
             set(WORKFLOW_MANAGED_FIELDS),
-            set(ALWAYS_OVERWRITE_FIELDS) | {"resolution"},
+            set(ALWAYS_OVERWRITE_FIELDS) | {"resolution", "impacted"},
         )
         self.assertTrue(set(GUIDED_FIELDS).issubset(ONLY_WHEN_EMPTY_FIELDS))
         self.assertEqual(
-            {"qc_activity", "cause_category", "bug_origin", "resolution"},
+            {"qc_activity", "cause_category", "bug_origin", "resolution", "impacted"},
             set(ONLY_WHEN_EMPTY_FIELDS),
         )
+
+    def test_resolve_bug_placeholder_values_are_configured(self):
+        workflow = load_workflow_config("resolve_bug")
+        placeholders = {str(value).strip().lower() for value in workflow.get("placeholder_values", [])}
+
+        self.assertIn("-", placeholders)
+        self.assertIn("update please", placeholders)
+        self.assertIn("please update", placeholders)
 
     def test_story_task_overview_workflow_refs_configured_user(self):
         workflow = load_workflow_config("story_task_overview")
