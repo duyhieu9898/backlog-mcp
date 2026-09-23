@@ -120,6 +120,7 @@ class BugWorkflowTest(unittest.TestCase):
                 "actual_hours": 1,
                 "due_in_days": 2,
                 "corrective_action": "fixed {description}",
+                "placeholder_values": ["-", "update please", "please update"],
                 "custom_fields": {
                     "qc_activity": "Integration Test",
                     "cause_category": "Not Applicable",
@@ -270,7 +271,7 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertEqual(10, payload["customField_1"])
         self.assertEqual(20, payload["customField_2"])
         self.assertEqual(30, payload["customField_3"])
-        self.assertEqual("no", payload["customField_4"])
+        self.assertNotIn("customField_4", payload)
         self.assertEqual("fixed Save fails", payload["customField_5"])
         self.assertEqual("fixed", payload["customField_6"])
         self.assertEqual(
@@ -466,6 +467,64 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertEqual("fixed Save fails", payload["customField_5"])
         self.assertNotIn("customField_6", payload)
 
+
+    def test_resolve_bug_preserves_meaningful_existing_impacted_value(self):
+        self.client.get_issue.return_value = {
+            **BUG_ISSUE,
+            "customFields": [
+                {"id": 4, "name": "Impacted", "value": "Admin - Partner Management"},
+            ],
+        }
+
+        result = bug_workflow.resolve_bug(
+            CONFIG,
+            "AQM-123",
+            dry_run=True,
+            today=date(2026, 6, 2),
+            fix_description="save button validation",
+        )
+
+        self.assertNotIn("customField_4", result["payload"])
+
+    def test_resolve_bug_treats_configured_impacted_placeholders_as_empty(self):
+        for placeholder in ("-", " update please ", "PLEASE UPDATE"):
+            with self.subTest(placeholder=placeholder):
+                self.client.get_issue.return_value = {
+                    **BUG_ISSUE,
+                    "customFields": [
+                        {"id": 4, "name": "Impacted", "value": placeholder},
+                    ],
+                }
+
+                result = bug_workflow.resolve_bug(
+                    CONFIG,
+                    "AQM-123",
+                    dry_run=True,
+                    today=date(2026, 6, 2),
+                    fix_description="save button validation",
+                )
+
+                self.assertEqual("no", result["payload"]["customField_4"])
+
+    def test_resolve_bug_warns_when_explicit_impacted_would_overwrite_meaningful_value(self):
+        self.client.get_issue.return_value = {
+            **BUG_ISSUE,
+            "customFields": [
+                {"id": 4, "name": "Impacted", "value": "Admin - Partner Management"},
+            ],
+        }
+
+        result = bug_workflow.resolve_bug(
+            CONFIG,
+            "AQM-123",
+            dry_run=True,
+            today=date(2026, 6, 2),
+            impacted="no",
+            fix_description="save button validation",
+        )
+
+        self.assertNotIn("customField_4", result["payload"])
+        self.assertTrue(any("impacted 'no' was not applied" in warning for warning in result["warnings"]))
 
     def _issue_with_existing_guided_fields(self):
         return {

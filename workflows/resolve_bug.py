@@ -137,16 +137,27 @@ def created_user_ref(issue):
     return int(created_user_id)
 
 
-IGNORE_VALUES = ["update please"]
+LEGACY_PLACEHOLDER_VALUES = ("update please",)
 
 
-def has_value(value):
+def normalized_placeholder_values(workflow):
+    values = workflow.get("placeholder_values", LEGACY_PLACEHOLDER_VALUES)
+    return {
+        str(value).strip().lower()
+        for value in values
+        if str(value).strip()
+    }
+
+
+def has_value(value, placeholder_values=()):
     if value is None:
         return False
-    if value == "":
-        return False
-    if isinstance(value, str) and value.strip().lower() in IGNORE_VALUES:
-        return False
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if not normalized:
+            return False
+        if normalized in placeholder_values:
+            return False
     if isinstance(value, (list, tuple, dict)) and not value:
         return False
     return True
@@ -174,9 +185,9 @@ def issue_custom_field(issue, project, field_key):
     return None
 
 
-def issue_has_custom_value(issue, project, field_key):
+def issue_has_custom_value(issue, project, field_key, placeholder_values=()):
     field = issue_custom_field(issue, project, field_key)
-    return bool(field and has_value(field.get("value")))
+    return bool(field and has_value(field.get("value"), placeholder_values))
 
 
 def add_custom_default_if_missing(payload, issue, project, field_key, selected_value, optional=False):
@@ -310,11 +321,13 @@ def build_resolution_plan(
 
     semantic_custom_fields = {}
     warnings = []
+    placeholders = normalized_placeholder_values(workflow)
     explicit_values = {
         "qc_activity": qc_activity,
         "cause_category": cause_category,
         "bug_origin": bug_origin,
         "resolution": resolution,
+        "impacted": impacted,
     }
 
     def project_field_key(key):
@@ -330,7 +343,7 @@ def build_resolution_plan(
             raise ValueError(
                 f"Unknown custom field '{field_key}'. Available: {available}"
             )
-        if issue_has_custom_value(issue, project, field_key):
+        if issue_has_custom_value(issue, project, field_key, placeholders):
             explicit = explicit_values.get(policy_key)
             if explicit:
                 # Validate even though it is not written, so a value from the

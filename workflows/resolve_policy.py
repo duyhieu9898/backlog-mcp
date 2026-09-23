@@ -9,8 +9,8 @@ WORKFLOW_NAME = "resolve_bug"
 ASSIGNMENT_SOURCE = "createdUser (reporter)"
 
 GUIDED_FIELDS = ("qc_activity", "bug_origin", "cause_category")
-ALWAYS_OVERWRITE_FIELDS = ("impacted", "corrective_action")
-ONLY_WHEN_EMPTY_FIELDS = ("qc_activity", "cause_category", "bug_origin", "resolution")
+ALWAYS_OVERWRITE_FIELDS = ("corrective_action",)
+ONLY_WHEN_EMPTY_FIELDS = ("qc_activity", "cause_category", "bug_origin", "resolution", "impacted")
 OPTIONAL_FIELDS = ("resolution",)
 PRESERVED_FIELDS = ("Detected Role", "Summary", "Description", "QC Activity (if already set)")
 WORKFLOW_MANAGED_FIELDS = ("impacted", "corrective_action", "resolution")
