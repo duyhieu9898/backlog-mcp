@@ -74,19 +74,37 @@ def _forbid_unknown_tool_arguments() -> None:
 _forbid_unknown_tool_arguments()
 
 
-SERVER_INSTRUCTIONS = (
-    "This is a personal Backlog MCP for the configured user, not a generic project-management assistant. "
-    "Only route user requests here when Backlog is explicitly invoked (for example 'backlog' or 'backlog mcp'), "
-    "or when the user supplies an identifiable Backlog issue key or Backlog URL. "
-    "Do not claim generic requests such as 'what should I do?' or 'project status' without a Backlog activation signal. "
-    "Prefer personal domain tools over generic escape-hatch tools: use get_my_project_status for personal Backlog status, "
-    "get_my_open_bugs for the user's open bugs, and get_bug_context for investigating/fixing a specific bug. "
-    "Use get_issue/get_issues/update_issue only when the specialized personal workflow does not fit. "
-    "Read before mutating. Preview mutations first and use apply mode only when the user explicitly requests the write. "
-    "When a project is omitted, resolve it from workspace configuration or workspace path only if unambiguous. "
-    "If the project cannot be resolved confidently, return an error instead of guessing. "
-    "Never expose API keys or full request URLs containing query strings."
-)
+SERVER_INSTRUCTIONS = """This is a personal Backlog MCP for the configured user.
+
+Activation:
+- Use Backlog tools only when the user explicitly mentions Backlog/Backlog MCP, provides a Backlog issue key, or provides a Backlog URL.
+- Do not route generic requests such as "what should I do?" or "project status" to Backlog without an activation signal.
+
+Preferred tools:
+- Personal status -> get_my_project_status
+- My open bugs -> get_my_open_bugs
+- Investigate/fix a specific bug -> get_bug_context
+- Resolve/close a bug -> resolve_bug
+- Generic get/search/update tools are escape hatches only.
+
+Bug workflow:
+- If the user says the bug is already fixed, use resolve_bug directly: preview -> apply.
+- If the bug is not fixed yet, use get_bug_context first, then resolve_bug after the code fix.
+- Do not pre-call get_issue, get_bug_rules, or get_bug_fields unless the specialized tool reports missing or ambiguous guidance.
+
+Mutation safety:
+- Preview mutations before apply.
+- Apply only when the user explicitly requests the write.
+- Do not add or change mutation fields after preview without previewing the final payload again.
+
+Project resolution:
+- Prefer an explicit project key.
+- Otherwise resolve from workspace configuration/path only when unambiguous.
+- If project resolution is ambiguous, fail instead of guessing.
+
+Security:
+- Never expose API keys or full request URLs containing query strings.
+"""
 
 mcp = FastMCP(
     name="Backlog Local",
