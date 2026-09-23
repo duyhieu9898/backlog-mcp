@@ -9,6 +9,11 @@
   "actual_hours": 1,
   "due_in_days": 2,
   "corrective_action": "fixed {description}",
+  "placeholder_values": [
+    "-",
+    "update please",
+    "please update"
+  ],
   "custom_fields": {},
   "project_overrides": {
     "VTO": {
