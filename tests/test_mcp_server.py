@@ -479,11 +479,20 @@ def test_personal_routing_contract_is_explicit_and_domain_first():
     assert "personal Backlog status" in tools["get_issues"].description
 
 
-def test_server_instructions_require_backlog_activation():
+def test_server_instructions_require_backlog_activation_and_minimal_bug_paths():
     instructions = server.SERVER_INSTRUCTIONS.lower()
-    assert "only route user requests here when backlog is explicitly invoked" in instructions
-    assert "backlog issue key or backlog url" in instructions
-    assert "do not claim generic requests" in instructions
+    assert "activation:" in instructions
+    assert "provides a backlog issue key" in instructions
+    assert "without an activation signal" in instructions
+    assert "resolve/close a bug -> resolve_bug" in instructions
+    assert "already fixed" in instructions
+    assert "use resolve_bug directly: preview -> apply" in instructions
+    assert "not fixed yet" in instructions
+    assert "use get_bug_context first" in instructions
+    assert "do not pre-call get_issue, get_bug_rules, or get_bug_fields" in instructions
+    assert "do not add or change mutation fields after preview" in instructions
+    assert "previewing the final payload again" in instructions
+    assert "read before mutating" not in instructions
 
 
 def test_personal_prompts_use_minimal_domain_paths():
