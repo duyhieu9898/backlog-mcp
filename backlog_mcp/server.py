@@ -19,7 +19,6 @@ from backlog_tool.settings import (
     load_config,
     load_env_file,
     project_keys,
-    load_project_catalog,
     project_key_from_issue_id,
     view_base_url,
     find_eval_marker,
@@ -28,8 +27,6 @@ from backlog_tool import issue_service, presenter
 from backlog_tool.resolver import resolve_user_id
 from workflows import guidance, ut_bug, story_task_overview, personal_status
 import workflows.resolve_bug as bug_workflow
-from workflows.audit import audit_config
-from backlog_tool.inspect import build_project_config, write_catalog
 from backlog_tool.telemetry import (
     log_session_start,
     record_arg_error,
@@ -774,177 +771,6 @@ def get_my_project_status(
         )
     except Exception as e:
         return _error_result("get_my_project_status", e, project=project_key)
-
-
-@mcp.tool()
-def list_configured_projects() -> CallToolResult:
-    """List configured Backlog projects without querying every project.
-
-    Use when choosing or confirming a project key.
-    Do not use to fetch live project metadata; use inspect_project for one explicit project.
-    """
-    start_call("list_configured_projects", locals())
-    try:
-        config = get_config_instance()
-        rows = []
-        for key in project_keys(config):
-            try:
-                catalog = load_project_catalog(key)
-                rows.append({"key": key, "id": catalog.get("id"), "name": catalog.get("name")})
-            except Exception:
-                rows.append({"key": key, "id": None, "name": "(missing catalog)"})
-        return _build_result(rows, "list_configured_projects", list_key="projects")
-    except Exception as e:
-        return _error_result("list_configured_projects", e)
-
-
-@mcp.tool()
-def get_config() -> CallToolResult:
-    """Get local Backlog configuration settings with credentials excluded.
-
-    Use when diagnosing local MCP configuration or defaults.
-    Do not use to retrieve secrets; credentials are intentionally excluded.
-    """
-    start_call("get_config", locals())
-    try:
-        config = get_config_instance()
-        return _build_result(redact_config(config), "get_config")
-    except Exception as e:
-        return _error_result("get_config", e)
-
-
-@mcp.tool()
-def audit_config_workflows(
-    mode: Annotated[
-        Literal["local", "live"],
-        Field(
-            description="local validates workflow/config compatibility against cached catalogs; live compares cached catalogs with current Backlog metadata without writing files."
-        ),
-    ] = "local",
-) -> CallToolResult:
-    """Validate workflow config and optionally detect live Backlog catalog drift.
-
-    Use local mode for config/workflow consistency. Use live mode before relying on
-    catalog-backed mutations when Backlog metadata may have changed.
-    Do not use to refresh catalogs; live mode is read-only.
-    """
-    start_call("audit_config_workflows", locals())
-    try:
-        config = get_config_instance()
-        data = audit_config(config, mode=mode)
-        return _build_result(data, "audit_config_workflows")
-    except Exception as e:
-        return _error_result("audit_config_workflows", e)
-
-
-@mcp.tool()
-def inspect_project(
-    project_key: Annotated[str, Field(description="Project key to inspect (e.g., 'PRJ')")],
-    mode: Annotated[Literal["read", "refresh_catalog"], Field(description="read fetches metadata without writing; refresh_catalog writes the local project catalog.")] = "read",
-) -> CallToolResult:
-    """Fetch project metadata or refresh one local project catalog.
-
-    Use when the user names one project and needs its metadata or catalog refreshed.
-    Do not use to enumerate every project; use list_configured_projects.
-    """
-    start_call("inspect_project", locals())
-    try:
-        config = get_config_instance()
-        project_config = build_project_config(config, project_key)
-        if mode == "read":
-            data = project_config
-        else:
-            path = write_catalog(project_config)
-            data = {"wrote": path, "key": project_config["key"]}
-        return _build_result(
-            data,
-            "inspect_project",
-            project=project_key,
-        )
-    except Exception as e:
-        return _error_result("inspect_project", e, project=project_key)
-
-
-@mcp.prompt()
-def resolve_bug_prompt(
-    issue_key: Annotated[str, Field(description="The key of the bug issue to resolve (e.g., 'PRJ-123')")]
-) -> str:
-    """Guide the agent to resolve a bug following project workflow policies."""
-    return (
-        f"Resolve Backlog bug {issue_key} using the configured personal workflow.\n\n"
-        f"Normal path:\n"
-        f"1. Call `resolve_bug` in preview mode once, with `fix_description` describing the change. The tool already loads issue context, workflow rules, mappings, defaults, and validation.\n"
-        f"2. Review preview changes/warnings. Only call `get_bug_fields` or `get_bug_rules` if preview reports ambiguity/missing guidance or the user asks for those details.\n"
-        f"3. Call `resolve_bug` in apply mode with the same arguments only after the user has explicitly requested/confirmed the write."
-    )
-
-
-@mcp.prompt()
-def create_ut_bug_prompt(
-    parent_key: Annotated[str, Field(description="The parent issue key (e.g., 'PRJ-123')")],
-    module: Annotated[str, Field(description="The name of the module or component under test")],
-    description: Annotated[str, Field(description="Optional failure description or detail text for the UT bug")] = "",
-) -> str:
-    """Guide the agent to create a Unit Test sub-task bug under a parent issue."""
-    desc_val = f"'{description}'" if description else "(not specified yet)"
-    return (
-        f"Create a Backlog Unit Test (UT) child bug for parent {parent_key} and module {module}.\n"
-        f"Current failure description: {desc_val}\n\n"
-        f"Normal path:\n"
-        f"1. If the failure description is missing, ask for/draft it from the existing coding context.\n"
-        f"2. Call `create_ut_bug` in preview mode; it loads and validates the parent internally.\n"
-        f"3. Review the preview, then call `create_ut_bug` in apply mode only after explicit write confirmation."
-    )
-
-
-@mcp.prompt()
-def project_status_prompt(
-    project: Annotated[str, Field(description="Project key. Omit only when the active workspace can resolve the project unambiguously; otherwise the tool should return an error.")] = ""
-) -> str:
-    """Guide the agent to check the current project status overview."""
-    proj_desc = f"project '{project}'" if project else "the active workspace"
-    return (
-        f"Check my personal Backlog status for {proj_desc}.\n\n"
-        f"Use `get_my_project_status` once. It combines my assigned Stories/Tasks, deadlines, and open Bugs. "
-        f"This is my personal work view, not a team/PM project-health report. "
-        f"If the project is omitted and cannot be resolved unambiguously, stop instead of guessing."
-    )
-
-
-def redact_config(config: dict[str, Any]) -> dict[str, Any]:
-    if not isinstance(config, dict):
-        return config
-    redacted = {}
-    sensitive_substrings = {
-        "token", "secret", "password", "api_key", "apikey", "api-key",
-        "private_key", "authorization", "cookie", "passwd"
-    }
-    for k, v in config.items():
-        k_lower = k.lower()
-        is_sensitive = (
-            any(sub in k_lower for sub in sensitive_substrings)
-            or k_lower == "auth"
-            or k_lower.startswith("auth_")
-        )
-        if is_sensitive:
-            continue
-        if isinstance(v, dict):
-            redacted[k] = redact_config(v)
-        elif isinstance(v, list):
-            redacted[k] = [redact_config(item) if isinstance(item, dict) else item for item in v]
-        else:
-            redacted[k] = v
-    return redacted
-
-
-@mcp.resource(
-    "backlog://config",
-    mime_type="application/json",
-    meta={"kind": "config", "scope": "workstation"},
-)
-def config_resource() -> str:
-    """Read the workstation-wide Backlog configuration as JSON."""
-    return json.dumps(redact_config(load_config()), indent=2, ensure_ascii=False)
 
 
 @mcp.resource(

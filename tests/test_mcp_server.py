@@ -4,7 +4,6 @@ from unittest import mock
 
 import anyio
 import pytest
-from mcp.types import CallToolResult, TextContent
 
 from backlog_mcp import server
 from backlog_mcp.results import _to_markdown
@@ -74,15 +73,6 @@ def test_update_issue_and_create_ut_bug_preview_by_default():
 
     assert update_mock.call_args.kwargs["dry_run"] is True
     assert ut_mock.call_args.kwargs["dry_run"] is True
-
-
-def test_inspect_project_does_not_write_by_default():
-    with mock.patch("backlog_mcp.server.build_project_config", return_value={"key": "AQM"}) as build_mock, \
-         mock.patch("backlog_mcp.server.write_catalog") as write_mock:
-        server.inspect_project("AQM")
-
-    build_mock.assert_called_once()
-    write_mock.assert_not_called()
 
 
 def test_get_issues_maps_pagination_sort_and_field_selection():
@@ -186,7 +176,6 @@ def test_tool_schema_exposes_enums_and_use_when_descriptions():
     get_bug_context = tools["get_bug_context"]
     resolve_bug = tools["resolve_bug"]
     create_issue = tools["create_issue"]
-    audit_tool = tools["audit_config_workflows"]
 
     assert "Use when" in get_issues.description
     assert "Do not use" in get_issues.description
@@ -215,8 +204,6 @@ def test_tool_schema_exposes_enums_and_use_when_descriptions():
     assert "parent_key" in create_issue.inputSchema["properties"]
     assert create_issue.inputSchema["properties"]["project_key"]["default"] == ""
     assert "issue_type" in create_issue.inputSchema.get("required", [])
-    assert audit_tool.inputSchema["properties"]["mode"]["enum"] == ["local", "live"]
-    assert audit_tool.inputSchema["properties"]["mode"]["default"] == "local"
 
 
 
@@ -257,8 +244,7 @@ def test_resources_have_json_mime_type_and_issue_template():
     resource_by_uri = {str(resource.uri): resource for resource in resources}
     template_by_uri = {template.uriTemplate: template for template in templates}
 
-    assert resource_by_uri["backlog://config"].mimeType == "application/json"
-    assert resource_by_uri["backlog://config"].meta == {"kind": "config", "scope": "workstation"}
+    assert "backlog://config" not in resource_by_uri
     assert template_by_uri["backlog://issue/{issue_key}"].mimeType == "application/json"
     assert template_by_uri["backlog://issue/{issue_key}"].meta == {"kind": "issue", "scope": "project"}
 
@@ -282,43 +268,6 @@ def test_to_markdown_formatting():
     assert "PROJ-123" in res_single
     assert "Database error" in res_single
     assert "[Closed]" in res_single
-
-
-def test_config_resource_excludes_sensitive_keys():
-    raw_config = {
-        "base_url": "https://bapjp.backlog.com",
-        "api_key": "sensitive_api_key_123",
-        "token": "sensitive_token",
-        "projects": ["AQM"],
-        "access_token": "abc",
-        "refresh_token": "def",
-        "client_secret": "secret123",
-        "private_key": "private123",
-        "backlog_api_key": "key123",
-        "authToken": "token123",
-        "author": "john_doe",
-        "projectKey": "AQM",
-        "nested": {
-            "password": "my_password",
-            "safe_field": "hello"
-        }
-    }
-    with mock.patch("backlog_mcp.server.load_config", return_value=raw_config):
-        res_json = server.config_resource()
-        res = json.loads(res_json)
-        assert "api_key" not in res
-        assert "token" not in res
-        assert "access_token" not in res
-        assert "refresh_token" not in res
-        assert "client_secret" not in res
-        assert "private_key" not in res
-        assert "backlog_api_key" not in res
-        assert "authToken" not in res
-        assert "password" not in res["nested"]
-        assert res["author"] == "john_doe"
-        assert res["projectKey"] == "AQM"
-        assert res["nested"]["safe_field"] == "hello"
-        assert res["base_url"] == "https://bapjp.backlog.com"
 
 
 def test_issue_resource_success_and_error():
@@ -365,24 +314,6 @@ def test_create_ut_bug_returns_structured_partial_write_error():
     assert detail["recovery"]["issueKey"] == "AQM-123"
     assert detail["recovery"]["targetStatus"] == "Closed"
     assert detail["recovery"]["updatePayload"] == {"statusId": 4, "assigneeId": 9}
-
-
-def test_audit_config_workflows_live_mode_is_read_only():
-    with mock.patch(
-        "backlog_mcp.server.audit_config",
-        return_value={
-            "ok": False,
-            "mode": "live",
-            "changedProjects": ["AQM"],
-            "projects": [],
-            "writesPerformed": False,
-        },
-    ) as audit_mock:
-        result = server.audit_config_workflows(mode="live")
-
-    assert result.isError is False
-    audit_mock.assert_called_once_with(server.get_config_instance(), mode="live")
-    assert result.structuredContent["data"]["writesPerformed"] is False
 
 
 def test_personal_project_status_aggregates_work_and_bugs_in_one_tool():
@@ -438,23 +369,6 @@ def test_server_instructions_require_backlog_activation_and_minimal_bug_paths():
     assert "do not add or change mutation fields after preview" in instructions
     assert "previewing the final payload again" in instructions
     assert "read before mutating" not in instructions
-
-
-def test_personal_prompts_use_minimal_domain_paths():
-    resolve_prompt = server.resolve_bug_prompt("OOP-123")
-    assert "resolve_bug" in resolve_prompt
-    assert "Call `get_bug_context`" not in resolve_prompt
-    assert "Call `get_bug_rules`" not in resolve_prompt
-    assert "Call `get_bug_fields`" not in resolve_prompt
-
-    ut_prompt = server.create_ut_bug_prompt("OOP-1", "admin", "fails")
-    assert "create_ut_bug" in ut_prompt
-    assert "get_issue" not in ut_prompt
-
-    status_prompt = server.project_status_prompt("OOP")
-    assert "get_my_project_status" in status_prompt
-    assert "get_my_work_overview" not in status_prompt
-    assert "get_my_open_bugs" not in status_prompt
 
 
 def test_bug_support_tools_resolve_project_from_issue_key():
