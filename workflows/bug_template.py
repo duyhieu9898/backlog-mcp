@@ -56,9 +56,24 @@ def compact_user(user):
     }
 
 
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg")
+
+
+def attachment_summary(attachments):
+    return [
+        {
+            "id": item.get("id"),
+            "name": item.get("name"),
+            "size": item.get("size"),
+            "isImage": str(item.get("name") or "").lower().endswith(IMAGE_EXTENSIONS),
+        }
+        for item in attachments or []
+    ]
+
+
 def bug_context(issue):
     description = parse_bug_description(issue.get("description"))
-    return {
+    context = {
         "issueKey": issue.get("issueKey"),
         "summary": issue.get("summary"),
         "status": (issue.get("status") or {}).get("name"),
@@ -73,3 +88,7 @@ def bug_context(issue):
         "rawDescription": issue.get("description"),
         "customFields": issue.get("customFields", []),
     }
+    attachments = attachment_summary(issue.get("attachments"))
+    if attachments:
+        context["attachments"] = attachments
+    return context

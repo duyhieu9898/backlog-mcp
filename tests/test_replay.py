@@ -1,7 +1,7 @@
 """Replay each scenario's expected MCP calls against the real server (stdio) on the fake backend.
 
 No model involved. Proves the server + fake backend can satisfy each scenario and that
-the logs grade as PASS. Scenarios that need Plan B (P5) behavior are xfail until then.
+the logs grade as PASS.
 """
 
 import json
@@ -18,9 +18,6 @@ from backlog_tool.telemetry_store import group_flows, load_calls
 from evals.fake_backlog import FakeBacklog
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-NEEDS_PLAN_B = {
-    "fix_context_attachment": "get_bug_context lists attachments in P5",
-}
 
 
 async def _replay(workspace, calls):
@@ -40,9 +37,7 @@ async def _replay(workspace, calls):
 
 
 @pytest.mark.parametrize("scenario_id", [s["id"] for s in load_scenarios()])
-def test_replay_scenario(scenario_id, tmp_path, request):
-    if scenario_id in NEEDS_PLAN_B:
-        request.applymarker(pytest.mark.xfail(reason=NEEDS_PLAN_B[scenario_id], strict=True))
+def test_replay_scenario(scenario_id, tmp_path):
     scenario = render_scenario(next(s for s in load_scenarios() if s["id"] == scenario_id))
     log_dir = tmp_path / "eval-logs"
     with FakeBacklog(state=scenario["fakeState"], source="auto") as fake:

@@ -587,3 +587,23 @@ class BugWorkflowTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_bug_context_lists_attachments():
+    from workflows.bug_template import bug_context
+
+    issue = {"issueKey": "OOP-1", "attachments": [
+        {"id": 7001, "name": "login-error.png", "size": 48213, "created": "x"},
+        {"id": 7002, "name": "server.log", "size": 900},
+    ]}
+    assert bug_context(issue)["attachments"] == [
+        {"id": 7001, "name": "login-error.png", "size": 48213, "isImage": True},
+        {"id": 7002, "name": "server.log", "size": 900, "isImage": False},
+    ]
+
+
+def test_bug_context_without_attachments_has_no_key():
+    from workflows.bug_template import bug_context
+
+    for issue in ({"issueKey": "OOP-1"}, {"issueKey": "OOP-1", "attachments": None}, {"issueKey": "OOP-1", "attachments": []}):
+        assert "attachments" not in bug_context(issue)
