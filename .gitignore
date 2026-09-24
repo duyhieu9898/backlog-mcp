@@ -11,4 +11,5 @@ tests/fixtures/local/
 evals/cassettes/
 evals/results/**/*.jsonl
 
-
+# Eval marker written into workspaces by evals/run.py
+.backlog-eval.json

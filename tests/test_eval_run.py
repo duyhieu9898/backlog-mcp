@@ -61,11 +61,16 @@ def test_run_one_removes_markers_from_supplied_workspace_on_error(tmp_path, monk
 
 
 def test_write_summary(tmp_path):
-    rows = [{"scenario": "open_bugs", "pass": True}, {"scenario": "open_bugs", "pass": False, "reasons": ["extra calls: ['get_issues']"]}]
+    rows = [
+        {"scenario": "open_bugs", "pass": True, "estTokens": 100, "wallClockMs": 4000},
+        {"scenario": "open_bugs", "pass": False, "reasons": ["extra calls: ['get_issues']"], "estTokens": 300, "wallClockMs": 9000},
+        {"scenario": "open_bugs", "pass": True, "estTokens": 200, "wallClockMs": None},
+    ]
     (tmp_path / "claude-opus.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     write_summary(tmp_path)
     text = (tmp_path / "SUMMARY.md").read_text()
-    assert "| open_bugs | 1/2 |" in text and "claude-opus" in text and "extra calls ×1" in text
+    assert "| Scenario | Pass/Runs | Median estTokens | Median wallClockMs |" in text
+    assert "| open_bugs | 2/3 | 200 | 6500 |" in text and "claude-opus" in text and "extra calls ×1" in text
 
 
 def _completed(stdout=""):

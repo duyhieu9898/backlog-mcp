@@ -497,10 +497,12 @@ def execute(argv, workspace_path=None):
             else:
                 text = json.dumps(presented_data, indent=2, ensure_ascii=False)
 
+        # telemetry reports embed user prompts and answers; do not copy them into details/.
+        traced = args.group != "telemetry"
         finish_call(
             "ok",
-            result=presented_data,
-            text=text,
+            result=presented_data if traced else None,
+            text=text if traced else None,
             response_bytes=len(text.encode("utf-8")),
             project_key=project,
         )

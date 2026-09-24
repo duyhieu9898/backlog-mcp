@@ -15,7 +15,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 BASE_FIXTURE = os.path.join(ROOT, "tests", "fixtures", "OOP_issue_bug.json")
 CATALOG = os.path.join(ROOT, "config", "projects", "OOP.json")
 ME = {"id": 778617, "name": "Hieu Nguyen Duy (DN.DEV)"}
-REPORTER = {"id": 315996, "name": "tamtt"}
+REPORTER = {"id": 315996, "name": "QA Reporter"}
 # Real "my open bugs" list at 2026-09-23 16:22, re-keyed; plus a bug with a real attachment.
 SCENARIO_OPEN = ["OOP-912779", "OOP-912777", "OOP-912774", "OOP-912773", "OOP-912762", "OOP-912749"]
 SCENARIO_KEYS = SCENARIO_OPEN + ["OOP-912744"]

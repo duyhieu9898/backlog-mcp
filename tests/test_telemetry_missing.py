@@ -48,3 +48,27 @@ def test_value_used_in_later_call_arguments_confirms():
 def test_no_follow_up_no_result():
     flow = Flow("f", [call("get_bug_context", {"issue_key": "OOP-1"}, CONTEXT, "a")])
     assert find_missing_fields(flow) == []
+
+
+def test_small_numbers_do_not_confirm_by_substring():
+    context = {"ok": True, "data": {"issueKey": "OOP-1"}}
+    issue = {"ok": True, "data": {"issueKey": "OOP-1", "estimatedHours": 1}}
+    flow = Flow("f", [
+        call("get_bug_context", {"issue_key": "OOP-1"}, context, "a"),
+        call("get_issue", {"issue_ref": "OOP-1"}, issue, "b"),
+    ])
+    [item] = find_missing_fields(flow, final_answer="Đã xem OOP-1.")
+    assert item["confirmed"] == []
+
+
+def test_large_whole_number_confirms():
+    context = {"ok": True, "data": {"issueKey": "OOP-1"}}
+    issue = {"ok": True, "data": {"issueKey": "OOP-1", "estimatedHours": 4213}}
+    flow = Flow("f", [
+        call("get_bug_context", {"issue_key": "OOP-1"}, context, "a"),
+        call("get_issue", {"issue_ref": "OOP-1"}, issue, "b"),
+    ])
+    [item] = find_missing_fields(flow, final_answer="estimate 4213")
+    assert item["confirmed"] == ["data.estimatedHours"]
+    [item] = find_missing_fields(flow, final_answer="ticket 142130")
+    assert item["confirmed"] == []

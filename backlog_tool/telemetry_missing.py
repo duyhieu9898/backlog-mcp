@@ -1,10 +1,12 @@
 """Detect fields a specialized tool did not return but the model fetched with a follow-up call and then used."""
 
 import json
+import re
 
 from .telemetry_rules import SPECIALIZED
 
 MIN_TEXT_LENGTH = 4
+MIN_NUMBER_DIGITS = 3
 
 
 def _leaves(value, prefix=""):
@@ -26,7 +28,10 @@ def _used(value, haystack):
     if isinstance(value, bool) or value is None:
         return False
     if isinstance(value, (int, float)):
-        return str(value) in haystack
+        text = str(value)
+        if sum(ch.isdigit() for ch in text) < MIN_NUMBER_DIGITS:
+            return False
+        return re.search(rf"(?<!\d){re.escape(text)}(?!\d)", haystack) is not None
     text = str(value)
     return len(text) >= MIN_TEXT_LENGTH and text.lower() in haystack.lower()
 

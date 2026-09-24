@@ -169,6 +169,20 @@ class CliTelemetryTest(unittest.TestCase):
         self.assertEqual("bad config", self._rows("errors")[0]["message"])
         self.assertIsNone(telemetry.current_trace_id())
 
+    def test_telemetry_command_does_not_store_report_in_details(self):
+        report = {"flows": [{"prompt": "secret prompt text"}], "totals": {}}
+        with _mock.patch.object(cli, "load_config", return_value={"base_url": "https://x"}), \
+             _mock.patch.object(cli, "run_handler", return_value=report):
+            result = cli.execute(["telemetry", "report", "--json"])
+        self.assertIn("secret prompt text", result.text)
+        [call] = self._rows("calls")
+        self.assertEqual("ok", call["status"])
+        self.assertGreater(call["responseBytes"], 0)
+        folder = telemetry.log_paths()["details_dir"]
+        detail = _json.loads(open(_os.path.join(folder, _os.listdir(folder)[0]), encoding="utf-8").readline())
+        self.assertNotIn("result", detail)
+        self.assertNotIn("text", detail)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -159,20 +160,28 @@ def run_one(agent, model, scenario, index, timeout_s, workspace=None, source="ca
     return result
 
 
+def _median(values):
+    values = [v for v in values if isinstance(v, (int, float)) and not isinstance(v, bool)]
+    return round(statistics.median(values)) if values else "-"
+
+
 def write_summary(folder):
     folder = Path(folder)
     lines = [f"# Eval summary — {folder.name}", ""]
     for path in sorted(folder.glob("*.jsonl")):
         rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
-        by_scenario = defaultdict(lambda: [0, 0])
+        by_scenario = defaultdict(list)
         reasons = defaultdict(int)
         for row in rows:
-            by_scenario[row["scenario"]][1] += 1
-            by_scenario[row["scenario"]][0] += int(bool(row.get("pass")))
+            by_scenario[row["scenario"]].append(row)
             for reason in row.get("reasons") or []:
                 reasons[reason.split(":")[0]] += 1
-        lines += [f"## {path.stem}", "", "| Scenario | Pass/Runs |", "|---|---|"]
-        lines += [f"| {scenario} | {ok}/{total} |" for scenario, (ok, total) in sorted(by_scenario.items())]
+        lines += [f"## {path.stem}", "", "| Scenario | Pass/Runs | Median estTokens | Median wallClockMs |", "|---|---|---|---|"]
+        for scenario, group in sorted(by_scenario.items()):
+            ok = sum(bool(row.get("pass")) for row in group)
+            tokens = _median(row.get("estTokens") for row in group)
+            wall = _median(row.get("wallClockMs") for row in group)
+            lines.append(f"| {scenario} | {ok}/{len(group)} | {tokens} | {wall} |")
         if reasons:
             lines += ["", "Lý do fail phổ biến: " + ", ".join(f"{k} ×{v}" for k, v in sorted(reasons.items(), key=lambda kv: -kv[1]))]
         lines.append("")

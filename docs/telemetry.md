@@ -11,6 +11,8 @@
 | `sessions.jsonl` | một process (MCP server hoặc lệnh CLI) | phiên bản code (`version`, `gitSha`, `dirty`), client, backend real/fake |
 | `details/YYYY-MM-DD.jsonl` | chi tiết một tool call | xem `arguments`, `result`, `text`, API call, `mutation` |
 
+Lưu ý: dòng `sessions.jsonl` của MCP server luôn có `client.name == "unknown"` vì được ghi lúc khởi động, trước khi client gửi `clientInfo` trong `initialize`. Muốn chia theo client/model thì dùng `client` trên dòng `calls.jsonl`.
+
 Mọi dòng nối với nhau bằng `traceId` (call) và `sessionId` (process). Quy trình đọc chuẩn: quét `calls.jsonl` và `errors.jsonl` trước; chỉ mở `details/` bằng `traceId` khi cần nội dung đầy đủ.
 
 ## Field chung
