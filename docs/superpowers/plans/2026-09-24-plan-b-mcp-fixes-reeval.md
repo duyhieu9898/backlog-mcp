@@ -760,14 +760,13 @@ def test_write_summary_counts_runs_with_arg_errors(tmp_path):
 
 Không có code mới trừ khi phân tích chỉ ra cần sửa. Mỗi lượt sửa MCP trong task này đi theo đúng vòng TDD như Task 1–7 (test hỏng → sửa → test xanh → commit + push), sau đó chạy lại **chỉ** kịch bản × model chưa đạt với nhãn mới (`p6-r2`, `p6-r3`, …).
 
-- [ ] **Step 1: Kiểm tên model Pro** — `agy --help` / thử `agy -p "ok" --model gemini-3.1-pro-high --output-format stream-json --print-timeout 60s`; nếu tên khác, dùng tên agy chấp nhận và ghi vào `SUMMARY.md`.
+- [ ] **Step 1: Phạm vi model** — người dùng quyết (2026-09-24): chỉ `claude opus` và `agy gemini-3.8-flash-medium`; **không** chạy Gemini 3.1 Pro.
 
 - [ ] **Step 2: Chạy ma trận (nền, tuần tự, từng lệnh một)**
 
 ```bash
 uv run python -m evals.run --agent claude --model opus --scenario all --runs 10 --label p6 --timeout 300
 uv run python -m evals.run --agent agy --model gemini-3.8-flash-medium --scenario all --runs 10 --label p6 --timeout 300
-uv run python -m evals.run --agent agy --model gemini-3.1-pro-high --scenario all --runs 10 --label p6 --timeout 300
 ```
 Kết quả ghi dần vào `evals/results/<ngày>-p6/`; bị ngắt thì chạy lại riêng kịch bản thiếu với `--scenario <id> --runs <số còn thiếu>` (file jsonl được nối thêm).
 
@@ -787,7 +786,7 @@ git push origin main
 
 ---
 
-## Điểm cần người dùng quyết khi duyệt plan
+## Quyết định của người dùng khi duyệt plan (2026-09-24)
 
-1. **Giảm payload `get_my_open_bugs`** (baseline: ~4.1k token cho `open_bugs`, phần lớn là `description` từng bug). Spec §3 để ngoài phạm vi ("người dùng tự review field thừa"). Plan này **không** làm; P6 sẽ báo cáo `estTokens` để bạn quyết sau. Muốn đưa vào Plan B thì thêm một task bỏ `description` khỏi danh sách.
-2. **Model Pro**: plan chạy `gemini-3.1-pro-high` theo spec §8.5. Ma trận P6 = 3 model × 7 kịch bản × 10 lượt = 210 lượt (ước tính 6–12 giờ chạy nền). Bỏ Pro sẽ còn 140 lượt.
+1. Không giảm payload `get_my_open_bugs` trong Plan B (giữ phạm vi spec §3); P6 báo cáo `estTokens` để quyết sau.
+2. Không chạy Gemini 3.1 Pro; ma trận P6 = 2 model × 7 kịch bản × 10 lượt = 140 lượt.
