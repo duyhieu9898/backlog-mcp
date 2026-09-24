@@ -116,6 +116,17 @@ class PresenterRoutingTest(unittest.TestCase):
         self.assertEqual(["w"], out["warnings"])
         self.assertNotIn("context", out)
 
+    def test_present_resolve_apply_shows_updated_issue_and_warnings(self):
+        args = self.parser.parse_args(["bug", "resolve", "AQM-1", "--apply"])
+        built = {"dryRun": False, "issue": "AQM-1", "payload": {"statusId": 3}, "context": {"big": "x"},
+                 "changes": [{"field": "Status"}], "warnings": ["w"],
+                 "updated": {"issueKey": "AQM-1", "summary": "Save fails", "status": {"name": "Resolved"}}}
+        out = cli.present(built, args)
+        self.assertEqual("AQM-1", out["issueKey"])
+        self.assertEqual("Resolved", out["status"])
+        self.assertEqual(["w"], out["warnings"])
+        self.assertNotIn("payload", out)
+
     def test_present_bug_context_keeps_reporter(self):
         args = self.parser.parse_args(["bug", "context", "AQM-1"])
         context = {

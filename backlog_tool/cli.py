@@ -416,7 +416,8 @@ def present(result, args, base_url=""):
                 "assignment": result.get("assignment"),
                 "changes": result.get("changes", []), "warnings": result.get("warnings", []),
             }
-        return presenter.compact_issue(result, view=view, base_url=base_url)
+        updated = presenter.compact_issue(result.get("updated"), view=view, base_url=base_url)
+        return {**(updated or {}), "warnings": result.get("warnings", [])}
     if group == "bug" and action == "create-ut":
         if isinstance(result, dict) and result.get("dryRun"):
             return result

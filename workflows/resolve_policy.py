@@ -16,7 +16,7 @@ PRESERVED_FIELDS = ("Detected Role", "Summary", "Description", "QC Activity (if 
 WORKFLOW_MANAGED_FIELDS = ("impacted", "corrective_action", "resolution")
 
 OVERRIDES = {
-    "--fix-description": "Text for Corrective Action (fixed <text>). Required for --apply.",
+    "--fix-description": "Text for Corrective Action (fixed <text>). Optional; defaults to the bug summary.",
     "--commit": "Commit hash/ref appended to the update comment.",
     "--qc-activity": "QC Activity label, used only when the issue field is empty.",
     "--bug-origin": "Bug Origin label, used only when the issue field is empty.",

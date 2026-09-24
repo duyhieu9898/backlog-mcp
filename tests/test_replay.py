@@ -19,9 +19,6 @@ from evals.fake_backlog import FakeBacklog
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 NEEDS_PLAN_B = {
-    "resolve_fixed": "apply without fix_description is rejected until P5",
-    "resolve_multi": "apply without fix_description is rejected until P5",
-    "resolve_warning": "apply without fix_description is rejected until P5",
     "fix_context_attachment": "get_bug_context lists attachments in P5",
 }
 

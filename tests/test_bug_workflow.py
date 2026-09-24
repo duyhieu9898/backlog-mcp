@@ -400,7 +400,7 @@ class BugWorkflowTest(unittest.TestCase):
         change_keys = {change["key"] for change in result["changes"]}
         self.assertIn("statusId", change_keys)
         self.assertIn("customField_5", change_keys)  # corrective_action
-        self.assertTrue(any("fix_description" in w for w in result["warnings"]))
+        self.assertTrue(any("fix_description not given" in w for w in result["warnings"]))
 
     def test_resolve_no_warning_when_fix_description_given(self):
         result = bug_workflow.resolve_bug(
@@ -513,19 +513,32 @@ class BugWorkflowTest(unittest.TestCase):
                 cause_category="COD_Coding Logic",
             )
 
-    def test_resolve_apply_requires_fix_description(self):
-        with self.assertRaisesRegex(ValueError, "fix_description is required"):
+    def test_resolve_apply_without_fix_description_uses_summary(self):
+        self.client.update_issue.return_value = {**BUG_ISSUE, "status": {"name": "Resolved"}}
+        result = bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, today=date(2026, 6, 2))
+        payload = self.client.update_issue.call_args.args[1]
+        self.assertEqual("fixed Save fails", payload["customField_5"])
+        self.assertEqual("Resolved", result["updated"]["status"]["name"])
+        self.assertTrue(any("fix_description not given" in w for w in result["warnings"]))
+        self.assertFalse(any("requires fix_description" in w for w in result["warnings"]))
+
+    def test_resolve_apply_on_excluded_status_sends_no_patch(self):
+        self.client.get_issue.return_value = {**BUG_ISSUE, "status": {"name": "Closed"}}
+        with self.assertRaisesRegex(ValueError, "excluded status"):
             bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, today=date(2026, 6, 2))
         self.client.update_issue.assert_not_called()
 
-        bug_workflow.resolve_bug(
-            CONFIG,
-            "AQM-123",
-            dry_run=False,
-            today=date(2026, 6, 2),
-            fix_description="save button validation",
-        )
-        self.client.update_issue.assert_called_once()
+    def test_public_changes_shape(self):
+        changes = [
+            {"field": "Status", "key": "statusId", "from": "Open", "value": "Resolved"},
+            {"field": "Assignee", "key": "assigneeId", "from": {"id": 1, "name": "Dev"}, "value": {"id": 2, "name": "QC"}, "source": "createdUser"},
+            {"field": "Start Date", "key": "startDate", "value": "2026-06-02"},
+        ]
+        self.assertEqual([
+            {"field": "Status", "from": "Open", "to": "Resolved"},
+            {"field": "Assignee", "from": "Dev", "to": "QC"},
+            {"field": "Start Date", "from": None, "to": "2026-06-02"},
+        ], bug_workflow.public_changes(changes))
 
     def test_corrective_action_does_not_duplicate_fixed_verb(self):
         for fix_description in ("Fixed save button validation", "fix: save button validation"):

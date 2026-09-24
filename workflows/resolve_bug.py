@@ -395,8 +395,7 @@ def build_resolution_plan(
 
     if not fix_description:
         warnings.append(
-            "corrective_action fell back to the issue summary; pass fix_description for an accurate fix note. "
-            "Apply mode requires fix_description."
+            "fix_description not given: Corrective Action uses the bug summary ('fixed <summary>')."
         )
     roles = detected_roles(issue, project)
     if roles and "Tester" not in roles:
@@ -519,13 +518,6 @@ def summarize_changes(issue, project, payload, target_status):
 
 
 def resolve_bug(config, issue_key, dry_run=True, start_path=None, **kwargs):
-    if not dry_run and not (kwargs.get("fix_description") or "").strip():
-        # The summary fallback describes the symptom ("fixed <bug title>"),
-        # not the fix, so it is only acceptable as a preview placeholder.
-        raise ValueError(
-            "fix_description is required to apply resolve_bug: Corrective Action would otherwise "
-            "fall back to the bug summary. Describe what was changed and retry."
-        )
     built = build_resolve_bug_payload(config, issue_key, start_path=start_path, **kwargs)
     outcome = {
         "planHash": plan_hash(issue_key, built["payload"]),
@@ -538,4 +530,16 @@ def resolve_bug(config, issue_key, dry_run=True, start_path=None, **kwargs):
         return {"dryRun": True, **built}
     updated = BacklogClient(config).update_issue(issue_key, built["payload"])
     record_mutation(mode="apply", statusAfter=((updated or {}).get("status") or {}).get("name"), **outcome)
-    return updated
+    return {"dryRun": False, **built, "updated": updated}
+
+
+def _change_value(value):
+    return value.get("name") if isinstance(value, dict) else value
+
+
+def public_changes(changes):
+    """Changes as the model sees them: field, from, to (no Backlog wire keys or user IDs)."""
+    return [
+        {"field": change["field"], "from": _change_value(change.get("from")), "to": _change_value(change.get("value"))}
+        for change in changes
+    ]

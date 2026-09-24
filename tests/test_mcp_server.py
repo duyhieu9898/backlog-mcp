@@ -326,7 +326,7 @@ def test_personal_routing_contract_is_explicit_and_domain_first():
     assert "Backlog is explicitly invoked" in tools["get_my_project_status"].description
     assert "not a PM/team/project-health dashboard" in tools["get_my_project_status"].description
     assert "Do not call get_issue first" in tools["get_bug_context"].description
-    assert "Do not pre-call get_bug_rules or get_bug_fields" in tools["resolve_bug"].description
+    assert "Do not call get_bug_context, get_issue, get_bug_rules or get_bug_fields first." in tools["resolve_bug"].description
     assert "escape hatch" in tools["get_issues"].description
     assert "personal Backlog status" in tools["get_issues"].description
 
@@ -446,3 +446,42 @@ def test_metrics_and_workflow_resources_are_gone():
     resources = anyio.run(server.mcp.list_resources)
     uris = {str(resource.uri) for resource in resources}
     assert "backlog://metrics" not in uris and "backlog://workflow-efficiency" not in uris
+
+
+def test_resolve_bug_apply_response_shape():
+    built = {
+        "dryRun": False, "issue": "OOP-1", "project": "OOP", "payload": {}, "context": {},
+        "assignment": {}, "warnings": ["Detected Role is Developer, not Tester; confirm the reporter is the intended QC assignee."],
+        "changes": [{"field": "Status", "key": "statusId", "from": "Open", "value": "Resolved"}],
+        "updated": {"issueKey": "OOP-1", "status": {"name": "Resolved"}, "assignee": {"id": 2, "name": "QC"}},
+    }
+    with mock.patch("backlog_mcp.server.bug_workflow.resolve_bug", return_value=built), \
+         mock.patch("backlog_mcp.server.project_keys", return_value=["OOP"]), \
+         mock.patch("backlog_mcp.server.get_config_instance", return_value={}), \
+         mock.patch("backlog_mcp.server.view_base_url", return_value="https://x.backlog.com"):
+        result = server.resolve_bug("OOP-1", mode="apply")
+    assert result.structuredContent["data"] == {
+        "issue": "OOP-1", "status": "Resolved", "assignee": "QC", "url": "https://x.backlog.com/view/OOP-1",
+        "changes": [{"field": "Status", "from": "Open", "to": "Resolved"}], "warnings": built["warnings"],
+    }
+    assert "Tester" in result.content[0].text
+
+
+def test_resolve_bug_preview_response_shape():
+    built = {"dryRun": True, "issue": "OOP-1", "project": "OOP", "assignment": {"from": {}, "to": {}},
+             "changes": [{"field": "Status", "key": "statusId", "from": "Open", "value": "Resolved"}], "warnings": []}
+    with mock.patch("backlog_mcp.server.bug_workflow.resolve_bug", return_value=built), \
+         mock.patch("backlog_mcp.server.project_keys", return_value=["OOP"]), \
+         mock.patch("backlog_mcp.server.get_config_instance", return_value={}):
+        result = server.resolve_bug("OOP-1")
+    assert result.structuredContent["data"] == {
+        "dryRun": True, "issue": "OOP-1", "changes": [{"field": "Status", "from": "Open", "to": "Resolved"}], "warnings": [],
+    }
+
+
+def test_resolve_bug_description_says_apply_once():
+    tools = {tool.name: tool for tool in anyio.run(server.mcp.list_tools)}
+    description = tools["resolve_bug"].description
+    assert 'only once, with mode="apply"' in description
+    assert "Do not call get_bug_context, get_issue, get_bug_rules or get_bug_fields first." in description
+    assert "Required in apply mode" not in tools["resolve_bug"].inputSchema["properties"]["fix_description"]["description"]

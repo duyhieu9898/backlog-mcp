@@ -542,17 +542,20 @@ def resolve_bug(
     impacted: Annotated[str, Field(description="Optional configured Impacted-field override. Normally omit and let the workflow apply its configured value.")] = "",
     resolution: Annotated[str, Field(description="Optional Resolution value, used only when the issue field is empty. Omit to use the configured workflow value when applicable.")] = "",
     comment: Annotated[str, Field(description="Resolve comment text.")] = "",
-    commit: Annotated[str, Field(description="Git commit hash/ref related to the fix.")] = "",
-    fix_description: Annotated[str, Field(description="What was changed to fix the bug. Rendered into Corrective Action as 'fixed <text>' with casing preserved, so write the object of 'fixed' (e.g. 'OTP error message to include retry wait time'), not a sentence starting with a verb. Bulleted text renders as 'fixed:' followed by the bullets. Required in apply mode.")] = "",
+    commit: Annotated[str, Field(description="Git commit hash/ref, only if the user gave it. Omit otherwise.")] = "",
+    fix_description: Annotated[str, Field(description="What was changed, only if the user said it. Rendered into Corrective Action as 'fixed <text>' with casing preserved (write the object of 'fixed', e.g. 'OTP error message to include retry wait time'). Bulleted text renders as 'fixed:' followed by the bullets. Omit to use the bug summary.")] = "",
     mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned resolution without writing; apply submits it to Backlog.")] = "preview",
 ) -> CallToolResult:
-    """Resolve a Backlog bug using the configured business workflow and defaults.
+    """Resolve a Backlog bug the user says is fixed, using the configured workflow defaults.
 
-    Use when the user explicitly asks to resolve/close a specific Backlog bug.
-    The workflow already loads issue context, rules, field mappings, defaults, and validation internally.
-    Preview once with the final arguments, then apply with the same arguments after confirmation; do not repeat an identical preview.
-    Do not pre-call get_bug_rules or get_bug_fields unless resolve_bug reports ambiguity/missing guidance.
-    Do not use for unrelated generic issue updates; use update_issue.
+    Use when the user asks to resolve/close a Backlog bug or says it is already fixed.
+    Call this directly and only once, with mode="apply", when the user asks to resolve/close a Backlog bug
+    or says it is already fixed. It loads the issue, rules, field mappings, defaults and validation itself.
+    Do not call get_bug_context, get_issue, get_bug_rules or get_bug_fields first.
+    fix_description and commit are optional: pass them only if the user gave them; otherwise the
+    Corrective Action uses the bug summary. Do not read git history or source code to fill them.
+    After applying, report the changes and every warning to the user.
+    Use mode="preview" only when the user explicitly asks to preview.
     """
     start_call("resolve_bug", locals())
     dry_run = (mode != "apply")
@@ -576,18 +579,20 @@ def resolve_bug(
             fix_description=fix_description,
             start_path=_workspace_path(),
         )
+        changes = bug_workflow.public_changes(res.get("changes", []))
         if dry_run:
+            data = {"dryRun": True, "issue": res.get("issue"), "changes": changes, "warnings": res.get("warnings", [])}
+        else:
+            updated = res.get("updated") or {}
+            base_url = view_base_url(config)
             data = {
-                "dryRun": True,
                 "issue": res.get("issue"),
-                "project": res.get("project"),
-                "assignment": res.get("assignment"),
-                "changes": res.get("changes", []),
+                "status": (updated.get("status") or {}).get("name"),
+                "assignee": (updated.get("assignee") or {}).get("name"),
+                "url": f"{base_url.rstrip('/')}/view/{res.get('issue')}" if base_url else None,
+                "changes": changes,
                 "warnings": res.get("warnings", []),
             }
-        else:
-            base_url = view_base_url(config)
-            data = presenter.compact_issue(res, view="compact", base_url=base_url)
         return _build_result(
             data,
             "resolve_bug",
