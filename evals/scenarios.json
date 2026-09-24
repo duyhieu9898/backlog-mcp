@@ -1,0 +1,103 @@
+[
+  {
+    "id": "open_bugs",
+    "prompt": "backlog kiểm tra bugs open",
+    "fixtures": {},
+    "fakeState": "default",
+    "match": {"keywords": [["bug", "bugs"], ["open", "mở"]], "issueKeys": "none"},
+    "expect": {
+      "calls": [{"tool": "get_my_open_bugs", "args": {}}],
+      "order": "exact",
+      "forbidden": ["get_issues", "get_issue", "get_bug_context", "get_my_project_status"],
+      "finalAnswer": null
+    },
+    "nonMcp": null
+  },
+  {
+    "id": "open_bugs_empty",
+    "prompt": "backlog kiểm tra bugs open",
+    "fixtures": {},
+    "fakeState": "no_open_bugs",
+    "match": null,
+    "expect": {
+      "calls": [{"tool": "get_my_open_bugs", "args": {}}],
+      "order": "exact",
+      "forbidden": ["get_issues", "get_issue", "get_bug_context", "get_my_project_status"],
+      "finalAnswer": {"mustMention": ["0"]}
+    },
+    "nonMcp": null
+  },
+  {
+    "id": "resolve_fixed",
+    "prompt": "backlog resolve {issue}, bug này tôi fix rồi",
+    "fixtures": {"issue": "OOP-912762"},
+    "fakeState": "default",
+    "match": {"keywords": [["resolve"]], "issueKeys": "one"},
+    "expect": {
+      "calls": [{"tool": "resolve_bug", "args": {"issue_key": "{issue}", "mode": "apply"}}],
+      "order": "exact",
+      "forbidden": ["get_bug_context", "get_issue", "get_bug_rules", "get_bug_fields"],
+      "finalAnswer": null
+    },
+    "nonMcp": null
+  },
+  {
+    "id": "resolve_multi",
+    "prompt": "backlog resolve {a}, {b}, các bug này tôi fix rồi",
+    "fixtures": {"a": "OOP-912774", "b": "OOP-912773"},
+    "fakeState": "default",
+    "match": {"keywords": [["resolve"]], "issueKeys": "many"},
+    "expect": {
+      "calls": [
+        {"tool": "resolve_bug", "args": {"issue_key": "{a}", "mode": "apply"}},
+        {"tool": "resolve_bug", "args": {"issue_key": "{b}", "mode": "apply"}}
+      ],
+      "order": "any",
+      "forbidden": ["get_bug_context", "get_issue", "get_bug_rules", "get_bug_fields"],
+      "finalAnswer": null
+    },
+    "nonMcp": null
+  },
+  {
+    "id": "resolve_warning",
+    "prompt": "backlog resolve {issue}, bug này tôi fix rồi",
+    "fixtures": {"issue": "OOP-912749"},
+    "fakeState": "default",
+    "match": null,
+    "expect": {
+      "calls": [{"tool": "resolve_bug", "args": {"issue_key": "{issue}", "mode": "apply"}}],
+      "order": "exact",
+      "forbidden": ["get_bug_context", "get_issue", "get_bug_rules", "get_bug_fields"],
+      "finalAnswer": {"mustMention": ["Tester"]}
+    },
+    "nonMcp": null
+  },
+  {
+    "id": "fix_context",
+    "prompt": "backlog fix {issue}",
+    "fixtures": {"issue": "OOP-912779"},
+    "fakeState": "default",
+    "match": {"keywords": [["fix"]], "issueKeys": "one"},
+    "expect": {
+      "calls": [{"tool": "get_bug_context", "args": {"issue_key": "{issue}"}}],
+      "order": "exact",
+      "forbidden": ["get_issue"],
+      "finalAnswer": null
+    },
+    "nonMcp": null
+  },
+  {
+    "id": "fix_context_attachment",
+    "prompt": "backlog fix {issue}",
+    "fixtures": {"issue": "OOP-912744"},
+    "fakeState": "default",
+    "match": null,
+    "expect": {
+      "calls": [{"tool": "get_bug_context", "args": {"issue_key": "{issue}"}}],
+      "order": "exact",
+      "forbidden": ["get_issue"],
+      "finalAnswer": {"mustMention": ["login-error.png"]}
+    },
+    "nonMcp": null
+  }
+]
