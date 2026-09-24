@@ -286,9 +286,11 @@ def find_eval_marker(workspace):
 def apply_eval_marker(marker):
     from . import telemetry
 
-    host = urlparse(marker.get("baseUrl", "")).hostname
-    if host not in _LOCAL_HOSTS:
-        raise ValueError(f"Eval backend must be localhost, got {marker.get('baseUrl')!r}")
+    parsed = urlparse(marker.get("baseUrl", ""))
+    host = parsed.hostname
+    scheme = parsed.scheme
+    if host not in _LOCAL_HOSTS or scheme != "http":
+        raise ValueError(f"Eval backend must be localhost with http scheme, got {marker.get('baseUrl')!r}")
     global LOG_DIR
     os.environ["BACKLOG_BASE_URL"] = marker["baseUrl"]
     os.environ["BACKLOG_API_KEY"] = "eval-fake-key"

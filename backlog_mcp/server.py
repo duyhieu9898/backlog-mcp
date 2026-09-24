@@ -23,7 +23,6 @@ from backlog_tool.settings import (
     project_key_from_issue_id,
     view_base_url,
     find_eval_marker,
-    apply_eval_marker,
 )
 from backlog_tool import issue_service, presenter
 from backlog_tool.resolver import resolve_user_id
@@ -199,6 +198,22 @@ def _workspace_path() -> str | None:
         or os.environ.get("CLAUDE_PROJECT_DIR")
         or None
     )
+
+
+def activate_workspace(workspace: str | None) -> dict | None:
+    """Find and apply eval marker in workspace, then reload config singleton if needed.
+
+    Returns the marker dict if found and applied, or None.
+    If marker is applied, reloads the config singleton so it uses the fake backend URL.
+    """
+    from backlog_tool.settings import apply_eval_marker
+
+    marker = find_eval_marker(workspace)
+    if marker:
+        apply_eval_marker(marker)
+        # Reload the config singleton so it picks up the new env vars
+        bootstrap_config()
+    return marker
 
 
 @mcp.tool()
@@ -947,9 +962,7 @@ def issue_resource(issue_key: str) -> str:
 def main() -> None:
     """Run the workstation-local server over stdio."""
     workspace = _workspace_path() or os.getcwd()
-    marker = find_eval_marker(workspace)
-    if marker:
-        apply_eval_marker(marker)
+    marker = activate_workspace(workspace)
     tools = anyio.run(mcp.list_tools)
     log_session_start(backend="fake" if marker else "real", workspace=workspace, tool_count=len(tools))
     mcp.run(transport="stdio")
