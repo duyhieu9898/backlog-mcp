@@ -1,5 +1,7 @@
 # Handoff — trước khi làm Plan B (P4–P6)
 
+> **Đã xong (2026-09-24):** Plan B thực thi xong — `docs/superpowers/plans/2026-09-24-plan-b-mcp-fixes-reeval.md`. P6 Claude opus 70/70, 0 `arg_error` (`evals/results/2026-09-24-p6/SUMMARY.md`). Gemini bị loại khỏi eval theo quyết định người dùng. Tài liệu dưới đây chỉ còn giá trị lịch sử.
+
 Ngày: 2026-09-24. Đọc kèm: `docs/superpowers/specs/2026-09-24-mcp-telemetry-eval-design.md` (spec), `docs/telemetry.md` (log + eval), `docs/superpowers/plans/2026-09-24-plan-a-telemetry-analysis-harness.md` (Plan A, đã xong).
 
 **Cách làm session sau (người dùng yêu cầu):** thực thi trực tiếp trong session (inline), **không dùng subagent-driven**. Commit thẳng `main`, push `main`.

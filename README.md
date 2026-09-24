@@ -184,6 +184,16 @@ Every tool names the issue it acts on `issue_key` (`get_issue` also accepts a nu
 |---|---|
 | `backlog://issue/{issue_key}` | One Backlog issue as full JSON by issue key. |
 
+## Evals
+
+`evals/run.py` runs real agents (`claude -p`, `agy -p`) against a local fake Backlog and grades the MCP call flow of each scenario in `evals/scenarios.json` (see `docs/telemetry.md`):
+
+```bash
+uv run python -m evals.run --agent claude --model opus --scenario all --runs 10 --label p6 --timeout 300
+```
+
+Latest result (2026-09-24, Claude opus): 70/70 runs pass across 7 scenarios with 0 argument errors, up from 12/35 at baseline — see `evals/results/2026-09-24-p6/SUMMARY.md`.
+
 ## Safety
 
 - Mutation tools (`create_issue`, `update_issue`, `create_ut_bug`, `resolve_bug`)

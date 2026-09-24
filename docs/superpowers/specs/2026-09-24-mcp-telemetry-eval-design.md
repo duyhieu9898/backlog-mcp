@@ -1,7 +1,7 @@
 # Backlog MCP: Telemetry nền tảng + Eval đa model — Design Spec
 
 - Ngày: 2026-09-24
-- Trạng thái: Đã duyệt; P0–P5 xong (2026-09-24). P6 chỉ eval Claude opus — Gemini bị loại theo quyết định người dùng ngày 2026-09-24 (API Gemini không ổn định).
+- Trạng thái: Đã duyệt; P0–P6 xong (2026-09-24) — P6 Claude opus 70/70, 0 `arg_error`. P6 chỉ eval Claude opus — Gemini bị loại theo quyết định người dùng ngày 2026-09-24 (API Gemini không ổn định).
 - Thay thế: `docs/superpowers/plans/2026-09-23-telemetry-and-payload.md` (xem §11)
 
 ## 1. Bối cảnh
