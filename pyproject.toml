@@ -21,7 +21,7 @@ backlog-cli = "backlog_tool.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["backlog_mcp*", "backlog_tool*", "workflows*"]
+include = ["backlog_mcp*", "backlog_tool*", "workflows*", "evals*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
