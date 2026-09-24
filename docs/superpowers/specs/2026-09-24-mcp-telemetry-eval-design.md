@@ -228,7 +228,7 @@ Khi trong một flow, sau call A (tool chuyên dụng) có call B khác tool cù
 - HTTP server trên `127.0.0.1:<port>` (port ngẫu nhiên), dữ liệu trong bộ nhớ, reset mỗi run.
 - Endpoint: `GET /api/v2/issues/{key}`, `PATCH /api/v2/issues/{key}`, `GET /api/v2/issues` (lọc theo assignee/status/type như client thật gửi), `GET /api/v2/projects/{key}` (phòng khi catalog thiếu id). User được resolve từ `config/backlog.json` nên không cần endpoint user. Endpoint khác → 404 và ghi vào `unhandled.jsonl` của run.
 - Assignee của mọi fixture = user `me` trong `config/backlog.json` (điều kiện của `resolve_bug`); `createdUser` = một reporter có Detected Role = Tester (trừ 90003).
-- Fixture `OOP-90001…90005` dựng từ fixture thật trong `tests/fixtures/` (dùng catalog `config/projects/OOP.json` thật): 90001 bug thường; 90002 bug có mô tả template đầy đủ; 90003 Detected Role = Developer; 90004 có ảnh đính kèm `login-error.png` (chỉ metadata trong issue); 90005 bug thường thứ hai. Danh sách open = 90001, 90002, 90005.
+- Fixture `OOP-90001…90005` dựng từ fixture thật trong `tests/fixtures/` (dùng catalog `config/projects/OOP.json` thật): 90001 bug thường; 90002 bug có mô tả template đầy đủ; 90003 Detected Role = Developer; 90004 có ảnh đính kèm `login-error.png` (chỉ metadata trong issue); 90005 bug thường thứ hai. Mọi fixture gán cho `me` và chưa Closed nên danh sách open = cả 5 (90003 ở In Progress). Trạng thái `no_open_bugs`: mọi fixture Resolved và gán về reporter.
 - `PATCH` được ghi lại để bộ chấm và test kiểm tra payload.
 
 ### 8.2 File đánh dấu `.backlog-eval.json`
