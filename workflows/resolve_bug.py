@@ -302,6 +302,9 @@ def build_resolution_plan(
     excluded_statuses = set(require_list(workflow, "excluded_statuses", WORKFLOW_NAME))
     if status_name(issue) in excluded_statuses:
         raise ValueError(f"{issue_key} has excluded status '{status_name(issue)}'.")
+    if str(status_name(issue)) == str(target_status):
+        # Resolve is apply-first; a retry must not re-send the PATCH (dates, notes, notification).
+        raise ValueError(f"{issue_key} is already '{target_status}'; nothing to do.")
     expected_assignee_id = resolve_user_id(
         config,
         require_value(workflow, "assignee", WORKFLOW_NAME),
@@ -357,6 +360,13 @@ def build_resolution_plan(
             raise ValueError(
                 f"Unknown custom field '{field_key}'. Available: {available}"
             )
+        if policy_key == "corrective_action" and not fix_description and issue_has_custom_value(issue, project, field_key):
+            # Without a fix note from the user, the summary fallback must not replace a note someone wrote.
+            current = display_value(issue_custom_field(issue, project, field_key).get("value"))
+            warnings.append(
+                f"fix_description not given: kept the existing Corrective Action '{current}'."
+            )
+            continue
         semantic_custom_fields[field_key] = field_values[field_key]
 
     effective_comment = comment_with_commit(comment, commit)
@@ -393,7 +403,7 @@ def build_resolution_plan(
                 f"{issue_field} {issue.get(issue_field)}, and resolve_bug only fills empty values."
             )
 
-    if not fix_description:
+    if not fix_description and "corrective_action" in semantic_custom_fields:
         warnings.append(
             "fix_description not given: Corrective Action uses the bug summary ('fixed <summary>')."
         )

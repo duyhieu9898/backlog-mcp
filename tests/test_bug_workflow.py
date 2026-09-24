@@ -462,7 +462,7 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertNotIn("customField_2", payload)
         self.assertNotIn("customField_3", payload)
         self.assertEqual("no", payload["customField_4"])
-        self.assertEqual("fixed Save fails", payload["customField_5"])
+        self.assertNotIn("customField_5", payload)  # existing Corrective Action kept without fix_description
         self.assertNotIn("customField_6", payload)
 
 
@@ -521,6 +521,41 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertEqual("Resolved", result["updated"]["status"]["name"])
         self.assertTrue(any("fix_description not given" in w for w in result["warnings"]))
         self.assertFalse(any("requires fix_description" in w for w in result["warnings"]))
+
+    def test_resolve_without_fix_description_keeps_existing_corrective_action(self):
+        self.client.get_issue.return_value = {
+            **BUG_ISSUE,
+            "customFields": [{"id": 5, "field": "customField_5", "value": "fixed validation for long input"}],
+        }
+        result = bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2))
+        self.assertNotIn("customField_5", result["payload"])
+        self.assertTrue(any("kept the existing Corrective Action 'fixed validation for long input'" in w
+                            for w in result["warnings"]))
+        self.assertFalse(any("uses the bug summary" in w for w in result["warnings"]))
+
+    def test_resolve_with_fix_description_overwrites_existing_corrective_action(self):
+        self.client.get_issue.return_value = {
+            **BUG_ISSUE,
+            "customFields": [{"id": 5, "field": "customField_5", "value": "fixed old note"}],
+        }
+        result = bug_workflow.resolve_bug(
+            CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2), fix_description="save button validation"
+        )
+        self.assertEqual("fixed save button validation", result["payload"]["customField_5"])
+
+    def test_resolve_already_resolved_bug_sends_no_patch(self):
+        self.client.get_issue.return_value = {**BUG_ISSUE, "status": {"name": "Resolved"}}
+        with self.assertRaisesRegex(ValueError, "AQM-123 is already 'Resolved'"):
+            bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, today=date(2026, 6, 2))
+        self.client.update_issue.assert_not_called()
+
+    def test_resolve_already_resolved_bug_assigned_to_reporter_says_already_resolved(self):
+        self.client.get_issue.return_value = {
+            **BUG_ISSUE, "status": {"name": "Resolved"}, "assignee": {"id": 1001, "name": "Reporter"},
+        }
+        with self.assertRaisesRegex(ValueError, "already 'Resolved'"):
+            bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, today=date(2026, 6, 2))
+        self.client.update_issue.assert_not_called()
 
     def test_resolve_apply_on_excluded_status_sends_no_patch(self):
         self.client.get_issue.return_value = {**BUG_ISSUE, "status": {"name": "Closed"}}
