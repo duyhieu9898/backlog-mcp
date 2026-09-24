@@ -59,7 +59,10 @@ mkdir -p logs/legacy && mv logs/backlog.log* logs/metrics.log* logs/telemetry.js
 - Kịch bản: `evals/scenarios.json`. Backlog giả: `uv run python -m evals.fake_backlog [--state no_open_bugs]`.
 - Chạy: `uv run python -m evals.run --agent claude|agy --model <m> --scenario <id|all> --runs N --label <nhãn>`.
 - Server bật chế độ giả khi workspace có `.backlog-eval.json` (`baseUrl` phải là localhost); log run ghi vào `logDir` của file đó, gắn `runId`/`scenario`.
-- `claude` chạy với `--disallowedTools Bash Edit Write NotebookEdit WebFetch WebSearch`; `agy` chạy với `--sandbox`. Tool bị từ chối nằm ở `deniedTools`.
+- `claude` chạy với `--strict-mcp-config --mcp-config <tmp>/mcp.json` (file tạo cho từng run trong thư mục tạm, không ghi vào workspace; chỉ có server `backlog` = `uv --project <repo> run backlog-mcp-server`) và `--disallowedTools Bash Edit Write NotebookEdit WebFetch WebSearch Task Agent`. Ở permission mode `auto` `--allowedTools` không chặn tool nên phải cô lập bằng MCP config; hook/skill global vẫn giữ (D9). `agy` chạy với `--sandbox`. Tool bị từ chối nằm ở `deniedTools`.
+- Env của agent bỏ mọi biến `BACKLOG_*` (API key thật do bootstrap nạp từ `.env`), chỉ đặt `BACKLOG_WORKSPACE_PATH=<workspace>`.
+- Cô lập fail-closed: sau mỗi run phải có dòng `sessions.jsonl` với `backend == "fake"` và đúng `runId`; nếu không, run bị đánh `isolationFailed: true`, `pass: false` và cả batch dừng (exit 2).
+- `--workspace <dir>`: marker `.backlog-project.json`/`.backlog-eval.json` có sẵn được lưu lại và khôi phục nguyên byte sau run (kể cả khi lỗi).
 - agy gọi MCP qua `call_mcp_tool` và đọc schema bằng `view_file` trong `~/.gemini/antigravity-cli/mcp/backlog/` → đếm ở `schemaReads`.
 - Kết quả: `evals/results/<ngày>-<nhãn>/<agent>-<model>.jsonl` (một dòng/run, chỉ trên máy vì chứa câu trả lời có nội dung bug) và `SUMMARY.md` (được commit).
 - Cassette dữ liệu thật: `uv run python -m evals.cassettes extract --from logs/legacy/telemetry.jsonl` → `evals/cassettes/oop.json` (gitignore). Eval mặc định bắt buộc cassette; `--allow-synthetic` để chạy bằng dữ liệu tổng hợp. Làm mới cassette: chạy một phiên với `BACKLOG_MCP_LOG_BODIES=full`, sau đó trích lại (bộ trích hiện đọc định dạng log cũ — khi cần, thêm đọc `details/`).

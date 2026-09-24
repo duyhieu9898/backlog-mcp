@@ -247,7 +247,7 @@ Khi trong một flow, sau call A (tool chuyên dụng) có call B khác tool cù
 
 | Agent | Lệnh | Ghi chú |
 |---|---|---|
-| `claude` | `claude -p "<prompt>" --model <m> --output-format stream-json --verbose --allowedTools "mcp__backlog__*"` | Chạy trong workspace eval; hook/skill global giữ nguyên (D9). |
+| `claude` | `claude -p "<prompt>" --model <m> --output-format stream-json --verbose --strict-mcp-config --mcp-config <tmp>/mcp.json --disallowedTools Bash Edit Write NotebookEdit WebFetch WebSearch Task Agent` | Chạy trong workspace eval. Ở permission mode `auto` `--allowedTools` không chặn tool (đã probe) nên cô lập bằng MCP: `mcp.json` (trong thư mục tạm của run, không trong workspace) chỉ khai báo server `backlog` = `uv --project <repo> run backlog-mcp-server`; env của agent bỏ mọi biến `BACKLOG_*` trừ `BACKLOG_WORKSPACE_PATH`. Hook/skill global giữ nguyên (D9). |
 | `agy` | `agy -p "<prompt>" --model <m> --output-format stream-json --dangerously-skip-permissions --sandbox --print-timeout <t>` | Chạy trong workspace eval. |
 
 Cách lấy call từ stream-json:

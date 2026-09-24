@@ -35,7 +35,11 @@ def test_parse_truncated_stream_is_not_ok():
 
 
 def test_commands_restrict_tools_and_use_stream_json():
-    claude = claude_command("p", "opus")
+    claude = claude_command("p", "opus", "/tmp/x/mcp.json")
     assert claude[:2] == ["claude", "-p"] and "--disallowedTools" in claude and "stream-json" in claude
+    assert "--strict-mcp-config" in claude
+    assert claude[claude.index("--mcp-config") + 1] == "/tmp/x/mcp.json"
+    for tool in ("Bash", "Edit", "Write", "Task", "Agent", "WebFetch", "WebSearch"):
+        assert tool in claude
     agy = agy_command("p", "gemini-3.8-flash-medium", 300)
     assert "--sandbox" in agy and "--dangerously-skip-permissions" in agy and "--model" in agy

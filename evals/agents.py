@@ -4,8 +4,9 @@ import json
 from dataclasses import dataclass, field
 
 CLAUDE_MCP_PREFIX = "mcp__backlog__"
-# In the user's auto permission mode --allowedTools does not block other tools; deny explicitly.
-CLAUDE_DISALLOWED = ["Bash", "Edit", "Write", "NotebookEdit", "WebFetch", "WebSearch"]
+# In the user's auto permission mode --allowedTools does not block other tools, so MCP servers are
+# isolated with --strict-mcp-config (only our backlog server) and built-in tools are denied explicitly.
+CLAUDE_DISALLOWED = ["Bash", "Edit", "Write", "NotebookEdit", "WebFetch", "WebSearch", "Task", "Agent"]
 AGY_SCHEMA_DIR = "/.gemini/antigravity-cli/mcp/backlog/"
 
 
@@ -33,11 +34,12 @@ def _events(lines):
             continue
 
 
-def claude_command(prompt, model):
+def claude_command(prompt, model, mcp_config_path):
     return [
         "claude", "-p", prompt,
         "--model", model,
         "--output-format", "stream-json", "--verbose",
+        "--strict-mcp-config", "--mcp-config", str(mcp_config_path),
         "--disallowedTools", *CLAUDE_DISALLOWED,
     ]
 
