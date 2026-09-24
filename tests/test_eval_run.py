@@ -198,3 +198,14 @@ def test_run_one_restores_existing_project_file_after_normal_run(tmp_path, monke
 
     assert (ws / ".backlog-project.json").read_bytes() == original
     assert not (ws / ".backlog-eval.json").exists()
+
+
+def test_grade_run_requires_final_answer(tmp_path):
+    log_dir = tmp_path / "logs"
+    telemetry.set_eval_tags("run-2", "resolve_warning")
+    telemetry.log_session_start(backend="fake")
+    telemetry.start_call("resolve_bug", {"issue_key": "OOP-912749", "mode": "apply"})
+    telemetry.finish_call("ok", result={"ok": True}, text="{}", response_bytes=300)
+    telemetry.set_eval_tags(None, None)
+    result = grade_run(scenario("resolve_warning"), AgentTrace(final_answer=None, raw_ok=False), tmp_path / "logs", "run-2")
+    assert result["pass"] is False and "final answer missing" in result["reasons"]

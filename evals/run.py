@@ -103,7 +103,7 @@ def prepare_workspace(root, scenario, run_id, base_url, log_dir):
 def grade_run(scenario, trace, log_dir, run_id):
     flows = group_flows(load_calls(log_dir=str(log_dir), run_id=run_id)) if Path(log_dir).exists() else []
     flow = flows[0] if flows else Flow(run_id, [])
-    result = grade(scenario["expect"], flow, final_answer=trace.final_answer)
+    result = grade(scenario["expect"], flow, final_answer=trace.final_answer, require_final_answer=True)
     result.update({
         "schemaReads": trace.schema_reads,
         "deniedTools": trace.denied,

@@ -232,15 +232,19 @@ def plan_hash(issue, payload):
 
 
 def finish_call(status, *, result=None, text=None, response_bytes=0, project_key=None, issue_key=None, mode=None, error=None):
+    """Write the call's index + detail rows. Never raises: logging must not break a tool call."""
     call = _call.get()
     if call is None:
         return None
+    paths = {}
     try:
+        paths = log_paths()
         if status == "error":
             record_error("tool_error", error or "")
         elif status == "partial_write":
             record_error("partial_write", error or "")
-        paths = log_paths()
+        elif status == "rejected":
+            record_error("unknown_tool", error or "")
         issue = issue_key or _issue_from(call.arguments)
         project = project_key or (issue.rsplit("-", 1)[0] if issue else None) or call.arguments.get("project_key") or None
         _append(paths["calls"], {
@@ -270,9 +274,11 @@ def finish_call(status, *, result=None, text=None, response_bytes=0, project_key
             "api": call.api,
             "mutation": call.mutation,
         }, rotate=False)
-        return call.trace_id
+    except Exception as failure:
+        settings.report_log_failure(paths.get("calls", "calls.jsonl"), failure)
     finally:
         _call.set(None)
+    return call.trace_id
 
 
 def _git(*args):

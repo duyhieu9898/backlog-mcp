@@ -7,7 +7,7 @@
 | File | Một dòng là | Dùng để |
 |---|---|---|
 | `calls.jsonl` | một tool call (MCP hoặc CLI) | quét nhanh: tool nào, bao lâu, bao nhiêu token, lỗi gì |
-| `errors.jsonl` | một lỗi (`tool_error`, `arg_error`, `api_error`, `partial_write`) | tìm lỗi lặp lại |
+| `errors.jsonl` | một lỗi (`tool_error`, `arg_error`, `api_error`, `partial_write`, `unknown_tool` — gọi tool không tồn tại, ứng với call `status: rejected`) | tìm lỗi lặp lại |
 | `sessions.jsonl` | một process (MCP server hoặc lệnh CLI) | phiên bản code (`version`, `gitSha`, `dirty`), client, backend real/fake |
 | `details/YYYY-MM-DD.jsonl` | chi tiết một tool call | xem `arguments`, `result`, `text`, API call, `mutation` |
 

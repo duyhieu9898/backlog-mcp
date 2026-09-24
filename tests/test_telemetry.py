@@ -166,3 +166,24 @@ def test_plan_hash_is_order_independent_and_payload_sensitive():
     b = telemetry.plan_hash("OOP-1", {"comment": "x", "statusId": 3})
     c = telemetry.plan_hash("OOP-1", {"comment": "y", "statusId": 3})
     assert a == b != c and len(a) == 16
+
+
+def test_rejected_call_writes_unknown_tool_error():
+    telemetry.start_call("get_isssue", {"issue_ref": "OOP-1"})
+    telemetry.finish_call("rejected", error="Unknown tool: get_isssue")
+    [error] = read("errors")
+    assert error["kind"] == "unknown_tool"
+    assert error["message"] == "Unknown tool: get_isssue"
+    assert error["tool"] == "get_isssue"
+    assert read("calls")[0]["status"] == "rejected"
+
+
+def test_finish_call_never_raises_and_clears_context(monkeypatch, capsys):
+    def broken(value):
+        raise RuntimeError("cannot serialize")
+
+    telemetry.start_call("resolve_bug", {"issue_key": "OOP-1"})
+    monkeypatch.setattr(telemetry, "_jsonable", broken)
+    trace = telemetry.finish_call("ok", result={"ok": True}, text="{}")
+    assert telemetry.current_trace_id() is None
+    assert trace is None or isinstance(trace, str)

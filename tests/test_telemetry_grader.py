@@ -75,3 +75,32 @@ def test_match_prompt_for_real_usage():
 
     expect = expect_for(matched, keys)
     assert [c["args"]["issue_key"] for c in expect["calls"]] == ["OOP-1", "OOP-2"]
+
+
+def test_unknown_tool_calls_fail_as_extra():
+    expect = scenario("resolve_fixed")["expect"]
+    result = grade(expect, Flow("r", [
+        call("resolve_bugs", {"issue_key": "OOP-912762"}, status="rejected"),
+        call("resolve_bug", {"issue_key": "OOP-912762", "mode": "apply"}),
+    ]))
+    assert result["pass"] is False
+    assert "unknown tool calls: ['resolve_bugs']" in result["reasons"]
+    assert "resolve_bugs" in result["extraCalls"]
+
+
+def test_invalid_arguments_still_excluded_from_matching():
+    expect = scenario("resolve_fixed")["expect"]
+    result = grade(expect, Flow("r", [
+        call("resolve_bug", {"issueKey": "OOP-912762"}, status="invalid_arguments"),
+        call("resolve_bug", {"issue_key": "OOP-912762", "mode": "apply"}),
+    ]))
+    assert result["pass"] is True and result["extraCalls"] == []
+
+
+def test_missing_final_answer_fails_only_when_required():
+    warn = scenario("resolve_warning")["expect"]
+    flow = Flow("r", [call("resolve_bug", {"issue_key": "OOP-912749", "mode": "apply"})])
+    skipped = grade(warn, flow)
+    assert skipped["pass"] is True and skipped["finalAnswerCheck"] == {"skipped": "no final answer"}
+    required = grade(warn, flow, final_answer=None, require_final_answer=True)
+    assert required["pass"] is False and "final answer missing" in required["reasons"]

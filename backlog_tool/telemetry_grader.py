@@ -68,8 +68,9 @@ def _matches(expected, call):
     return expected["tool"] == call.tool and all(call.arguments.get(k) == v for k, v in expected["args"].items())
 
 
-def grade(expect, flow, final_answer=None):
+def grade(expect, flow, final_answer=None, require_final_answer=False):
     calls = [c for c in flow.calls if c.status not in ("invalid_arguments", "rejected")]
+    unknown = [c.tool for c in flow.calls if c.status == "rejected"]
     reasons = []
 
     remaining = list(calls)
@@ -85,6 +86,8 @@ def grade(expect, flow, final_answer=None):
         reasons.append(f"extra calls: {extra}")
     if expect.get("order") == "exact" and not extra and matched and [c.trace_id for c in matched] != [c.trace_id for c in calls]:
         reasons.append("calls not in expected order")
+    if unknown:
+        reasons.append(f"unknown tool calls: {unknown}")
 
     forbidden = [c.tool for c in flow.calls if c.tool in expect.get("forbidden", [])]
     if forbidden:
@@ -100,7 +103,10 @@ def grade(expect, flow, final_answer=None):
     final_check = None
     rule = expect.get("finalAnswer")
     if rule:
-        if final_answer is None:
+        if final_answer is None and require_final_answer:
+            final_check = {"missing": "final answer"}
+            reasons.append("final answer missing")
+        elif final_answer is None:
             final_check = {"skipped": "no final answer"}
         else:
             missing = [word for word in rule["mustMention"] if word.lower() not in final_answer.lower()]
@@ -112,7 +118,7 @@ def grade(expect, flow, final_answer=None):
         "pass": not reasons,
         "reasons": reasons,
         "mcpCalls": [{"tool": c.tool, "arguments": c.arguments, "status": c.status} for c in flow.calls],
-        "extraCalls": extra,
+        "extraCalls": extra + unknown,
         "forbiddenHits": forbidden,
         "argErrors": arg_errors,
         "finalAnswerCheck": final_check,
