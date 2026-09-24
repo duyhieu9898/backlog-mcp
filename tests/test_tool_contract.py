@@ -1,12 +1,15 @@
 """Contract for the MCP tool surface the models see (spec §9.1, §9.2, §9.4)."""
 
+import json
 import re
+from datetime import date
 from unittest import mock
 
 import anyio
 import pytest
 
 from backlog_mcp import server
+from backlog_mcp.results import _build_result
 
 EXPECTED_TOOLS = {
     "get_issue", "get_issues", "create_issue", "update_issue", "get_my_open_bugs", "get_bug_context",
@@ -87,3 +90,28 @@ def test_resolve_bug_rejects_unconfigured_prefix_without_backend_call():
         result = server.resolve_bug("ZZZ-1", mode="apply")
     assert result.isError and "Configured projects: OOP" in result.content[0].text
     resolve.assert_not_called()
+
+
+@pytest.mark.parametrize("data, kwargs", [
+    ([], {"list_key": "bugs", "paginated": True, "limit": 50}),
+    ([{"issueKey": "OOP-1", "summary": "Lỗi đăng nhập", "startDate": date(2026, 9, 24)}], {"list_key": "bugs", "paginated": True, "limit": 50}),
+    ({"dryRun": True, "issue": "OOP-1", "changes": [{"field": "Status", "from": "Open", "to": "Resolved"}], "warnings": ["w"]}, {}),
+    ({}, {}),
+])
+def test_text_is_full_json_of_structured_content(data, kwargs):
+    result = _build_result(data, "get_my_open_bugs", **kwargs)
+    text = result.content[0].text
+    assert json.loads(text) == json.loads(json.dumps(result.structuredContent, default=str))
+    assert "(structured data)" not in text and "No data." not in text
+    assert ", " not in text[:40]
+
+
+def test_list_results_state_count():
+    empty = _build_result([], "get_my_open_bugs", list_key="bugs", paginated=True, limit=50)
+    assert empty.structuredContent["data"] == {"bugs": [], "count": 0}
+    assert '"count":0' in empty.content[0].text
+
+
+def test_vietnamese_text_is_not_escaped():
+    result = _build_result({"summary": "Lỗi đăng nhập"}, "get_issue")
+    assert "Lỗi đăng nhập" in result.content[0].text

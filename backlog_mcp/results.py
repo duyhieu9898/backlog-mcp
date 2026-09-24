@@ -1,5 +1,6 @@
 """MCP response shaping, pagination, and tool execution telemetry helpers."""
 
+import json
 from typing import Any
 
 from mcp.types import CallToolResult, TextContent
@@ -7,42 +8,8 @@ from mcp.types import CallToolResult, TextContent
 from backlog_tool.telemetry import current_trace_id, finish_call, serialized_bytes
 
 
-def _to_markdown(data: Any, tool_name: str) -> str:
-    if not data:
-        return "No data."
-
-    if isinstance(data, list):
-        count = len(data)
-        summary = f"Retrieved {count} items via '{tool_name}'."
-        if count > 0:
-            lines = [summary, ""]
-            for item in data:
-                if isinstance(item, dict):
-                    key = item.get("issueKey") or item.get("key") or ""
-                    title = item.get("summary") or ""
-                    status = item.get("status") or ""
-                    status_suffix = f" [{status}]" if status else ""
-                    lines.append(f"- **{key}**: {title}{status_suffix}")
-            lines.append("\nFull details are available in the structured content.")
-            return "\n".join(lines)
-        return summary
-
-    if isinstance(data, dict):
-        key = data.get("issueKey") or data.get("key")
-        title = data.get("summary")
-        status = data.get("status")
-        if key and title:
-            status_suffix = f" [{status}]" if status else ""
-            return f"Retrieved item **{key}**: {title}{status_suffix}.\nFull details are available in the structured content."
-        lines = [f"Result of '{tool_name}':", ""]
-        for key_name, value in data.items():
-            if isinstance(value, (dict, list)):
-                lines.append(f"- **{key_name}**: (structured data)")
-            else:
-                lines.append(f"- **{key_name}**: {value}")
-        return "\n".join(lines)
-
-    return str(data)
+def _text(structured: Any) -> str:
+    return json.dumps(structured, separators=(",", ":"), ensure_ascii=False, default=str)
 
 
 def _resource_uris(data: Any) -> list[str]:
@@ -125,8 +92,7 @@ def _build_result(
     dry_run: bool | None = None,
     project: str | None = None,
 ) -> CallToolResult:
-    text = _to_markdown(data, tool)
-    result_data = {list_key or "items": data} if isinstance(data, list) else data
+    result_data = {list_key or "items": data, "count": len(data)} if isinstance(data, list) else data
     returned = len(data) if isinstance(data, list) else (0 if data in (None, "", [], {}) else 1)
 
     envelope_data = {
@@ -135,6 +101,9 @@ def _build_result(
     }
     if paginated:
         envelope_data["pagination"] = _pagination(limit, offset, returned, paginated)
+    # Clients like agy only show the model the text content, so it carries the whole result.
+    text = _text(envelope_data)
+    envelope_data = json.loads(text)
 
     uris = _resource_uris(data)
     trace_id = current_trace_id() or ""

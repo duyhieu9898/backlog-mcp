@@ -6,7 +6,6 @@ import anyio
 import pytest
 
 from backlog_mcp import server
-from backlog_mcp.results import _to_markdown
 from backlog_tool import settings
 
 
@@ -121,7 +120,7 @@ def test_build_result_returns_stable_success_envelope_with_pagination():
     assert result.isError is False
     assert result.structuredContent == {
         "ok": True,
-        "data": {"issues": [{"issueKey": "AQM-1", "summary": "Fix it", "status": "Open"}]},
+        "data": {"issues": [{"issueKey": "AQM-1", "summary": "Fix it", "status": "Open"}], "count": 1},
         "pagination": {
             "limit": 1,
             "nextCursor": "1",
@@ -132,7 +131,7 @@ def test_build_result_returns_stable_success_envelope_with_pagination():
     assert result.meta["command"] == "get_issues"
     assert result.meta["resourceUris"] == ["backlog://issue/AQM-1"]
     assert result.meta["traceId"]
-    assert "Retrieved 1 items via 'get_issues'." in result.content[0].text
+    assert json.loads(result.content[0].text) == result.structuredContent
 
 
 def test_server_uses_claude_project_directory_as_workspace():
@@ -245,27 +244,6 @@ def test_resources_have_json_mime_type_and_issue_template():
     assert "backlog://config" not in resource_by_uri
     assert template_by_uri["backlog://issue/{issue_key}"].mimeType == "application/json"
     assert template_by_uri["backlog://issue/{issue_key}"].meta == {"kind": "issue", "scope": "project"}
-
-
-def test_to_markdown_formatting():
-    # Test formatting list of issues with status
-    data_list = [
-        {"issueKey": "PROJ-1", "summary": "Fix login issue", "status": "In Progress"},
-        {"issueKey": "PROJ-2", "summary": "Design landing page", "status": "Open"}
-    ]
-    res_list = _to_markdown(data_list, "get_issues")
-    assert "PROJ-1" in res_list
-    assert "Fix login issue" in res_list
-    assert "[In Progress]" in res_list
-    assert "PROJ-2" in res_list
-    assert "[Open]" in res_list
-
-    # Test formatting single issue with status
-    data_single = {"issueKey": "PROJ-123", "summary": "Database error", "status": "Closed"}
-    res_single = _to_markdown(data_single, "get_issue")
-    assert "PROJ-123" in res_single
-    assert "Database error" in res_single
-    assert "[Closed]" in res_single
 
 
 def test_issue_resource_success_and_error():
