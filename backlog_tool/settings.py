@@ -5,6 +5,7 @@ import re
 import sys
 import tempfile
 from copy import deepcopy
+from urllib.parse import urlparse
 
 MCP_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CONFIG_PATH = os.path.join(MCP_ROOT, "config", "backlog.json")
@@ -265,3 +266,31 @@ def report_log_failure(path, error):
 def response_error_body(response):
     text = response.text or ""
     return text[:MAX_LOG_VALUE_LENGTH]
+
+
+EVAL_MARKER = ".backlog-eval.json"
+_LOCAL_HOSTS = {"127.0.0.1", "localhost"}
+
+
+def find_eval_marker(workspace):
+    """Eval mode is enabled only by a marker file in the workspace root itself (never a parent)."""
+    if not workspace:
+        return None
+    path = os.path.join(workspace, EVAL_MARKER)
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def apply_eval_marker(marker):
+    from . import telemetry
+
+    host = urlparse(marker.get("baseUrl", "")).hostname
+    if host not in _LOCAL_HOSTS:
+        raise ValueError(f"Eval backend must be localhost, got {marker.get('baseUrl')!r}")
+    global LOG_DIR
+    os.environ["BACKLOG_BASE_URL"] = marker["baseUrl"]
+    os.environ["BACKLOG_API_KEY"] = "eval-fake-key"
+    LOG_DIR = marker["logDir"]
+    telemetry.set_eval_tags(marker.get("runId"), marker.get("scenario"))

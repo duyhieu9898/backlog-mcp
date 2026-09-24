@@ -22,6 +22,8 @@ from backlog_tool.settings import (
     load_project_catalog,
     project_key_from_issue_id,
     view_base_url,
+    find_eval_marker,
+    apply_eval_marker,
 )
 from backlog_tool import issue_service, presenter
 from backlog_tool.resolver import resolve_user_id
@@ -944,8 +946,12 @@ def issue_resource(issue_key: str) -> str:
 
 def main() -> None:
     """Run the workstation-local server over stdio."""
+    workspace = _workspace_path() or os.getcwd()
+    marker = find_eval_marker(workspace)
+    if marker:
+        apply_eval_marker(marker)
     tools = anyio.run(mcp.list_tools)
-    log_session_start(backend="real", workspace=_workspace_path() or os.getcwd(), tool_count=len(tools))
+    log_session_start(backend="fake" if marker else "real", workspace=workspace, tool_count=len(tools))
     mcp.run(transport="stdio")
 
 
