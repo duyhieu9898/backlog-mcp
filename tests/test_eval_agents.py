@@ -42,4 +42,21 @@ def test_commands_restrict_tools_and_use_stream_json():
     for tool in ("Bash", "Edit", "Write", "Task", "Agent", "WebFetch", "WebSearch"):
         assert tool in claude
     agy = agy_command("p", "gemini-3.8-flash-medium", 300)
-    assert "--sandbox" in agy and "--dangerously-skip-permissions" in agy and "--model" in agy
+    assert "--sandbox" not in agy and "--dangerously-skip-permissions" in agy and "--model" in agy
+
+
+def test_parse_agy_counts_steps():
+    assert parse_agy(lines("agy_sample.jsonl")).steps == 3
+
+
+def test_parse_agy_result_without_steps_is_not_ok():
+    stream = [lines("agy_sample.jsonl")[0], lines("agy_sample.jsonl")[1],
+              '{"event":"result","result":{"status":"SUCCESS","response":"","duration_seconds":0,"num_turns":0}}']
+    trace = parse_agy(stream)
+    assert trace.steps == 0 and trace.raw_ok is False
+
+
+def test_parse_agy_failed_status_is_not_ok():
+    stream = [*lines("agy_sample.jsonl")[:-1],
+              '{"event":"result","result":{"status":"ERROR","response":"x","duration_seconds":1,"num_turns":1}}']
+    assert parse_agy(stream).raw_ok is False

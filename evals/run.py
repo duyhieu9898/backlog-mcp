@@ -7,9 +7,12 @@ import statistics
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import uuid
 from collections import defaultdict
+from contextlib import contextmanager, nullcontext
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
@@ -22,6 +25,99 @@ from evals.fake_backlog import FakeBacklog
 RESULTS_ROOT = Path(__file__).resolve().parent / "results"
 WORKSPACE_MARKERS = (".backlog-project.json", ".backlog-eval.json")
 ISOLATION_REASON = "isolation: server did not run on the fake backend"
+
+
+@dataclass
+class AgentProcess:
+    lines: list
+    stderr_tail: str
+    timed_out: bool
+
+
+def _is_result_event(line):
+    try:
+        event = json.loads(line)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(event, dict) and (event.get("type") == "result" or event.get("event") == "result")
+
+
+def run_agent(command, cwd, env, timeout_s, grace_s=30):
+    """Stream the agent's stdout and stop it at the result event (agy keeps running until --print-timeout)."""
+    with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stderr:
+        proc = subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=stderr, text=True)
+        timed_out = threading.Event()
+
+        def kill():
+            timed_out.set()
+            proc.kill()
+
+        watchdog = threading.Timer(timeout_s + grace_s, kill)
+        watchdog.start()
+        lines = []
+        try:
+            for line in proc.stdout:
+                lines.append(line.rstrip("\n"))
+                if _is_result_event(line):
+                    break
+        finally:
+            watchdog.cancel()
+            proc.terminate()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+            proc.stdout.close()
+        stderr.seek(0)
+        return AgentProcess(lines=lines, stderr_tail=stderr.read()[-2000:], timed_out=timed_out.is_set())
+
+
+ENV_ERROR_MARKERS = (
+    ("service_unavailable", ("UNAVAILABLE", "code 503", "RESOURCE_EXHAUSTED", "code 429")),
+    ("sandbox", ("sandbox server",)),
+)
+
+
+def classify_env_error(proc, trace):
+    """Name the environment failure behind a run, so SUMMARY.md does not blame the model for it."""
+    text = proc.stderr_tail + "\n" + "\n".join(line for line in proc.lines if not line.lstrip().startswith("{"))
+    for label, markers in ENV_ERROR_MARKERS:
+        if any(marker in text for marker in markers):
+            return label
+    if proc.timed_out:
+        return "timeout"
+    if not trace.raw_ok:
+        return "agent_failed"
+    return None
+
+
+def _agy_enabled_servers():
+    listing = subprocess.run(["agy", "mcp", "list"], capture_output=True, text=True, timeout=60, check=True).stdout
+    servers = []
+    for row in listing.splitlines()[1:]:
+        parts = row.split()
+        if len(parts) >= 3 and parts[2] == "enabled" and parts[0] != "backlog":
+            servers.append(parts[0])
+    return servers
+
+
+@contextmanager
+def agy_mcp_isolated():
+    """agy has no --strict-mcp-config: disable other global MCP servers for the batch, then re-enable them."""
+    disabled = []
+    try:
+        for name in _agy_enabled_servers():
+            subprocess.run(["agy", "mcp", "disable", name], capture_output=True, text=True, timeout=60, check=True)
+            disabled.append(name)
+        if disabled:
+            print(f"agy: tạm tắt MCP server {', '.join(disabled)}", flush=True)
+        yield disabled
+    finally:
+        for name in disabled:
+            subprocess.run(["agy", "mcp", "enable", name], capture_output=True, text=True, timeout=60)
+        if disabled:
+            print(f"agy: đã bật lại {', '.join(disabled)}", flush=True)
 
 
 def agent_env(workspace):
@@ -137,22 +233,16 @@ def run_one(agent, model, scenario, index, timeout_s, workspace=None, source="ca
                 else:
                     command = build_command(scenario["prompt"], model, timeout_s)
                 started = time.monotonic()
-                try:
-                    proc = subprocess.run(
-                        command, cwd=ws, env=agent_env(ws), capture_output=True, text=True, timeout=timeout_s + 30,
-                    )
-                    lines = proc.stdout.splitlines()
-                    stderr_tail = proc.stderr[-2000:]
-                except subprocess.TimeoutExpired as error:
-                    lines = (error.stdout or b"").decode("utf-8", "replace").splitlines() if isinstance(error.stdout, bytes) else (error.stdout or "").splitlines()
-                    stderr_tail = "timeout"
+                proc = run_agent(command, cwd=ws, env=agent_env(ws), timeout_s=timeout_s)
                 elapsed_ms = round((time.monotonic() - started) * 1000)
-                trace = parse(lines)
+                trace = parse(proc.lines)
                 result = grade_run(scenario, trace, log_dir, run_id)
                 result.update({
                     "runId": run_id, "agent": agent, "model": model, "scenario": scenario["id"], "backendSource": fake.source,
                     "processMs": elapsed_ms, "unhandledEndpoints": fake.unhandled,
-                    "patches": [p["key"] for p in fake.patches], "stderrTail": stderr_tail if not trace.raw_ok else "",
+                    "patches": [p["key"] for p in fake.patches],
+                    "envError": classify_env_error(proc, trace),
+                    "stderrTail": proc.stderr_tail if not trace.raw_ok else "",
                 })
         finally:
             if workspace:
@@ -172,18 +262,26 @@ def write_summary(folder):
         rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
         by_scenario = defaultdict(list)
         reasons = defaultdict(int)
+        env_errors = defaultdict(int)
         for row in rows:
             by_scenario[row["scenario"]].append(row)
+            if row.get("envError") and not row.get("pass"):
+                env_errors[row["envError"]] += 1
+                continue
             for reason in row.get("reasons") or []:
                 reasons[reason.split(":")[0]] += 1
-        lines += [f"## {path.stem}", "", "| Scenario | Pass/Runs | Median estTokens | Median wallClockMs |", "|---|---|---|---|"]
+        lines += [f"## {path.stem}", "", "| Scenario | Pass/Runs | EnvErr | Median estTokens | Median wallClockMs |",
+                  "|---|---|---|---|---|"]
         for scenario, group in sorted(by_scenario.items()):
             ok = sum(bool(row.get("pass")) for row in group)
+            env = sum(bool(row.get("envError")) and not row.get("pass") for row in group)
             tokens = _median(row.get("estTokens") for row in group)
             wall = _median(row.get("wallClockMs") for row in group)
-            lines.append(f"| {scenario} | {ok}/{len(group)} | {tokens} | {wall} |")
+            lines.append(f"| {scenario} | {ok}/{len(group)} | {env} | {tokens} | {wall} |")
         if reasons:
             lines += ["", "Lý do fail phổ biến: " + ", ".join(f"{k} ×{v}" for k, v in sorted(reasons.items(), key=lambda kv: -kv[1]))]
+        if env_errors:
+            lines += ["", "Lỗi môi trường: " + ", ".join(f"{k} ×{v}" for k, v in sorted(env_errors.items(), key=lambda kv: -kv[1]))]
         lines.append("")
     (folder / "SUMMARY.md").write_text("\n".join(lines))
 
@@ -205,6 +303,11 @@ def main(argv=None):
     folder.mkdir(parents=True, exist_ok=True)
     out = folder / f"{args.agent}-{args.model}.jsonl"
     fingerprint = config_fingerprint(args.agent)
+    with agy_mcp_isolated() if args.agent == "agy" else nullcontext():
+        return _run_batch(args, scenarios, folder, out, fingerprint)
+
+
+def _run_batch(args, scenarios, folder, out, fingerprint):
     for scenario in scenarios:
         for index in range(args.runs):
             result = run_one(args.agent, args.model, scenario, index, args.timeout, args.workspace,
@@ -213,6 +316,8 @@ def main(argv=None):
             with out.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(result, ensure_ascii=False) + "\n")
             status = "PASS" if result["pass"] else "FAIL " + "; ".join(result["reasons"])[:120]
+            if result.get("envError") and not result["pass"]:
+                status = f"ENV({result['envError']}) " + status
             print(f"[{scenario['id']} #{index + 1}] {status}", flush=True)
             if result.get("isolationFailed"):
                 write_summary(folder)

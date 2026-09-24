@@ -49,7 +49,7 @@ def test_run_one_removes_markers_from_supplied_workspace_on_error(tmp_path, monk
     def boom(*args, **kwargs):
         raise FileNotFoundError("agent binary not found")
 
-    monkeypatch.setattr(run_module.subprocess, "run", boom)
+    monkeypatch.setattr(run_module, "run_agent", boom)
     ws = tmp_path / "ws"
     ws.mkdir()
 
@@ -69,14 +69,14 @@ def test_write_summary(tmp_path):
     (tmp_path / "claude-opus.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     write_summary(tmp_path)
     text = (tmp_path / "SUMMARY.md").read_text()
-    assert "| Scenario | Pass/Runs | Median estTokens | Median wallClockMs |" in text
-    assert "| open_bugs | 2/3 | 200 | 6500 |" in text and "claude-opus" in text and "extra calls ×1" in text
+    assert "| Scenario | Pass/Runs | EnvErr | Median estTokens | Median wallClockMs |" in text
+    assert "| open_bugs | 2/3 | 0 | 200 | 6500 |" in text and "claude-opus" in text and "extra calls ×1" in text
 
 
 def _completed(stdout=""):
-    import subprocess
+    from evals.run import AgentProcess
 
-    return subprocess.CompletedProcess(args=[], returncode=0, stdout=stdout, stderr="")
+    return AgentProcess(lines=stdout.splitlines(), stderr_tail="", timed_out=False)
 
 
 def test_agent_env_strips_backlog_variables(tmp_path, monkeypatch):
@@ -98,11 +98,11 @@ def test_run_one_passes_scrubbed_env_to_agent(tmp_path, monkeypatch):
     monkeypatch.setenv("BACKLOG_API_KEY", "real-key")
     seen = {}
 
-    def fake_run(command, **kwargs):
-        seen.update(kwargs, command=command)
+    def fake_run(command, cwd, env, timeout_s):
+        seen.update(cwd=cwd, env=env, command=command)
         return _completed()
 
-    monkeypatch.setattr(run_module.subprocess, "run", fake_run)
+    monkeypatch.setattr(run_module, "run_agent", fake_run)
     run_one("claude", "opus", scenario("open_bugs"), 0, 30, source="synthetic")
     assert "BACKLOG_API_KEY" not in seen["env"]
     assert seen["env"]["BACKLOG_WORKSPACE_PATH"] == str(seen["cwd"])
@@ -154,15 +154,15 @@ def test_run_one_uses_strict_mcp_config_outside_workspace(tmp_path, monkeypatch)
 
     seen = {}
 
-    def fake_run(command, **kwargs):
+    def fake_run(command, cwd, env, timeout_s):
         index = command.index("--mcp-config")
-        seen["cwd"] = kwargs["cwd"]
+        seen["cwd"] = cwd
         seen["path"] = command[index + 1]
         seen["config"] = json.loads(open(command[index + 1], encoding="utf-8").read())
         seen["command"] = command
         return _completed()
 
-    monkeypatch.setattr(run_module.subprocess, "run", fake_run)
+    monkeypatch.setattr(run_module, "run_agent", fake_run)
     run_one("claude", "opus", scenario("open_bugs"), 0, 30, source="synthetic")
     assert "--strict-mcp-config" in seen["command"]
     server = seen["config"]["mcpServers"]["backlog"]
@@ -177,7 +177,7 @@ def test_run_one_restores_existing_project_file_after_error(tmp_path, monkeypatc
     def boom(*args, **kwargs):
         raise FileNotFoundError("agent binary not found")
 
-    monkeypatch.setattr(run_module.subprocess, "run", boom)
+    monkeypatch.setattr(run_module, "run_agent", boom)
     ws = tmp_path / "ws"
     ws.mkdir()
     original = b'{"project_key": "NLN"}'
@@ -193,7 +193,7 @@ def test_run_one_restores_existing_project_file_after_error(tmp_path, monkeypatc
 def test_run_one_restores_existing_project_file_after_normal_run(tmp_path, monkeypatch):
     import evals.run as run_module
 
-    monkeypatch.setattr(run_module.subprocess, "run", lambda *a, **k: _completed())
+    monkeypatch.setattr(run_module, "run_agent", lambda *a, **k: _completed())
     ws = tmp_path / "ws"
     ws.mkdir()
     original = b'{"project_key": "NLN"}'
@@ -214,3 +214,95 @@ def test_grade_run_requires_final_answer(tmp_path):
     telemetry.set_eval_tags(None, None)
     result = grade_run(scenario("resolve_warning"), AgentTrace(final_answer=None, raw_ok=False), tmp_path / "logs", "run-2")
     assert result["pass"] is False and "final answer missing" in result["reasons"]
+
+
+def test_run_agent_stops_at_result_event(tmp_path):
+    import sys
+    import time
+
+    from evals.run import run_agent
+
+    script = (
+        "import sys, time\n"
+        "print('{\"event\":\"init\"}', flush=True)\n"
+        "print('{\"event\":\"result\",\"result\":{\"status\":\"SUCCESS\"}}', flush=True)\n"
+        "time.sleep(60)\n"
+    )
+    started = time.monotonic()
+    proc = run_agent([sys.executable, "-c", script], cwd=tmp_path, env=None, timeout_s=50)
+    assert time.monotonic() - started < 15
+    assert len(proc.lines) == 2 and proc.timed_out is False
+
+
+def test_run_agent_times_out(tmp_path):
+    import sys
+
+    from evals.run import run_agent
+
+    script = "import sys, time\nprint('partial', flush=True)\nsys.stderr.write('boom'); sys.stderr.flush()\ntime.sleep(60)\n"
+    proc = run_agent([sys.executable, "-c", script], cwd=tmp_path, env=None, timeout_s=1, grace_s=1)
+    assert proc.timed_out is True and proc.lines == ["partial"] and "boom" in proc.stderr_tail
+
+
+@pytest.mark.parametrize("stderr, timed_out, ok, expected", [
+    ("Eligibility check failed: UNAVAILABLE (code 503): The service is currently unavailable.", False, False, "service_unavailable"),
+    ("connecting to sandbox server: read: connection reset by peer", False, False, "sandbox"),
+    ("", True, False, "timeout"),
+    ("", False, False, "agent_failed"),
+    ("", False, True, None),
+])
+def test_classify_env_error(stderr, timed_out, ok, expected):
+    from evals.run import AgentProcess, classify_env_error
+
+    trace = AgentTrace(raw_ok=ok)
+    assert classify_env_error(AgentProcess(lines=[], stderr_tail=stderr, timed_out=timed_out), trace) == expected
+
+
+def test_classify_env_error_scans_stdout_for_service_errors():
+    from evals.run import AgentProcess, classify_env_error
+
+    proc = AgentProcess(lines=["error: UNAVAILABLE (code 503)"], stderr_tail="", timed_out=False)
+    assert classify_env_error(proc, AgentTrace(raw_ok=False)) == "service_unavailable"
+
+
+def test_write_summary_counts_env_errors(tmp_path):
+    rows = [
+        {"scenario": "open_bugs", "pass": False, "envError": "service_unavailable", "reasons": ["missing expected call x"]},
+        {"scenario": "open_bugs", "pass": True},
+    ]
+    (tmp_path / "agy-flash.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    write_summary(tmp_path)
+    text = (tmp_path / "SUMMARY.md").read_text()
+    assert "| open_bugs | 1/2 | 1 | - | - |" in text
+    assert "Lỗi môi trường: service_unavailable ×1" in text
+    assert "missing expected call ×1" not in text
+
+
+AGY_LIST = """NAME                    TYPE   STATUS    COMMAND/URL
+backlog                 stdio  enabled   uv --project /x run backlog-mcp-server
+chrome-devtools-mcp     stdio  enabled   npx -y chrome-devtools-mcp@latest --autoConnect
+morph-mcp               stdio  disabled  npx morph
+website-design-systems  stdio  enabled   npx -y website-design-systems-mcp
+"""
+
+
+def test_agy_other_mcp_servers_disabled_and_restored(monkeypatch):
+    import subprocess
+
+    import evals.run as run_module
+
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        stdout = AGY_LIST if command[:3] == ["agy", "mcp", "list"] else ""
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(run_module.subprocess, "run", fake_run)
+    with pytest.raises(RuntimeError):
+        with run_module.agy_mcp_isolated():
+            assert calls[1:] == [["agy", "mcp", "disable", "chrome-devtools-mcp"],
+                                 ["agy", "mcp", "disable", "website-design-systems"]]
+            raise RuntimeError("batch crashed")
+    assert calls[3:] == [["agy", "mcp", "enable", "chrome-devtools-mcp"],
+                         ["agy", "mcp", "enable", "website-design-systems"]]

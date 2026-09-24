@@ -20,6 +20,7 @@ class AgentTrace:
     denied: list = field(default_factory=list)
     wall_clock_ms: float | None = None
     turns: int | None = None
+    steps: int = 0
     raw_ok: bool = False
 
 
@@ -49,7 +50,9 @@ def agy_command(prompt, model, timeout_s):
         "agy", "-p", prompt,
         "--model", model,
         "--output-format", "stream-json",
-        "--dangerously-skip-permissions", "--sandbox",
+        # No --sandbox: it breaks every terminal command ("connecting to sandbox server ... connection reset").
+        # Isolation comes from the scrubbed BACKLOG_* env, the fake backend and OOP-9xxxxx keys.
+        "--dangerously-skip-permissions",
         "--print-timeout", f"{int(timeout_s)}s",
     ]
 
@@ -83,7 +86,10 @@ def parse_agy(lines):
     for event in _events(lines):
         if event.get("event") == "step_update":
             step = event["step_update"]
-            if step.get("state") != "DONE" or step.get("step_type") != "tool":
+            if step.get("state") != "DONE" or step.get("step_type") == "user_input":
+                continue
+            trace.steps += 1
+            if step.get("step_type") != "tool":
                 continue
             info = step.get("tool_info") or {}
             params = info.get("parameters") or {}
@@ -100,7 +106,8 @@ def parse_agy(lines):
             seconds = result.get("duration_seconds")
             trace.wall_clock_ms = round(seconds * 1000) if seconds is not None else None
             trace.turns = result.get("num_turns")
-            trace.raw_ok = result.get("status") == "SUCCESS"
+            # agy reports SUCCESS even when it did nothing (e.g. the service refused the request).
+            trace.raw_ok = result.get("status") == "SUCCESS" and trace.steps > 0
     return trace
 
 
