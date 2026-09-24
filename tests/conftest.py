@@ -2,7 +2,12 @@ import os
 
 import pytest
 
-from backlog_tool import journal, settings
+from backlog_tool import settings
+
+try:  # removed in Task 5
+    from backlog_tool import journal
+except ImportError:
+    journal = None
 
 
 @pytest.fixture(autouse=True)
@@ -16,10 +21,16 @@ def isolated_log_paths(request, tmp_path, monkeypatch):
     if request.node.get_closest_marker("real_log_paths"):
         yield
         return
-    log_dir = str(tmp_path / "logs")
-    monkeypatch.setattr(settings, "LOG_DIR", log_dir)
-    monkeypatch.setattr(settings, "LOG_PATH", os.path.join(log_dir, "backlog.log"))
-    monkeypatch.setattr(settings, "METRICS_PATH", os.path.join(log_dir, "metrics.log"))
-    monkeypatch.setattr(settings, "TELEMETRY_PATH", os.path.join(log_dir, "telemetry.jsonl"))
-    monkeypatch.setattr(journal, "SESSIONS_DIR", os.path.join(log_dir, "sessions"))
+    from backlog_tool import telemetry
+
+    monkeypatch.setattr(settings, "LOG_DIR", str(tmp_path / "logs"))
+    # Transitional until Task 5 removes the legacy sinks: keep them out of the real logs/.
+    for name, filename in (("LOG_PATH", "backlog.log"), ("METRICS_PATH", "metrics.log"), ("TELEMETRY_PATH", "telemetry.jsonl")):
+        if hasattr(settings, name):
+            monkeypatch.setattr(settings, name, str(tmp_path / "logs" / filename))
+    if journal is not None:
+        monkeypatch.setattr(journal, "SESSIONS_DIR", str(tmp_path / "logs" / "sessions"))
+    telemetry.set_eval_tags(None, None)
+    telemetry.set_surface("mcp")
     yield
+    telemetry.set_eval_tags(None, None)
