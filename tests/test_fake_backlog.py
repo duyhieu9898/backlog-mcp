@@ -43,3 +43,10 @@ def test_http_endpoints_and_unhandled():
         assert requests.get(f"{base}/issues/OOP-1", params={"apiKey": "k"}).status_code == 404
         assert requests.get(f"{base}/space", params={"apiKey": "k"}).status_code == 404
         assert fake.unhandled == [{"method": "GET", "path": "/api/v2/space"}]
+
+
+def test_apply_patch_assignee_to_reporter_carries_name():
+    issue = build_issues(source="synthetic")["OOP-912762"]
+    reporter = issue["createdUser"]
+    patched = apply_patch(issue, {"assigneeId": reporter["id"]})
+    assert patched["assignee"]["id"] == reporter["id"] and patched["assignee"]["name"] == reporter["name"]

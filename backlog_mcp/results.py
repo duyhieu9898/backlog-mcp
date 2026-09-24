@@ -8,8 +8,19 @@ from mcp.types import CallToolResult, TextContent
 from backlog_tool.telemetry import current_trace_id, finish_call, serialized_bytes
 
 
+def _finite(value: Any) -> Any:
+    if isinstance(value, float) and (value != value or value in (float("inf"), float("-inf"))):
+        return None
+    if isinstance(value, dict):
+        return {key: _finite(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_finite(item) for item in value]
+    return value
+
+
 def _text(structured: Any) -> str:
-    return json.dumps(structured, separators=(",", ":"), ensure_ascii=False, default=str)
+    # allow_nan=False keeps the text strict JSON; NaN/Infinity become null.
+    return json.dumps(_finite(structured), separators=(",", ":"), ensure_ascii=False, default=str, allow_nan=False)
 
 
 def _resource_uris(data: Any) -> list[str]:

@@ -164,7 +164,7 @@ Every tool names the issue it acts on `issue_key` (`get_issue` also accepts a nu
 
 | Tool | Description |
 |---|---|
-| `get_my_open_bugs` | List open bugs assigned to the configured user. |
+| `get_my_open_bugs` | List open bugs assigned to the configured user (with `count`; no description — `get_bug_context` gives it for one bug). |
 | `get_bug_context` | Get AI-ready context for a specific bug, including its attachments (`id`, `name`, `size`, `isImage`). |
 | `resolve_bug` | Resolve a bug with workflow defaults in one `mode="apply"` call. `fix_description`/`commit` are optional (Corrective Action falls back to `fixed <summary>`); guided fields and hours only fill empty values; warnings (e.g. Detected Role is not Tester) never block and are returned with the changes. `mode="preview"` only when asked. |
 | `create_ut_bug` | Create a Unit Test sub-task bug under a parent issue (`mode="preview"` / `"apply"`). |

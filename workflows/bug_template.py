@@ -68,6 +68,7 @@ def attachment_summary(attachments):
             "isImage": str(item.get("name") or "").lower().endswith(IMAGE_EXTENSIONS),
         }
         for item in attachments or []
+        if isinstance(item, dict)
     ]
 
 

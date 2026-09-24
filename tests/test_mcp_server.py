@@ -481,3 +481,45 @@ def test_resolve_bug_description_says_apply_once():
     assert 'only once, with mode="apply"' in description
     assert "Do not call get_bug_context, get_issue, get_bug_rules or get_bug_fields first." in description
     assert "Required in apply mode" not in tools["resolve_bug"].inputSchema["properties"]["fix_description"]["description"]
+
+
+def test_get_my_open_bugs_list_omits_description():
+    raw = [{"issueKey": "OOP-1", "summary": "Lỗi", "description": "long text " * 50, "status": {"name": "Open"},
+            "customFields": [{"name": "Severity", "value": {"name": "High"}}]}]
+    with mock.patch("backlog_mcp.server.bug_workflow.my_open_bugs_raw", return_value=raw), \
+         mock.patch("backlog_mcp.server.get_config_instance", return_value={}), \
+         mock.patch("backlog_mcp.server.view_base_url", return_value=""):
+        result = server.get_my_open_bugs()
+    [bug] = result.structuredContent["data"]["bugs"]
+    assert "description" not in bug
+    assert bug["issueKey"] == "OOP-1" and bug["summary"] == "Lỗi" and bug["status"] == "Open"
+    assert bug["customFields"] == [{"name": "Severity", "value": "High"}]
+
+
+def test_create_issue_blank_parent_key_means_no_parent():
+    with mock.patch("backlog_mcp.server.issue_service.create_issue", return_value={"dryRun": True}) as create:
+        result = server.create_issue("Title", "Task", parent_key="   ")
+    assert result.isError is False
+    assert create.call_args.kwargs["parent_key"] == ""
+
+
+def test_bug_support_tools_accept_lowercase_project_key():
+    with mock.patch("backlog_mcp.server.guidance.resolve_rules", return_value={"ok": True}) as rules:
+        result = server.get_bug_rules(project_key="oop", issue_key="OOP-12760")
+    assert result.isError is False and rules.call_args.args[1] == "OOP"
+
+
+def test_issue_resource_normalizes_key_and_rejects_bad_key():
+    with mock.patch("backlog_mcp.server.issue_service.get_issue", return_value={"issueKey": "AQM-1"}) as get:
+        server.issue_resource(" aqm-1 ")
+    assert get.call_args.args[1] == "AQM-1"
+    with mock.patch("backlog_mcp.server.issue_service.get_issue") as get:
+        res = json.loads(server.issue_resource("not a key"))
+    assert res["ok"] is False and "OOP-123" in res["error"]
+    get.assert_not_called()
+
+
+def test_error_telemetry_keeps_project_for_lowercase_key():
+    with mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", side_effect=ValueError("Boom")):
+        server.get_bug_context(" oop-1 ")
+    assert _rows("calls")[0]["projectKey"] == "OOP"

@@ -115,3 +115,9 @@ def test_list_results_state_count():
 def test_vietnamese_text_is_not_escaped():
     result = _build_result({"summary": "Lỗi đăng nhập"}, "get_issue")
     assert "Lỗi đăng nhập" in result.content[0].text
+
+
+def test_nan_becomes_null_in_text():
+    result = _build_result({"estimatedHours": float("nan"), "actualHours": float("inf")}, "get_issue")
+    assert json.loads(result.content[0].text) == {"ok": True, "data": {"estimatedHours": None, "actualHours": None}}
+    assert "NaN" not in result.content[0].text and "Infinity" not in result.content[0].text

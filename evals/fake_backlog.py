@@ -56,7 +56,9 @@ def apply_patch(issue, data):
             status_id = int(value)
             issue["status"] = {**(issue.get("status") or {}), "id": status_id, "name": STATUS_NAMES.get(status_id, "?")}
         elif key == "assigneeId":
-            issue["assignee"] = {**(issue.get("assignee") or {}), "id": int(value)}
+            reporter = issue.get("createdUser") or {}
+            name = {"name": reporter.get("name")} if reporter.get("id") == int(value) else {}
+            issue["assignee"] = {**(issue.get("assignee") or {}), "id": int(value), **name}
         elif key in ("startDate", "dueDate"):
             issue[key] = f"{value}T00:00:00Z"
         elif key in ("estimatedHours", "actualHours"):

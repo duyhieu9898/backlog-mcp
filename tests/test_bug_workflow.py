@@ -563,6 +563,19 @@ class BugWorkflowTest(unittest.TestCase):
             bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, today=date(2026, 6, 2))
         self.client.update_issue.assert_not_called()
 
+    def test_changes_show_option_names_for_select_fields(self):
+        result = bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2))
+        qc = next(c for c in result["changes"] if c["key"] == "customField_1")
+        self.assertEqual(10, result["payload"]["customField_1"])
+        self.assertEqual("Integration Test", qc["value"])
+
+    def test_public_changes_drop_no_op_entries(self):
+        changes = [
+            {"field": "Impacted", "key": "customField_4", "from": "no", "value": "no"},
+            {"field": "Status", "key": "statusId", "from": "Open", "value": "Resolved"},
+        ]
+        self.assertEqual([{"field": "Status", "from": "Open", "to": "Resolved"}], bug_workflow.public_changes(changes))
+
     def test_public_changes_shape(self):
         changes = [
             {"field": "Status", "key": "statusId", "from": "Open", "value": "Resolved"},
@@ -642,3 +655,11 @@ def test_bug_context_without_attachments_has_no_key():
 
     for issue in ({"issueKey": "OOP-1"}, {"issueKey": "OOP-1", "attachments": None}, {"issueKey": "OOP-1", "attachments": []}):
         assert "attachments" not in bug_context(issue)
+
+
+def test_attachment_summary_skips_malformed_entries():
+    from workflows.bug_template import attachment_summary
+
+    assert attachment_summary([None, "x", {"id": 1, "name": "a.PNG", "size": 3}]) == [
+        {"id": 1, "name": "a.PNG", "size": 3, "isImage": True},
+    ]

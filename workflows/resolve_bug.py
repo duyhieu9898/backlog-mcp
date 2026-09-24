@@ -478,6 +478,17 @@ def display_value(value):
     return value
 
 
+def custom_option_name(project, field, value):
+    """Select fields are written as option IDs; show the option name instead."""
+    for field_config in project.get("bug", {}).get("custom_fields", {}).values():
+        if field_config.get("field") != field:
+            continue
+        for option in field_config.get("value_options") or []:
+            if str(option.get("id")) == str(value):
+                return option.get("name")
+    return value
+
+
 def custom_field_current_value(issue, field_id):
     for field in issue.get("customFields", []) or []:
         if field.get("id") == field_id:
@@ -519,7 +530,7 @@ def summarize_changes(issue, project, payload, target_status):
                     "field": labels.get(key, key),
                     "key": key,
                     "from": custom_field_current_value(issue, field_id),
-                    "value": value,
+                    "value": custom_option_name(project, key, value),
                 }
             )
         else:
@@ -548,8 +559,10 @@ def _change_value(value):
 
 
 def public_changes(changes):
-    """Changes as the model sees them: field, from, to (no Backlog wire keys or user IDs)."""
-    return [
-        {"field": change["field"], "from": _change_value(change.get("from")), "to": _change_value(change.get("value"))}
-        for change in changes
-    ]
+    """Changes as the model sees them: field, from, to (no Backlog wire keys, user IDs or no-op entries)."""
+    visible = []
+    for change in changes:
+        before, after = _change_value(change.get("from")), _change_value(change.get("value"))
+        if before != after:
+            visible.append({"field": change["field"], "from": before, "to": after})
+    return visible

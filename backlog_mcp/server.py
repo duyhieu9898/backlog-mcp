@@ -346,7 +346,7 @@ def create_issue(
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
-        parent_key = _issue_key(parent_key) if parent_key else ""
+        parent_key = _issue_key(parent_key) if parent_key.strip() else ""
         res = issue_service.create_issue(
             config,
             summary=summary,
@@ -470,6 +470,7 @@ def get_my_open_bugs(
 
     Use when Backlog is explicitly invoked and the user asks for their current bugs/bug queue.
     Prefer this one-call personal workflow over generic get_issues filtering.
+    Items omit the description; call get_bug_context for the bug the user picks.
     """
     start_call("get_my_open_bugs", locals())
     try:
@@ -490,7 +491,11 @@ def get_my_open_bugs(
             start_path=_workspace_path(),
         )
         base_url = view_base_url(config)
-        data = [presenter.compact_issue(item, view="compact", base_url=base_url) for item in bugs]
+        # The list is for choosing a bug; get_bug_context gives the description of the one picked.
+        data = [
+            {k: v for k, v in presenter.compact_issue(item, view="compact", base_url=base_url).items() if k != "description"}
+            for item in bugs
+        ]
         return _build_result(
             data,
             "get_my_open_bugs",
@@ -681,7 +686,7 @@ def get_bug_rules(
     Use when the user asks for the rules or resolve_bug needs clarification; not a normal step before resolve_bug.
     """
     start_call("get_bug_rules", locals())
-    project_key = project_key or project_key_from_issue_id(issue_key) or ""
+    project_key = project_key.strip().upper() or project_key_from_issue_id(issue_key.strip().upper()) or ""
     try:
         config = get_config_instance()
         issue_key = _issue_key(issue_key) if issue_key else ""
@@ -703,7 +708,7 @@ def get_bug_fields(
     Use when a field is ambiguous, missing, or explicitly requested; not a normal step before resolve_bug.
     """
     start_call("get_bug_fields", locals())
-    project_key = project_key or project_key_from_issue_id(issue_key) or ""
+    project_key = project_key.strip().upper() or project_key_from_issue_id(issue_key.strip().upper()) or ""
     try:
         config = get_config_instance()
         issue_key = _issue_key(issue_key) if issue_key else ""
@@ -805,7 +810,7 @@ def issue_resource(issue_key: str) -> str:
     """Read one Backlog issue as JSON by issue key."""
     try:
         config = get_config_instance()
-        data = issue_service.get_issue(config, issue_key)
+        data = issue_service.get_issue(config, _issue_key(issue_key, allow_numeric=True))
         return json.dumps(data, indent=2, ensure_ascii=False)
     except Exception as e:
         return json.dumps({"ok": False, "error": str(e)}, indent=2, ensure_ascii=False)
