@@ -74,6 +74,7 @@ def read_prompt_turns(path):
                             "id": part.get("id"), "name": part.get("name"), "input": part.get("input") or {},
                             "ts": entry.get("timestamp", ""), "is_error": False,
                         })
+                        current.final_answer = None
                     elif part.get("type") == "text" and part.get("text", "").strip():
                         current.final_answer = part["text"].strip()
     return turns

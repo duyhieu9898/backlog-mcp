@@ -1,6 +1,6 @@
+import json
 import os
 
-from backlog_tool import telemetry
 from backlog_tool.claude_transcripts import read_prompt_turns, turn_to_flow
 from backlog_tool.telemetry_store import Call
 
@@ -42,3 +42,24 @@ def test_turn_to_flow_without_telemetry_uses_transcript_call():
     flow = turn_to_flow(turn, [])
     assert [c.tool for c in flow.calls] == ["resolve_bug"]
     assert flow.calls[0].trace_id.startswith("transcript:")
+
+
+def test_final_answer_none_when_tool_use_is_last_content(tmp_path):
+    """Verify that final_answer is None when tool_use is the last assistant content."""
+    transcript_file = tmp_path / "test_transcript.jsonl"
+    transcript_data = [
+        {"type": "user", "timestamp": "2026-09-23T10:00:00.000Z", "cwd": "/home/u/proj", "message": {"role": "user", "content": "Check bug context"}},
+        {"type": "assistant", "timestamp": "2026-09-23T10:00:01.000Z", "message": {"model": "claude-opus-5-5", "content": [{"type": "text", "text": "Checking."}, {"type": "tool_use", "id": "t1", "name": "mcp__backlog__get_bug_context", "input": {"issue_key": "BUG-123"}}]}},
+        {"type": "user", "timestamp": "2026-09-23T10:00:02.000Z", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "{}"}]}}
+    ]
+    with open(transcript_file, "w") as f:
+        for obj in transcript_data:
+            f.write(json.dumps(obj) + "\n")
+
+    turns = read_prompt_turns(str(transcript_file))
+    assert len(turns) == 1
+    turn = turns[0]
+    assert turn.prompt == "Check bug context"
+    assert turn.model == "claude-opus-5-5"
+    assert [u["name"] for u in turn.tool_uses] == ["mcp__backlog__get_bug_context"]
+    assert turn.final_answer is None  # No text after tool_use, so final_answer should be None
