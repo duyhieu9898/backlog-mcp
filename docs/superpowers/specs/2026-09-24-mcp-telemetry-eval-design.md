@@ -219,7 +219,7 @@ Khi trong một flow, sau call A (tool chuyên dụng) có call B khác tool cù
 ### 7.6 CLI
 
 - `backlog-cli telemetry report [--since 1d|2026-09-24] [--run <runId>] [--json]`: danh sách flow (chuỗi tool, flags, kết quả chấm nếu khớp kịch bản) + tổng hợp (top tool theo `estTokens` và `durationMs`, lỗi lặp lại gom theo `kind`+`tool`+tham số, tách theo client/model, tỉ lệ pass theo kịch bản).
-- `backlog-cli telemetry import-claude [--since …] [--project-dir …]`: đọc transcript trong `~/.claude/projects/*`, ghép và in báo cáo như `report` cho các prompt chứa `backlog`.
+- `backlog-cli telemetry import-claude [--since …] [--root …]`: đọc transcript trong `~/.claude/projects/*`, ghép và in báo cáo như `report` cho các prompt chứa `backlog` **hoặc** đã gọi tool `mcp__backlog__*` (trong một phiên, prompt tiếp theo thường không nhắc lại "backlog", ví dụ "OOP-12777 tôi fix rồi"); chỉ prompt khớp §6.3 mới được chấm tầng 3. Tin nhắn chèn tự động (nội dung skill "Base directory for this skill:", `<local-command-caveat>`, `<command-name>`, `<system-reminder>`, `isMeta`, tool_result) không phải prompt.
 
 ## 8. Harness eval
 

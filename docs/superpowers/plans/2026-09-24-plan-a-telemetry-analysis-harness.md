@@ -2312,12 +2312,17 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 {"type":"user","timestamp":"2026-09-23T10:20:00.000Z","cwd":"/home/u/proj","message":{"role":"user","content":"<command-name>/clear</command-name>"}}
 {"type":"user","timestamp":"2026-09-23T10:20:01.000Z","isMeta":true,"message":{"role":"user","content":"Caveat: meta"}}
 {"type":"user","timestamp":"2026-09-23T10:20:02.000Z","cwd":"/home/u/proj","message":{"role":"user","content":[{"type":"text","text":"<system-reminder>ctx</system-reminder>"},{"type":"text","text":"backlog resolve OOP-12781, bug này tôi fix rồi"}]}}
+{"type":"user","timestamp":"2026-09-23T10:20:03.000Z","message":{"role":"user","content":[{"type":"text","text":"Base directory for this skill: /home/u/.claude/plugins/x\n# Skill"}]}}
+{"type":"user","timestamp":"2026-09-23T10:20:04.000Z","message":{"role":"user","content":"<local-command-caveat>Caveat: generated</local-command-caveat>"}}
 {"type":"assistant","timestamp":"2026-09-23T10:20:05.000Z","message":{"model":"claude-opus-5-5","content":[{"type":"text","text":"Resolving."},{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"git log -1"}}]}}
 {"type":"user","timestamp":"2026-09-23T10:20:06.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"abc fix","is_error":false}]}}
 {"type":"assistant","timestamp":"2026-09-23T10:20:08.000Z","message":{"model":"claude-opus-5-5","content":[{"type":"tool_use","id":"t2","name":"mcp__backlog__resolve_bug","input":{"issue_key":"OOP-12781","mode":"apply"}}]}}
 {"type":"user","timestamp":"2026-09-23T10:20:10.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t2","content":[{"type":"text","text":"{}"}],"is_error":false}]}}
 {"type":"assistant","timestamp":"2026-09-23T10:20:12.000Z","message":{"model":"claude-opus-5-5","content":[{"type":"text","text":"Đã resolve OOP-12781."}]}}
 {"type":"user","timestamp":"2026-09-23T10:25:00.000Z","message":{"role":"user","content":"cảm ơn"}}
+{"type":"user","timestamp":"2026-09-23T10:30:00.000Z","message":{"role":"user","content":"OOP-12777 tôi fix rồi"}}
+{"type":"assistant","timestamp":"2026-09-23T10:30:05.000Z","message":{"model":"claude-opus-5-5","content":[{"type":"tool_use","id":"t3","name":"mcp__backlog__resolve_bug","input":{"issue_key":"OOP-12777","mode":"apply"}}]}}
+{"type":"user","timestamp":"2026-09-23T10:30:07.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t3","content":"{}","is_error":false}]}}
 ```
 
 - [ ] **Step 2: Viết test fail** — `tests/test_claude_transcripts.py`:
@@ -2334,7 +2339,7 @@ SAMPLE = os.path.join(os.path.dirname(__file__), "fixtures", "claude_transcript_
 
 def test_only_real_prompts_are_turns():
     turns = read_prompt_turns(SAMPLE)
-    assert [t.prompt for t in turns] == ["backlog resolve OOP-12781, bug này tôi fix rồi", "cảm ơn"]
+    assert [t.prompt for t in turns] == ["backlog resolve OOP-12781, bug này tôi fix rồi", "cảm ơn", "OOP-12777 tôi fix rồi"]
     first = turns[0]
     assert first.model == "claude-opus-5-5"
     assert [u["name"] for u in first.tool_uses] == ["Bash", "mcp__backlog__resolve_bug"]
@@ -2355,6 +2360,11 @@ def test_turn_to_flow_matches_telemetry_call_and_keeps_non_mcp():
     assert flow.non_mcp == [{"name": "Bash", "input": {"command": "git log -1"}}]
     assert flow.prompt == turn.prompt and flow.final_answer == "Đã resolve OOP-12781."
     assert flow.model == "claude-opus-5-5"
+
+
+def test_follow_up_prompt_without_backlog_word_keeps_its_tool_calls():
+    turn = read_prompt_turns(SAMPLE)[2]
+    assert [u["name"] for u in turn.tool_uses] == ["mcp__backlog__resolve_bug"]
 
 
 def test_turn_to_flow_without_telemetry_uses_transcript_call():
@@ -2382,7 +2392,10 @@ from .telemetry_store import Call, Flow
 
 MCP_PREFIX = "mcp__backlog__"
 MATCH_WINDOW_SECONDS = 5
-_WRAPPED = re.compile(r"^\s*<(system-reminder|command-name|command-message|command-args|local-command-stdout)\b")
+_WRAPPED = re.compile(
+    r"^\s*(<(system-reminder|command-name|command-message|command-args|local-command-stdout|local-command-caveat)\b"
+    r"|Base directory for this skill:|\[Request interrupted|Caveat: )"
+)
 
 
 @dataclass
@@ -2701,7 +2714,8 @@ def report_from_claude(since=None, root=None, log_dir=None):
         for turn in read_prompt_turns(path):
             if since_iso and turn.ts[:19] < since_iso[:19]:
                 continue
-            if "backlog" not in turn.prompt.lower():
+            uses_backlog = any((u["name"] or "").startswith("mcp__backlog__") for u in turn.tool_uses)
+            if "backlog" not in turn.prompt.lower() and not uses_backlog:
                 continue
             flows.append(turn_to_flow(turn, calls))
     return build_report(flows, load_scenarios())
@@ -2753,7 +2767,7 @@ def to_markdown(report):
 
 - [ ] **Step 5: Chạy test** — `uv run --extra dev pytest tests/test_telemetry_report.py tests/test_cli.py -q` → PASS.
 
-- [ ] **Step 6: Chạy thật** — `uv run backlog-cli telemetry import-claude --since 2026-09-22` → in bảng; kiểm tra có flow `resolve_fixed` cho các prompt resolve ngày 23/09 (ví dụ OOP-12781) và flow được chấm (`PASS`/`FAIL`). Ghi lại số flow vào tin nhắn commit.
+- [ ] **Step 6: Chạy thật** — `uv run backlog-cli telemetry import-claude --since 2026-09-22` → in bảng. Kỳ vọng: có flow cho mọi prompt ngày 23/09 đã gọi tool backlog, kể cả prompt không chứa chữ "backlog" (ví dụ "OOP-12777 tôi fix rồi"); prompt có "backlog" + "resolve" được chấm theo `resolve_fixed`; prompt không khớp kịch bản vẫn có findings tầng 2. Ghi lại số flow vào tin nhắn commit.
 
 - [ ] **Step 7: Commit**
 
@@ -3742,7 +3756,7 @@ uv run python -m evals.run --agent claude --model opus --scenario open_bugs --ru
 uv run python -m evals.run --agent agy --model gemini-3.8-flash-medium --scenario open_bugs --runs 1 --label smoke
 ```
 
-Expected: mỗi lệnh in một dòng `[open_bugs #1] PASS` hoặc `FAIL …` (kết quả pass/fail chưa quan trọng ở P3) và tạo `evals/results/<ngày>-smoke/{claude-opus,agy-gemini-3.8-flash-medium}.jsonl` với `agentOk: true`, `unhandledEndpoints: []`, `mcpCallsSeenByAgent ≥ 1`. Nếu `mcpCallsSeenByAgent == 0` và log run rỗng: kiểm tra `sessions.jsonl` trong log dir tạm có `backend: "fake"` không (server có thấy marker không) — đọc stderrTail; sửa trước khi đóng P3.
+Expected: mỗi lệnh in một dòng `[open_bugs #1] PASS` hoặc `FAIL …` (kết quả pass/fail chưa quan trọng ở P3) và tạo `evals/results/<ngày>-smoke/{claude-opus,agy-gemini-3.8-flash-medium}.jsonl` với `agentOk: true`, `unhandledEndpoints: []`, `mcpCallsSeenByAgent ≥ 1`. Nếu `mcpCallsSeenByAgent == 0` và log run rỗng: kiểm tra `sessions.jsonl` trong log dir tạm có `backend: "fake"` không (server có thấy marker không) — đọc stderrTail; sửa trước khi đóng P3. Nếu agy báo không khởi động được MCP server khi có `--sandbox`, bỏ `--sandbox` khỏi `agy_command` (và test tương ứng), ghi lý do vào `docs/telemetry.md` mục Eval.
 
 - [ ] **Step 6: Tài liệu** — thêm mục cuối `docs/telemetry.md`:
 
