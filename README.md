@@ -197,8 +197,6 @@ Generic issue tools use `issue_ref` for a key or numeric ID. Bug-domain tools us
 | URI | Description |
 |---|---|
 | `backlog://config` | Workstation-wide Backlog configuration as JSON (credentials excluded). |
-| `backlog://metrics` | Aggregated local MCP usage metrics as JSON. |
-| `backlog://workflow-efficiency` | Rule-based analysis of candidate task sequences, redundant calls, and workflow-path deviations. |
 | `backlog://issue/{issue_key}` | One Backlog issue as full JSON by issue key. |
 
 ## Safety
@@ -219,65 +217,18 @@ hieund-backlog-mcp/
 ├── .env          # credentials, git-ignored
 ├── config/       # shared workstation config and project catalogs
 └── logs/
-    ├── backlog.log       # human-oriented operational events
-    ├── metrics.log       # compact per-tool metrics / token-cost proxy
-    ├── telemetry.jsonl   # canonical vendor-neutral trace events
-    └── sessions/         # CLI session journal
+    ├── calls.jsonl       # one line per tool call (index)
+    ├── errors.jsonl      # one line per error
+    ├── sessions.jsonl    # one line per process (MCP server or CLI command)
+    └── details/          # full per-call detail, one file per day
 ```
 
-### Workflow Efficiency Analysis
-
-`backlog://workflow-efficiency` analyzes the local telemetry with conservative,
-rule-based heuristics. Candidate tasks are grouped by observable client,
-issue/project, and time proximity; this is not a claim about the model's hidden
-reasoning or the exact user intent.
-
-Current findings include:
-
-- repeated same tool + same arguments
-- generic `get_issue` before `get_bug_context`
-- `get_bug_rules` / `get_bug_fields` before `resolve_bug`
-- generic issue search before the personal bug queue
-- mutation apply without a matching preview
-- separate Story/Task + Bug status calls where the one-call personal status tool
-  may have been sufficient
-
-Findings that depend on the unknown user intent are marked `candidate`; stronger
-observable violations are marked `warning`. The analyzer also summarizes MCP
-calls, Backlog API calls, response bytes, estimated token proxy, and per-client
-behavior.
+See `docs/telemetry.md` for the field reference and reading recipes.
 
 ### Telemetry
 
-`telemetry.jsonl` is the source of truth for MCP observability. Each MCP tool
-invocation receives a `traceId` that correlates tool arguments, Backlog API
-calls, latency, response sizes, errors, and the final MCP result.
-
-Token counts are intentionally estimates. The server records text,
-`structuredContent`, and total serialized response bytes so the same metric is
-comparable across Claude, Codex, Gemini/Antigravity, and other MCP clients even
-though their actual tokenizers and caching differ.
-
-Client name/version default to the `clientInfo` the MCP client sends during
-`initialize`. Set these per client process to override it:
-
-```bash
-BACKLOG_MCP_CLIENT=codex
-BACKLOG_MCP_CLIENT_VERSION=<optional>
-BACKLOG_MCP_TRANSPORT=stdio
-```
-
-Calls that FastMCP rejects before the tool body runs (unknown or invalid
-arguments) are still recorded, with status `invalid_arguments` or `rejected`.
-For MCP calls, `tool_start.arguments` holds the arguments exactly as the client
-sent them; parameters the client omitted (and that took their defaults) are not
-listed. If a log file cannot be written, the server warns once per file on
-stderr instead of failing the tool call.
-The test suite redirects all log paths to a temporary directory, so running
-`pytest` never adds records to the workstation `logs/`.
-
-The API key itself is never written to telemetry. Request parameters/payloads
-and Backlog response bodies are retained locally for debugging.
+Telemetry schema, reading guide and recipes: `docs/telemetry.md`. Set
+`BACKLOG_MCP_LOG_DIR` to write logs elsewhere.
 
 ## Running CLI from Other Directories
 
