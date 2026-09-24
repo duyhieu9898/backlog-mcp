@@ -192,7 +192,7 @@ Every tool names the issue it acts on `issue_key` (`get_issue` also accepts a nu
 uv run python -m evals.run --agent claude --model opus --scenario all --runs 10 --label p6 --timeout 300
 ```
 
-Latest result (2026-09-24, Claude opus): 70/70 runs pass across 7 scenarios with 0 argument errors, up from 12/35 at baseline — see `evals/results/2026-09-24-p6/SUMMARY.md`.
+Latest result (2026-09-24, Claude opus): 69/70 runs pass, every scenario ≥ 9/10, 0 argument errors, up from 12/35 at baseline — see `evals/results/2026-09-24-p6-final/SUMMARY.md`.
 
 ## Safety
 

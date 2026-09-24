@@ -104,3 +104,17 @@ def test_missing_final_answer_fails_only_when_required():
     assert skipped["pass"] is True and skipped["finalAnswerCheck"] == {"skipped": "no final answer"}
     required = grade(warn, flow, final_answer=None, require_final_answer=True)
     assert required["pass"] is False and "final answer missing" in required["reasons"]
+
+
+def test_must_mention_accepts_any_of_alternatives():
+    expect = {"calls": [], "order": "any", "forbidden": [], "finalAnswer": {"mustMention": [["0", "không có"]]}}
+    flow = Flow("run", [])
+    assert grade(expect, flow, final_answer="Hiện không có bug nào đang open.")["pass"] is True
+    assert grade(expect, flow, final_answer="Có 0 bug.")["pass"] is True
+    failed = grade(expect, flow, final_answer="Bạn có vài bug.")
+    assert failed["pass"] is False and failed["finalAnswerCheck"] == {"missing": [["0", "không có"]]}
+
+
+def test_open_bugs_empty_scenario_accepts_zero_or_none_phrasing():
+    empty = render_scenario(next(s for s in load_scenarios() if s["id"] == "open_bugs_empty"))
+    assert empty["expect"]["finalAnswer"] == {"mustMention": [["0", "không có"]]}

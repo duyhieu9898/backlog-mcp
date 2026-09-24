@@ -1,7 +1,7 @@
 # Backlog MCP: Telemetry nền tảng + Eval đa model — Design Spec
 
 - Ngày: 2026-09-24
-- Trạng thái: Đã duyệt; P0–P6 xong (2026-09-24) — P6 Claude opus 70/70, 0 `arg_error`. P6 chỉ eval Claude opus — Gemini bị loại theo quyết định người dùng ngày 2026-09-24 (API Gemini không ổn định).
+- Trạng thái: Đã duyệt; P0–P6 xong (2026-09-24) — P6 cuối (`2026-09-24-p6-final`) Claude opus 69/70, mọi kịch bản ≥ 9/10, 0 `arg_error`. P6 chỉ eval Claude opus — Gemini bị loại theo quyết định người dùng ngày 2026-09-24 (API Gemini không ổn định).
 - Thay thế: `docs/superpowers/plans/2026-09-23-telemetry-and-payload.md` (xem §11)
 
 ## 1. Bối cảnh
@@ -151,7 +151,7 @@ Tài liệu agent đọc đầu tiên: bố cục file, từng field, quy trình
 - `calls`: danh sách call MCP mong đợi; `args` so khớp tập con (field có trong kỳ vọng phải bằng, field khác không xét). `{issue}` được thay bằng fixture.
 - `order`: `"exact"` (đúng thứ tự, đúng số lượng) hoặc `"any"` (đúng tập, số lượng bằng nhau).
 - `forbidden`: gọi tool trong danh sách là fail.
-- `finalAnswer`: `null` hoặc `{"mustMention": [..]}` — chuỗi phải xuất hiện (không phân biệt hoa thường) trong câu trả lời cuối.
+- `finalAnswer`: `null` hoặc `{"mustMention": [..]}` — mỗi phần tử phải xuất hiện (không phân biệt hoa thường) trong câu trả lời cuối; phần tử là danh sách thì chỉ cần một trong các chuỗi đó.
 - `match`: quy tắc nhận diện prompt thật (§6.3).
 - `nonMcp`: chỗ mở rộng cho dự án skill (§12); bộ chấm hiện tại bỏ qua.
 
@@ -160,7 +160,7 @@ Tài liệu agent đọc đầu tiên: bố cục file, từng field, quy trình
 | id | Prompt | Fixture | Kỳ vọng MCP | Ghi chú |
 |---|---|---|---|---|
 | `open_bugs` | `backlog kiểm tra bugs open` | danh sách 3 bug open của OOP | `[get_my_open_bugs]` | forbidden: `get_issues`, `get_issue`, `get_bug_context`, `get_my_project_status` |
-| `open_bugs_empty` | `backlog kiểm tra bugs open` | không có bug open | `[get_my_open_bugs]` | forbidden như `open_bugs`; `finalAnswer.mustMention: ["0"]` |
+| `open_bugs_empty` | `backlog kiểm tra bugs open` | không có bug open | `[get_my_open_bugs]` | forbidden như `open_bugs`; `finalAnswer.mustMention: [["0", "không có"]]` (một trong hai; nới ngày 2026-09-24 theo quyết định người dùng vì model trả lời đúng bằng chữ) |
 | `resolve_fixed` | `backlog resolve {issue}, bug này tôi fix rồi` | `OOP-912762` | `[resolve_bug{mode:apply}]` | forbidden như §6.1 |
 | `resolve_multi` | `backlog resolve {a}, {b}, các bug này tôi fix rồi` | `OOP-912774`, `OOP-912773` | 2 × `resolve_bug{mode:apply}`, `order: any` | |
 | `resolve_warning` | `backlog resolve {issue}, bug này tôi fix rồi` | `OOP-912749` (Detected Role đổi thành Developer) | `[resolve_bug{mode:apply}]` | `finalAnswer.mustMention: ["Tester"]` |

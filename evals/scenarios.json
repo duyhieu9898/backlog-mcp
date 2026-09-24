@@ -23,7 +23,7 @@
       "calls": [{"tool": "get_my_open_bugs", "args": {}}],
       "order": "exact",
       "forbidden": ["get_issues", "get_issue", "get_bug_context", "get_my_project_status"],
-      "finalAnswer": {"mustMention": ["0"]}
+      "finalAnswer": {"mustMention": [["0", "không có"]]}
     },
     "nonMcp": null
   },

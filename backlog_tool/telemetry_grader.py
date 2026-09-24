@@ -109,7 +109,12 @@ def grade(expect, flow, final_answer=None, require_final_answer=False):
         elif final_answer is None:
             final_check = {"skipped": "no final answer"}
         else:
-            missing = [word for word in rule["mustMention"] if word.lower() not in final_answer.lower()]
+            answer = final_answer.lower()
+            # An entry is one phrase, or a list of alternatives of which any one is enough.
+            missing = [
+                item for item in rule["mustMention"]
+                if not any(word.lower() in answer for word in (item if isinstance(item, list) else [item]))
+            ]
             final_check = {"missing": missing} if missing else {"ok": True}
             if missing:
                 reasons.append(f"final answer does not mention {missing}")
