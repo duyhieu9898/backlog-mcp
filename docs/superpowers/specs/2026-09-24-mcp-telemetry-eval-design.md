@@ -12,6 +12,7 @@ Backlog MCP được dùng hằng ngày qua Claude Code và Antigravity (Gemini)
 - Model đoán schema và truyền sai tham số; tên tham số chưa đồng bộ (`issue_ref` ở `get_issue`/`update_issue`, `issue_key` ở tool bug).
 - Text content của `resolve_bug` preview chỉ có `(structured data)` cho `changes`/`warnings`/`assignment`.
 - Cơ chế log hiện tại có 3 sink chồng lấn (`backlog.log`, `metrics.log`, `telemetry.jsonl`) + journal `logs/sessions/`, tên field lệch nhau (`command` vs `tool`), log thật từng bị lẫn record pytest, không có session/phiên bản server, CLI không được trace.
+- Probe `agy -p "backlog kiểm tra bugs open của project OOP"` (2026-09-24, backend thật, chỉ đọc): agy không đưa tool MCP thành tool riêng mà qua meta-tool `call_mcp_tool {ServerName, ToolName, Arguments}`; model phải `view_file` từng schema trong `~/.gemini/antigravity-cli/mcp/backlog/<tool>.json` trước khi gọi (4 lần đọc schema trước call đầu tiên); model chỉ nhận **text content**. `get_my_open_bugs` trả text `No data.` (người dùng thật sự có 0 bug open) → model không tin, gọi thêm `inspect_project`, `get_issues` ×3, `get_my_project_status`, rồi đọc transcript, source code và chạy Python gọi thẳng Backlog API; timeout sau 240 s.
 - Không có cách lặp lại để kiểm chứng một thay đổi mô tả tool/response có giúp model đi đúng workflow hay không.
 
 ## 2. Mục tiêu
@@ -35,6 +36,7 @@ Backlog MCP được dùng hằng ngày qua Claude Code và Antigravity (Gemini)
 - Phân tích field thừa: người dùng tự review response.
 - Ngưỡng thời gian/token cứng: thời gian và token chỉ được báo cáo để review.
 - Codex CLI; Gemini CLI (legacy).
+- Import transcript agy (`~/.gemini/antigravity-cli/brain/<id>/.system_generated/logs/transcript.jsonl`) cho dùng thật: để sau; eval agy lấy dữ liệu từ stream-json.
 - Tải/gửi nội dung ảnh đính kèm cho model: người dùng tự xem ảnh và nhắc trong prompt khi cần; model chỉ cần biết tệp tồn tại.
 - Làm gọn `get_bug_context` / `get_my_open_bugs` (bỏ `rawDescription`, bỏ description trong list): để người dùng tự review sau khi có log field.
 
@@ -157,7 +159,8 @@ Tài liệu agent đọc đầu tiên: bố cục file, từng field, quy trình
 
 | id | Prompt | Fixture | Kỳ vọng MCP | Ghi chú |
 |---|---|---|---|---|
-| `open_bugs` | `backlog kiểm tra bugs open` | danh sách 3 bug open của OOP | `[get_my_open_bugs]` | forbidden: `get_issues`, `get_issue`, `get_bug_context` |
+| `open_bugs` | `backlog kiểm tra bugs open` | danh sách 3 bug open của OOP | `[get_my_open_bugs]` | forbidden: `get_issues`, `get_issue`, `get_bug_context`, `get_my_project_status` |
+| `open_bugs_empty` | `backlog kiểm tra bugs open` | không có bug open | `[get_my_open_bugs]` | forbidden như `open_bugs`; `finalAnswer.mustMention: ["0"]` |
 | `resolve_fixed` | `backlog resolve {issue}, bug này tôi fix rồi` | `OOP-90001` | `[resolve_bug{mode:apply}]` | forbidden như §6.1 |
 | `resolve_multi` | `backlog resolve {a}, {b}, các bug này tôi fix rồi` | `OOP-90001`, `OOP-90005` | 2 × `resolve_bug{mode:apply}`, `order: any` | |
 | `resolve_warning` | `backlog resolve {issue}, bug này tôi fix rồi` | `OOP-90003` (Detected Role = Developer) | `[resolve_bug{mode:apply}]` | `finalAnswer.mustMention: ["Tester"]` |
@@ -166,7 +169,7 @@ Tài liệu agent đọc đầu tiên: bố cục file, từng field, quy trình
 
 ### 6.3 Nhận diện prompt thật (cho `import-claude`)
 
-Prompt phải chứa `backlog` (không phân biệt hoa thường). Mã issue = mọi chuỗi khớp `\b[A-Z][A-Z0-9_]*-\d+\b`. Thứ tự xét: `resolve` + ≥2 mã → `resolve_multi` (kỳ vọng N apply); `resolve` + 1 mã → `resolve_fixed`; `fix` + 1 mã → `fix_context`; `bug` + (`open` | `mở`) + 0 mã → `open_bugs`. Không khớp → chỉ áp tầng 2. Với prompt thật, `resolve_warning`/`fix_context_attachment` không được gán (chỉ dùng trong eval).
+Prompt phải chứa `backlog` (không phân biệt hoa thường). Mã issue = mọi chuỗi khớp `\b[A-Z][A-Z0-9_]*-\d+\b`. Thứ tự xét: `resolve` + ≥2 mã → `resolve_multi` (kỳ vọng N apply); `resolve` + 1 mã → `resolve_fixed`; `fix` + 1 mã → `fix_context`; `bug` + (`open` | `mở`) + 0 mã → `open_bugs`. Không khớp → chỉ áp tầng 2. Với prompt thật, `open_bugs_empty`/`resolve_warning`/`fix_context_attachment` không được gán (chỉ dùng trong eval).
 
 ## 7. Tầng 2 và 3 — Phân tích
 
@@ -202,7 +205,7 @@ Prompt phải chứa `backlog` (không phân biệt hoa thường). Mã issue = 
 
 ### 7.4 Chấm theo kịch bản (tầng 3)
 
-Kết quả mỗi flow: `{scenario, pass, reasons[], mcpCalls[], extraCalls[], forbiddenHits[], argErrors[], finalAnswerCheck, nonMcpCalls, wallClockMs?, startupMs?, estTokens}`.
+Kết quả mỗi flow: `{scenario, pass, reasons[], mcpCalls[], extraCalls[], forbiddenHits[], argErrors[], finalAnswerCheck, nonMcpCalls, schemaReads, deniedTools, wallClockMs?, startupMs?, estTokens}`.
 
 `pass` khi đồng thời: `calls` khớp theo `order`; không `forbiddenHits`; không `argErrors`; `finalAnswer` (nếu có) đạt. Chỉ call tới server backlog được tính là MCP call.
 
@@ -245,7 +248,13 @@ Khi trong một flow, sau call A (tool chuyên dụng) có call B khác tool cù
 | Agent | Lệnh | Ghi chú |
 |---|---|---|
 | `claude` | `claude -p "<prompt>" --model <m> --output-format stream-json --verbose --allowedTools "mcp__backlog__*"` | Chạy trong workspace eval; hook/skill global giữ nguyên (D9). |
-| `agy` | `agy -p "<prompt>" --model <m> --output-format stream-json --dangerously-skip-permissions --print-timeout <t>` | Chạy trong workspace eval. |
+| `agy` | `agy -p "<prompt>" --model <m> --output-format stream-json --dangerously-skip-permissions --sandbox --print-timeout <t>` | Chạy trong workspace eval. |
+
+Cách lấy call từ stream-json:
+- `claude`: `assistant.message.content[].type == "tool_use"`; tool MCP có tên `mcp__backlog__<tool>`; tool khác là call ngoài MCP.
+- `agy`: event `step_update` với `state == "DONE"` và `step_type == "tool"`; `tool_name == "call_mcp_tool"` và `tool_info.parameters.ServerName == "backlog"` là MCP call (`ToolName`, `Arguments`); `view_file` trên `~/.gemini/antigravity-cli/mcp/backlog/*` được đếm là `schemaReads` (không phải extra call); tool khác là call ngoài MCP. Câu trả lời cuối = `result.response`.
+
+An toàn khi eval (model có thể tự tìm tới repo và gọi Backlog thật như trong probe): `claude` chỉ được phép `mcp__backlog__*`, `Read`, `Glob`, `Grep` (`--allowedTools`); `agy` chạy với `--sandbox`. Các lần tool bị từ chối được ghi vào kết quả run. Fixture dùng mã `OOP-900xx` không tồn tại trên Backlog thật.
 
 Mỗi run: tạo workspace tạm (hoặc `--workspace`) → ghi `.backlog-eval.json` + `.backlog-project.json` → start Backlog giả → chạy agent → parse stream-json (prompt, model, tool call MCP và ngoài MCP, câu trả lời cuối, `startupMs` = spawn→event init, `wallClockMs` = event init→event result) → đọc log run → chấm → lưu. Model dừng để hỏi người dùng = run kết thúc; harness không trả lời.
 
