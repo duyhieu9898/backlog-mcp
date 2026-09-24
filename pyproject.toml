@@ -21,11 +21,12 @@ backlog-cli = "backlog_tool.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["backlog_mcp*", "backlog_tool*", "workflows*", "evals*"]
+include = ["backlog_mcp*", "backlog_tool*", "workflows*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+pythonpath = ["."]
 markers = [
   "real_log_paths: opt out of the autouse fixture that redirects logs to a temp directory",
 ]
