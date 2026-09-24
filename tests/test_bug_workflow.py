@@ -131,7 +131,6 @@ class BugWorkflowTest(unittest.TestCase):
         ).start()
         mock.patch.object(bug_workflow, "BacklogClient", return_value=self.client).start()
         mock.patch.object(bug_workflow, "resolve_project", return_value=PROJECT).start()
-        mock.patch.object(bug_workflow, "log_event").start()
         self.addCleanup(mock.patch.stopall)
 
     def test_parse_bug_description_extracts_template_sections(self):
@@ -553,6 +552,24 @@ class BugWorkflowTest(unittest.TestCase):
             "fixed:\n- UserNav.tsx: split name and email\n- admin-profile-dialog.tsx: move role Badge",
             result["payload"]["customField_5"],
         )
+
+    def test_resolve_records_mutation_for_preview_and_apply(self):
+        from backlog_tool import telemetry
+
+        self.client.update_issue.return_value = {**BUG_ISSUE, "status": {"name": "Resolved"}}
+        telemetry.start_call("resolve_bug", {"issue_key": "AQM-123"})
+        preview = bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2), fix_description="x")
+        telemetry.start_call("resolve_bug", {"issue_key": "AQM-123", "mode": "apply"})
+        with mock.patch.object(bug_workflow, "record_mutation") as record:
+            bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, today=date(2026, 6, 2), fix_description="x")
+        telemetry.finish_call("ok")
+
+        applied = record.call_args.kwargs
+        self.assertEqual("apply", applied["mode"])
+        self.assertEqual(telemetry.plan_hash("AQM-123", preview["payload"]), applied["planHash"])
+        self.assertEqual("In Progress", applied["statusBefore"])
+        self.assertEqual("Resolved", applied["statusAfter"])
+        self.assertIn("statusId", applied["changedFields"])
 
 
 if __name__ == "__main__":

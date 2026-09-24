@@ -1,4 +1,5 @@
 import argparse
+import os
 import unittest
 from unittest import mock
 
@@ -113,7 +114,6 @@ class BacklogApiPayloadTest(unittest.TestCase):
             "resolve_project_for_issue",
             return_value=PROJECT,
         ).start()
-        mock.patch.object(backlog_issue_service, "log_event").start()
         self.addCleanup(mock.patch.stopall)
 
     def test_create_payload_uses_explicit_category_and_custom_field_labels(self):
@@ -208,23 +208,31 @@ class BacklogApiPayloadTest(unittest.TestCase):
         self.assertTrue(result["dryRun"])
         self.assertEqual("Smoke summary", result["payload"]["summary"])
 
-    def test_log_response_records_error_status_and_body_without_url(self):
+    def test_request_json_records_api_call_without_query_or_key(self):
+        from backlog_tool import telemetry
+
         class Response:
             ok = False
             status_code = 400
             text = '{"errors":[{"message":"bad request"}]}'
 
-        with mock.patch("backlog_tool.client.log_event") as log_event:
-            backlog_client.log_response("POST", "/issues", Response())
+            def raise_for_status(self):
+                raise backlog_client.requests.HTTPError("bad")
 
-        log_event.assert_called_once_with(
-            "error",
-            "api",
-            method="POST",
-            path="/issues",
-            status=400,
-            body='{"errors":[{"message":"bad request"}]}',
-        )
+        with mock.patch.object(backlog_client, "require_api_key", return_value="SECRET"), \
+             mock.patch.object(backlog_client, "api_base_url", return_value="https://x/api/v2"), \
+             mock.patch.object(backlog_client.requests, "request", return_value=Response()):
+            telemetry.start_call("create_issue", {})
+            with self.assertRaises(RuntimeError):
+                backlog_client.BacklogClient({}).request_json("POST", "/issues", params={"count": 1})
+            telemetry.finish_call("error", error="bad request")
+
+        folder = telemetry.log_paths()["details_dir"]
+        text = "".join(open(os.path.join(folder, n), encoding="utf-8").read() for n in os.listdir(folder))
+        errors = open(telemetry.log_paths()["errors"], encoding="utf-8").read()
+        self.assertNotIn("SECRET", text + errors)
+        self.assertIn('"path": "/issues"', text)
+        self.assertIn('"kind": "api_error"', errors)
 
 
 if __name__ == "__main__":

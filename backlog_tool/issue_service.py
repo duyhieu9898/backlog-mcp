@@ -9,7 +9,8 @@ from .resolver import (
     resolve_issue_type,
     resolve_status,
 )
-from .settings import log_event, resolve_project, resolve_project_for_issue
+from .settings import resolve_project, resolve_project_for_issue
+from .telemetry import plan_hash, record_mutation
 
 
 def request_json(config, method, path, data=None):
@@ -195,7 +196,7 @@ def create_issue(
         args = summary
         data = build_create_payload(config, args)
         dry_run = getattr(args, "dry_run", dry_run)
-        project = resolve_project(config, getattr(args, "project", None), start_path=getattr(args, "workspace_path", None))
+        resolve_project(config, getattr(args, "project", None), start_path=getattr(args, "workspace_path", None))
     else:
         data = build_create_payload(
             config,
@@ -214,11 +215,14 @@ def create_issue(
             custom_fields=custom_fields,
             workspace_path=workspace_path,
         )
-        project = resolve_project(config, project_key or None, start_path=workspace_path)
+        resolve_project(config, project_key or None, start_path=workspace_path)
 
+    record_mutation(
+        mode="preview" if dry_run else "apply",
+        planHash=plan_hash(None, data),
+        changedFields=sorted(data.keys()),
+    )
     if dry_run:
-        log_event("info", "dry_run", command="create", project=project.get("key"),
-                  payload_keys=",".join(sorted(data.keys())))
         return {"dryRun": True, "payload": data}
 
     return BacklogClient(config).create_issue(data)
@@ -326,7 +330,7 @@ def update_issue(
         args = issue_id
         data = build_update_payload(config, args)
         dry_run = getattr(args, "dry_run", dry_run)
-        project = resolve_project_for_issue(
+        resolve_project_for_issue(
             config, args.issue_id, getattr(args, "project", None),
             start_path=getattr(args, "workspace_path", None)
         )
@@ -350,14 +354,17 @@ def update_issue(
             custom_fields=custom_fields,
             workspace_path=workspace_path,
         )
-        project = resolve_project_for_issue(
+        resolve_project_for_issue(
             config, issue_id, project_key or None, start_path=workspace_path
         )
         target_id = issue_id
 
+    record_mutation(
+        mode="preview" if dry_run else "apply",
+        planHash=plan_hash(target_id, data),
+        changedFields=sorted(data.keys()),
+    )
     if dry_run:
-        log_event("info", "dry_run", command="update", project=project.get("key"),
-                  issue=target_id, payload_keys=",".join(sorted(data.keys())))
         return {"dryRun": True, "issue": target_id, "payload": data}
 
     return BacklogClient(config).update_issue(target_id, data)

@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest import mock
 import requests
@@ -10,6 +11,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from backlog_tool import client as backlog_client
+from backlog_tool import telemetry
 
 
 class FakeResponse:
@@ -45,12 +47,14 @@ class BacklogClientTest(unittest.TestCase):
             backlog_client.requests,
             "request",
             return_value=response,
-        ) as request, mock.patch.object(backlog_client, "log_response") as log_response:
+        ) as request:
+            telemetry.start_call("get_issues", {})
             result = backlog_client.BacklogClient(config).request_json(
                 "GET",
                 "/issues",
                 params={"count": 100},
             )
+            telemetry.finish_call("ok")
 
         self.assertEqual({"ok": True}, result)
         request.assert_called_once_with(
@@ -60,7 +64,13 @@ class BacklogClientTest(unittest.TestCase):
             data=None,
             timeout=20,
         )
-        log_response.assert_called_once_with("GET", "/issues", response)
+
+        folder = telemetry.log_paths()["details_dir"]
+        text = "".join(open(os.path.join(folder, n), encoding="utf-8").read() for n in os.listdir(folder))
+        self.assertNotIn("test-key", text)
+        self.assertNotIn("apiKey", text)
+        self.assertIn('"path": "/issues"', text)
+        self.assertNotIn("count=100", text)
 
     def test_get_issues_builds_backlog_list_params(self):
         client = backlog_client.BacklogClient({"base_url": "https://example.backlog.com"})
@@ -88,12 +98,20 @@ class BacklogClientTest(unittest.TestCase):
             backlog_client.requests,
             "request",
             return_value=FakeErrorResponse({}),
-        ), mock.patch.object(backlog_client, "log_response"):
+        ):
+            telemetry.start_call("create_issue", {})
             with self.assertRaisesRegex(RuntimeError, "POST /issues failed with status 400") as raised:
                 backlog_client.BacklogClient(config).request_json("POST", "/issues")
+            telemetry.finish_call("error", error=str(raised.exception))
 
         self.assertNotIn("apiKey", str(raised.exception))
         self.assertNotIn("test-key", str(raised.exception))
+
+        folder = telemetry.log_paths()["details_dir"]
+        text = "".join(open(os.path.join(folder, n), encoding="utf-8").read() for n in os.listdir(folder))
+        errors = open(telemetry.log_paths()["errors"], encoding="utf-8").read()
+        self.assertNotIn("test-key", text + errors)
+        self.assertNotIn("apiKey", text + errors)
 
 
 if __name__ == "__main__":

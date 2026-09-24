@@ -11,7 +11,8 @@ from backlog_tool.resolver import (
     resolve_status,
 )
 
-from backlog_tool.settings import load_workflow_config, log_event, resolve_project, resolve_user_id
+from backlog_tool.settings import load_workflow_config, resolve_project, resolve_user_id
+from backlog_tool.telemetry import plan_hash, record_mutation
 from .config import require_int, require_mapping, require_value
 
 
@@ -130,15 +131,12 @@ def created_user_id(response):
 
 def create_subtask_bug(config, project_key, parent_key, module, description, dry_run=False, start_path=None):
     built = build_subtask_bug_payload(config, project_key, parent_key, module, description, start_path=start_path)
+    record_mutation(
+        mode="preview" if dry_run else "apply",
+        planHash=plan_hash(parent_key, built["payload"]),
+        changedFields=sorted(built["payload"].keys()),
+    )
     if dry_run:
-        log_event(
-            "info",
-            "dry_run",
-            command="ut_bug",
-            project=built["project"],
-            parent_issue=parent_key,
-            payload_keys=",".join(sorted(built["payload"].keys())),
-        )
         return {"dryRun": True, **built}
 
     client = BacklogClient(config)

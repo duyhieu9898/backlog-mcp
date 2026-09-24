@@ -114,7 +114,6 @@ class CreateUtBugDefaultTest(unittest.TestCase):
         mock.patch.object(backlog_ut_bug_service, "resolve_project", return_value=PROJECT).start()
         mock.patch.object(backlog_ut_bug_service, "BacklogClient", return_value=self.client).start()
         mock.patch.object(backlog_ut_bug_service, "load_workflow_config", return_value=UT_BUG_WORKFLOW).start()
-        mock.patch.object(backlog_ut_bug_service, "log_event").start()
         self.addCleanup(mock.patch.stopall)
 
     def test_build_subtask_bug_payload_uses_defaults_parent_and_corrective_action(self):

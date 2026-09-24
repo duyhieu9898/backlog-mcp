@@ -6,7 +6,8 @@ from datetime import date
 from .bug_template import bug_context
 from backlog_tool.client import BacklogClient
 from backlog_tool.resolver import find_option, issue_type_options, resolve_custom_field_defaults, resolve_custom_field_value, status_options
-from backlog_tool.settings import load_workflow_config, log_event, resolve_project, resolve_project_key, resolve_user_id
+from backlog_tool.settings import load_workflow_config, resolve_project, resolve_project_key, resolve_user_id
+from backlog_tool.telemetry import plan_hash, record_mutation
 from .config import require_int, require_list, require_value, require_mapping
 from .resolution_plan import ResolutionPlan, resolution_plan_to_payload
 from .resolve_policy import (
@@ -526,14 +527,15 @@ def resolve_bug(config, issue_key, dry_run=True, start_path=None, **kwargs):
             "fall back to the bug summary. Describe what was changed and retry."
         )
     built = build_resolve_bug_payload(config, issue_key, start_path=start_path, **kwargs)
+    outcome = {
+        "planHash": plan_hash(issue_key, built["payload"]),
+        "statusBefore": built["context"].get("status"),
+        "changedFields": sorted(built["payload"].keys()),
+        "warnings": built["warnings"],
+    }
     if dry_run:
-        log_event(
-            "info",
-            "dry_run",
-            command="bug_resolve",
-            issue=issue_key,
-            project=built["project"],
-            payload_keys=",".join(sorted(built["payload"].keys())),
-        )
+        record_mutation(mode="preview", **outcome)
         return {"dryRun": True, **built}
-    return BacklogClient(config).update_issue(issue_key, built["payload"])
+    updated = BacklogClient(config).update_issue(issue_key, built["payload"])
+    record_mutation(mode="apply", statusAfter=((updated or {}).get("status") or {}).get("name"), **outcome)
+    return updated
