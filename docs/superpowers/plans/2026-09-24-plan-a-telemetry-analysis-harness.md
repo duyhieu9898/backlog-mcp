@@ -16,6 +16,7 @@
 - Mỗi commit kết thúc bằng dòng: `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`
 - Không thêm dependency vào `pyproject.toml`.
 - Không ghi API key, không ghi URL có query string vào log.
+- Repo public: không commit dữ liệu dựng từ Backlog/log thật (`tests/fixtures/local/`, `evals/cassettes/`, `evals/results/**/*.jsonl` bị gitignore). Chỉ commit `SUMMARY.md` của eval.
 - Ghi log không bao giờ làm hỏng tool call; lỗi ghi → `settings.report_log_failure(path, error)` (cảnh báo stderr một lần mỗi file).
 - stdout của MCP server chỉ dành cho giao thức MCP.
 - Schema log `v = 3`; tên field đúng như spec §5.
@@ -52,7 +53,8 @@
 | `backlog_tool/claude_transcripts.py` | mới | Đọc transcript Claude Code thành flow |
 | `backlog_tool/telemetry_report.py` | mới | Dựng báo cáo |
 | `evals/__init__.py`, `evals/scenarios.json` | mới | Kịch bản |
-| `evals/fake_backlog.py` | mới | Backlog giả + fixture |
+| `evals/cassettes.py` | mới | Trích cassette (response thật từ log cũ, rekey `OOP-9xxxxx`) |
+| `evals/fake_backlog.py` | mới | Backlog giả: phát lại cassette hoặc bộ synthetic cùng mã |
 | `evals/agents.py` | mới | Lệnh chạy + parser stream-json cho `claude` và `agy` |
 | `evals/run.py` | mới | Runner: workspace, fake, agent, chấm, lưu kết quả |
 | `docs/telemetry.md` | mới | Schema log, cách đọc, công thức mẫu, eval |
@@ -1834,7 +1836,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
   {
     "id": "resolve_fixed",
     "prompt": "backlog resolve {issue}, bug này tôi fix rồi",
-    "fixtures": {"issue": "OOP-90001"},
+    "fixtures": {"issue": "OOP-912762"},
     "fakeState": "default",
     "match": {"keywords": [["resolve"]], "issueKeys": "one"},
     "expect": {
@@ -1848,7 +1850,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
   {
     "id": "resolve_multi",
     "prompt": "backlog resolve {a}, {b}, các bug này tôi fix rồi",
-    "fixtures": {"a": "OOP-90001", "b": "OOP-90005"},
+    "fixtures": {"a": "OOP-912774", "b": "OOP-912773"},
     "fakeState": "default",
     "match": {"keywords": [["resolve"]], "issueKeys": "many"},
     "expect": {
@@ -1865,7 +1867,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
   {
     "id": "resolve_warning",
     "prompt": "backlog resolve {issue}, bug này tôi fix rồi",
-    "fixtures": {"issue": "OOP-90003"},
+    "fixtures": {"issue": "OOP-912749"},
     "fakeState": "default",
     "match": null,
     "expect": {
@@ -1879,7 +1881,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
   {
     "id": "fix_context",
     "prompt": "backlog fix {issue}",
-    "fixtures": {"issue": "OOP-90002"},
+    "fixtures": {"issue": "OOP-912779"},
     "fakeState": "default",
     "match": {"keywords": [["fix"]], "issueKeys": "one"},
     "expect": {
@@ -1893,7 +1895,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
   {
     "id": "fix_context_attachment",
     "prompt": "backlog fix {issue}",
-    "fixtures": {"issue": "OOP-90004"},
+    "fixtures": {"issue": "OOP-912744"},
     "fakeState": "default",
     "match": null,
     "expect": {
@@ -1937,12 +1939,12 @@ def test_all_scenarios_render_without_placeholders():
 
 def test_resolve_fast_path_passes_and_preview_is_extra():
     expect = scenario("resolve_fixed")["expect"]
-    good = grade(expect, Flow("r", [call("resolve_bug", {"issue_key": "OOP-90001", "mode": "apply"})]))
+    good = grade(expect, Flow("r", [call("resolve_bug", {"issue_key": "OOP-912762", "mode": "apply"})]))
     assert good["pass"] is True and good["extraCalls"] == []
 
     two = grade(expect, Flow("r", [
-        call("resolve_bug", {"issue_key": "OOP-90001", "mode": "preview"}),
-        call("resolve_bug", {"issue_key": "OOP-90001", "mode": "apply"}),
+        call("resolve_bug", {"issue_key": "OOP-912762", "mode": "preview"}),
+        call("resolve_bug", {"issue_key": "OOP-912762", "mode": "apply"}),
     ]))
     assert two["pass"] is False and two["extraCalls"] == ["resolve_bug"]
 
@@ -1950,9 +1952,9 @@ def test_resolve_fast_path_passes_and_preview_is_extra():
 def test_forbidden_and_arg_errors_fail():
     expect = scenario("resolve_fixed")["expect"]
     result = grade(expect, Flow("r", [
-        call("get_bug_context", {"issue_key": "OOP-90001"}),
-        call("resolve_bug", {"issueKey": "OOP-90001"}, status="invalid_arguments", errors=[{"kind": "arg_error", "unknown": ["issueKey"]}]),
-        call("resolve_bug", {"issue_key": "OOP-90001", "mode": "apply"}),
+        call("get_bug_context", {"issue_key": "OOP-912762"}),
+        call("resolve_bug", {"issueKey": "OOP-912762"}, status="invalid_arguments", errors=[{"kind": "arg_error", "unknown": ["issueKey"]}]),
+        call("resolve_bug", {"issue_key": "OOP-912762", "mode": "apply"}),
     ]))
     assert result["pass"] is False
     assert result["forbiddenHits"] == ["get_bug_context"]
@@ -1962,13 +1964,13 @@ def test_forbidden_and_arg_errors_fail():
 def test_multi_any_order_and_final_answer():
     expect = scenario("resolve_multi")["expect"]
     flow = Flow("r", [
-        call("resolve_bug", {"issue_key": "OOP-90005", "mode": "apply"}),
-        call("resolve_bug", {"issue_key": "OOP-90001", "mode": "apply"}),
+        call("resolve_bug", {"issue_key": "OOP-912773", "mode": "apply"}),
+        call("resolve_bug", {"issue_key": "OOP-912774", "mode": "apply"}),
     ])
     assert grade(expect, flow)["pass"] is True
 
     warn = scenario("resolve_warning")["expect"]
-    flow = Flow("r", [call("resolve_bug", {"issue_key": "OOP-90003", "mode": "apply"})])
+    flow = Flow("r", [call("resolve_bug", {"issue_key": "OOP-912749", "mode": "apply"})])
     assert grade(warn, flow, final_answer="Đã resolve. Cảnh báo: Detected Role không phải Tester")["pass"] is True
     missing = grade(warn, flow, final_answer="Đã resolve.")
     assert missing["pass"] is False and missing["finalAnswerCheck"] == {"missing": ["Tester"]}
@@ -2554,8 +2556,8 @@ def test_parse_since():
 
 def test_report_from_logs_with_eval_grade_and_rules():
     telemetry.set_eval_tags("run-1", "resolve_fixed")
-    make("get_bug_context", {"issue_key": "OOP-90001"})
-    make("resolve_bug", {"issue_key": "OOP-90001", "mode": "apply"})
+    make("get_bug_context", {"issue_key": "OOP-912762"})
+    make("resolve_bug", {"issue_key": "OOP-912762", "mode": "apply"})
     telemetry.set_eval_tags(None, None)
     make("get_issue", {"issue_ref": "OOP-5"}, status="error", size=9000)
 
@@ -2781,11 +2783,23 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ### Task 13: Fixture log ngày 23/09 và kiểm chứng tầng phân tích (đóng P2)
 
 **Files:**
-- Create: `tests/fixtures/telemetry-2026-09-23/` (`calls.jsonl`, `errors.jsonl`, `details/2026-09-23.jsonl`)
+- Modify: `.gitignore`
+- Create (chỉ trên máy, gitignore): `tests/fixtures/local/telemetry-2026-09-23/` (`calls.jsonl`, `errors.jsonl`, `details/2026-09-23.jsonl`)
 - Test: `tests/test_telemetry_legacy_fixture.py`
 
 **Interfaces:**
 - Consumes: `load_calls`, `group_flows`, `apply_rules`, `report_from_logs` (Task 7–12).
+
+- [ ] **Step 0: Gitignore dữ liệu thật** — repo public; mọi dữ liệu dựng từ log/Backlog thật chỉ nằm trên máy. Thêm vào `.gitignore`:
+
+```
+# Real project data stays local (repo is public)
+tests/fixtures/local/
+evals/cassettes/
+evals/results/**/*.jsonl
+```
+
+Kiểm tra: `git check-ignore tests/fixtures/local/x evals/cassettes/oop.json evals/results/2026-09-24-smoke/claude-opus.jsonl` → in cả 3 đường dẫn.
 
 - [ ] **Step 1: Chuyển log legacy thành fixture (script một lần, không commit script)** — nguồn: `logs/legacy/telemetry.jsonl` (hoặc `logs/telemetry.jsonl` nếu người dùng chưa chuyển). Chạy:
 
@@ -2793,7 +2807,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 uv run python - <<'EOF'
 import json, os
 src = "logs/legacy/telemetry.jsonl" if os.path.exists("logs/legacy/telemetry.jsonl") else "logs/telemetry.jsonl"
-out = "tests/fixtures/telemetry-2026-09-23"
+out = "tests/fixtures/local/telemetry-2026-09-23"
 os.makedirs(f"{out}/details", exist_ok=True)
 rows = [json.loads(l) for l in open(src, encoding="utf-8") if l.startswith("{")]
 day = [r for r in rows if r["ts"].startswith("2026-09-23")]
@@ -2819,7 +2833,7 @@ print("done", sum(1 for _ in open(f"{out}/calls.jsonl")))
 EOF
 ```
 
-Expected: `done 41`. Ghi chú: `sessionId` của fixture = tên client (log cũ không có session); `result` không có trong log cũ.
+Expected: `done 41`. Ghi chú: `sessionId` của fixture = tên client (log cũ không có session); `result` không có trong log cũ. Fixture chứa dữ liệu thật (tham số, comment) nên nằm trong `tests/fixtures/local/` (gitignore); test tự bỏ qua trên máy không có fixture.
 
 - [ ] **Step 2: Viết test** — `tests/test_telemetry_legacy_fixture.py`:
 
@@ -2830,7 +2844,10 @@ from backlog_tool.telemetry_report import report_from_logs
 from backlog_tool.telemetry_rules import apply_rules
 from backlog_tool.telemetry_store import group_flows, load_calls
 
-FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "telemetry-2026-09-23")
+import pytest
+
+FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "local", "telemetry-2026-09-23")
+pytestmark = pytest.mark.skipif(not os.path.isdir(FIXTURE), reason="local-only fixture built from real logs")
 
 
 def test_fixture_loads_all_calls():
@@ -2858,7 +2875,7 @@ def test_report_runs_on_fixture():
 
 ```bash
 uv run --extra dev pytest -q && uvx ruff check --select F backlog_mcp backlog_tool workflows evals
-git add tests/fixtures/telemetry-2026-09-23 tests/test_telemetry_legacy_fixture.py
+git add .gitignore tests/test_telemetry_legacy_fixture.py   # fixture thật không commit
 git commit -m "Verify analysis layer against 2026-09-23 usage fixture
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
@@ -2986,65 +3003,268 @@ git commit -m "Enable fake Backlog eval mode via workspace marker file
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
 
-### Task 15: Backlog giả
+### Task 15: Cassette (dữ liệu thật ghi lại) và Backlog giả
+
+Dữ liệu thật chỉ nằm trên máy: `evals/cassettes/` bị gitignore (Task 13 Step 0). Trên máy không có cassette (clone mới), Backlog giả dùng bộ **synthetic** dựng từ `tests/fixtures/OOP_issue_bug.json` với cùng mã issue, để test vẫn chạy. Eval thật (`evals/run.py`) bắt buộc dùng cassette.
 
 **Files:**
+- Create: `evals/cassettes.py`
 - Create: `evals/fake_backlog.py`
-- Test: `tests/test_fake_backlog.py`
+- Create: `tests/fixtures/legacy_telemetry_sample.jsonl` (synthetic, được commit)
+- Test: `tests/test_cassettes.py`, `tests/test_fake_backlog.py`, `tests/test_fake_fidelity.py`
 
 **Interfaces:**
-- Consumes: `tests/fixtures/OOP_issue_bug.json`, `config/backlog.json` (user `me`), `config/projects/OOP.json`.
 - Produces:
-  - `build_issues(state: str = "default") -> dict[str, dict]` (key = issueKey)
-  - `class FakeBacklog` với `start() -> str` (base URL `http://127.0.0.1:<port>`), `stop()`, `patches: list[dict]` (`{"key", "form"}`), `unhandled: list[dict]` (`{"method", "path"}`); context manager.
-  - CLI: `uv run python -m evals.fake_backlog [--state default|no_open_bugs] [--port N]` chạy tới khi Ctrl+C.
+  - `cassettes.rekey(key: str) -> str` (`OOP-12762` → `OOP-912762`)
+  - `cassettes.extract(legacy_path: str) -> dict` với `{"version": 1, "source", "issues": {key: body}, "lists": [{"ts", "params", "result": [key], "bodies": [body]}], "patches": [{"ts", "key", "before", "data", "after"}]}` (mọi mã issue đã rekey)
+  - `cassettes.load_cassette(path=CASSETTE_PATH) -> dict | None`; `cassettes.CASSETTE_PATH`
+  - `fake_backlog.SCENARIO_OPEN: list[str]`, `fake_backlog.SCENARIO_KEYS: list[str]`
+  - `fake_backlog.build_issues(state="default", source="auto") -> dict[str, dict]` (`source`: `auto` | `cassette` | `synthetic`)
+  - `fake_backlog.apply_patch(issue: dict, data: dict) -> dict`, `fake_backlog.matches_list(issue: dict, params: dict) -> bool`, `fake_backlog.display_value(value) -> object`
+  - `class FakeBacklog(state="default", source="auto", port=0)` với `start() -> str`, `stop()`, `base_url`, `source` (thực tế đã dùng), `patches: list[{"key", "form"}]`, `unhandled: list[{"method", "path"}]`; context manager.
+  - CLI: `uv run python -m evals.cassettes extract --from <legacy telemetry.jsonl>`; `uv run python -m evals.fake_backlog [--state …] [--source …] [--port N]`.
 
-- [ ] **Step 1: Viết test fail** — `tests/test_fake_backlog.py`:
+Mã dùng trong kịch bản (rekey từ bug thật): danh sách open thật lúc 2026-09-23 16:22 = `OOP-912779, 912777, 912774, 912773, 912762, 912749`; thêm `OOP-912744` (có ảnh đính kèm thật). Hai chỉnh sửa tổng hợp, ghi rõ trong code: `OOP-912749` đổi Detected Role thành `Developer` (dữ liệu thật đều là Tester) và `OOP-912744` đổi tên tệp đính kèm thành `login-error.png`.
+
+- [ ] **Step 1: Fixture legacy synthetic** — `tests/fixtures/legacy_telemetry_sample.jsonl` (định dạng log cũ; nội dung giả):
+
+```jsonl
+{"schemaVersion":2,"ts":"2026-09-23T10:00:00.000+07:00","event":"api_call","traceId":"t1","tool":"get_bug_context","method":"GET","path":"/issues/OOP-12001","status":200,"request":{"params":{},"data":null},"responseBody":"{\"issueKey\":\"OOP-12001\",\"summary\":\"[OOP-12000] Parent\",\"status\":{\"id\":1,\"name\":\"Open\"},\"assignee\":{\"id\":778617},\"createdUser\":{\"id\":315996},\"customFields\":[]}"}
+{"schemaVersion":2,"ts":"2026-09-23T10:01:00.000+07:00","event":"api_call","traceId":"t2","tool":"resolve_bug","method":"GET","path":"/issues/OOP-12001","status":200,"request":{"params":{},"data":null},"responseBody":"{\"issueKey\":\"OOP-12001\",\"summary\":\"[OOP-12000] Parent\",\"status\":{\"id\":1,\"name\":\"Open\"},\"assignee\":{\"id\":778617},\"createdUser\":{\"id\":315996},\"customFields\":[]}"}
+{"schemaVersion":2,"ts":"2026-09-23T10:01:01.000+07:00","event":"api_call","traceId":"t2","tool":"resolve_bug","method":"PATCH","path":"/issues/OOP-12001","status":200,"request":{"params":{},"data":{"statusId":3,"assigneeId":315996}},"responseBody":"{\"issueKey\":\"OOP-12001\",\"summary\":\"[OOP-12000] Parent\",\"status\":{\"id\":3,\"name\":\"Resolved\"},\"assignee\":{\"id\":315996},\"createdUser\":{\"id\":315996},\"customFields\":[]}"}
+{"schemaVersion":2,"ts":"2026-09-23T10:02:00.000+07:00","event":"api_call","traceId":"t3","tool":"get_bug_context","method":"GET","path":"/issues/OOP-12001","status":200,"request":{"params":{},"data":null},"responseBody":"{\"issueKey\":\"OOP-12001\",\"summary\":\"[OOP-12000] Parent\",\"status\":{\"id\":3,\"name\":\"Resolved\"},\"assignee\":{\"id\":315996},\"createdUser\":{\"id\":315996},\"customFields\":[]}"}
+{"schemaVersion":2,"ts":"2026-09-23T10:03:00.000+07:00","event":"api_call","traceId":"t4","tool":"get_my_open_bugs","method":"GET","path":"/issues","status":200,"request":{"params":{"assigneeId[]":[778617],"statusId[]":[1,2,3]},"data":null},"responseBody":"[{\"issueKey\":\"OOP-12002\",\"status\":{\"id\":1,\"name\":\"Open\"},\"assignee\":{\"id\":778617}}]"}
+{"schemaVersion":2,"ts":"2026-09-21T16:22:58.000+07:00","event":"api_call","traceId":"x","tool":null,"method":"GET","path":"/issues/OOP-1","status":200,"request":{"params":{},"data":null},"responseBody":"{\"issueKey\":\"OOP-1\",\"status\":{\"id\":1,\"name\":\"Open\"}}"}
+```
+
+- [ ] **Step 2: Viết test fail** — `tests/test_cassettes.py`:
+
+```python
+import os
+
+from evals.cassettes import extract, rekey
+
+SAMPLE = os.path.join(os.path.dirname(__file__), "fixtures", "legacy_telemetry_sample.jsonl")
+
+
+def test_rekey():
+    assert rekey("OOP-12762") == "OOP-912762"
+
+
+def test_extract_keeps_latest_open_snapshot_patch_pairs_and_lists():
+    cassette = extract(SAMPLE)
+    assert list(cassette["issues"]) == ["OOP-912001"]
+    assert cassette["issues"]["OOP-912001"]["status"]["name"] == "Open"
+    assert cassette["issues"]["OOP-912001"]["summary"] == "[OOP-912000] Parent"
+    [patch] = cassette["patches"]
+    assert patch["key"] == "OOP-912001" and patch["data"] == {"statusId": 3, "assigneeId": 315996}
+    assert patch["before"]["status"]["name"] == "Open" and patch["after"]["status"]["name"] == "Resolved"
+    [listed] = cassette["lists"]
+    assert listed["result"] == ["OOP-912002"] and listed["params"]["statusId[]"] == [1, 2, 3]
+
+
+def test_extract_ignores_records_without_tool():
+    assert "OOP-91" not in extract(SAMPLE)["issues"]
+```
+
+`tests/test_fake_backlog.py`:
 
 ```python
 import requests
 
-from evals.fake_backlog import FakeBacklog, build_issues
+from evals.fake_backlog import SCENARIO_KEYS, SCENARIO_OPEN, FakeBacklog, apply_patch, build_issues, matches_list
+
+ME = 778617
 
 
-def test_fixtures_shape():
-    issues = build_issues()
-    assert sorted(issues) == ["OOP-90001", "OOP-90002", "OOP-90003", "OOP-90004", "OOP-90005"]
-    for issue in issues.values():
-        assert issue["assignee"]["id"] == 778617 and issue["status"]["name"] != "Closed"
-        assert issue["issueType"]["name"] == "Bug" and issue["projectId"] == 82531
-    role = {c["name"]: c["value"] for c in issues["OOP-90003"]["customFields"]}["Detected Role"]
+def test_synthetic_issues_cover_scenarios():
+    issues = build_issues(source="synthetic")
+    assert sorted(issues) == sorted(SCENARIO_KEYS)
+    open_keys = sorted(k for k, i in issues.items() if i["assignee"]["id"] == ME and i["status"]["name"] != "Resolved")
+    assert open_keys == sorted(SCENARIO_OPEN)
+    role = {c["name"]: c["value"] for c in issues["OOP-912749"]["customFields"]}["Detected Role"]
     assert role["name"] == "Developer"
-    assert issues["OOP-90004"]["attachments"][0]["name"] == "login-error.png"
-
-
-def test_get_list_patch_and_unhandled():
-    with FakeBacklog() as fake:
-        base = fake.base_url + "/api/v2"
-        issue = requests.get(f"{base}/issues/OOP-90001", params={"apiKey": "k"}).json()
-        assert issue["issueKey"] == "OOP-90001"
-        listed = requests.get(f"{base}/issues", params={"apiKey": "k", "projectId[]": 82531, "assigneeId[]": 778617, "statusId[]": [1, 2]}).json()
-        assert sorted(i["issueKey"] for i in listed) == ["OOP-90001", "OOP-90002", "OOP-90003", "OOP-90004", "OOP-90005"]
-        patched = requests.patch(f"{base}/issues/OOP-90001", params={"apiKey": "k"}, data={"statusId": 3, "assigneeId": 315996}).json()
-        assert patched["status"]["name"] == "Resolved" and patched["assignee"]["id"] == 315996
-        assert fake.patches[0]["key"] == "OOP-90001" and fake.patches[0]["form"]["statusId"] == ["3"]
-        assert requests.get(f"{base}/issues/OOP-1", params={"apiKey": "k"}).status_code == 404
-        assert requests.get(f"{base}/space", params={"apiKey": "k"}).status_code == 404
-        assert fake.unhandled == [{"method": "GET", "path": "/api/v2/space"}]
+    assert issues["OOP-912744"]["attachments"][0]["name"] == "login-error.png"
 
 
 def test_no_open_bugs_state():
-    with FakeBacklog(state="no_open_bugs") as fake:
-        listed = requests.get(fake.base_url + "/api/v2/issues", params={"apiKey": "k", "assigneeId[]": 778617, "statusId[]": [1, 2, 3]}).json()
-        assert listed == []
+    issues = build_issues(state="no_open_bugs", source="synthetic")
+    assert not [i for i in issues.values() if i["assignee"]["id"] == ME]
+
+
+def test_apply_patch_and_list_filter():
+    issue = build_issues(source="synthetic")["OOP-912762"]
+    patched = apply_patch(issue, {"statusId": 3, "assigneeId": 315996, "startDate": "2026-09-23", "estimatedHours": 1, "customField_9866": "no", "customField_9864": 1})
+    assert patched["status"]["name"] == "Resolved" and patched["assignee"]["id"] == 315996
+    assert patched["startDate"] == "2026-09-23T00:00:00Z" and patched["estimatedHours"] == 1
+    values = {c["id"]: c["value"] for c in patched["customFields"]}
+    assert values[9866] == "no" and values[9864]["name"] == "Integration Test"
+    assert not matches_list(patched, {"assigneeId[]": [ME], "statusId[]": [1, 2, 3]})
+    assert matches_list(patched, {"assigneeId[]": ["315996"]})
+
+
+def test_http_endpoints_and_unhandled():
+    with FakeBacklog(source="synthetic") as fake:
+        base = fake.base_url + "/api/v2"
+        assert requests.get(f"{base}/issues/OOP-912762", params={"apiKey": "k"}).json()["issueKey"] == "OOP-912762"
+        listed = requests.get(f"{base}/issues", params={"apiKey": "k", "assigneeId[]": ME, "statusId[]": [1, 2, 3], "count": 50}).json()
+        assert sorted(i["issueKey"] for i in listed) == sorted(SCENARIO_OPEN)
+        patched = requests.patch(f"{base}/issues/OOP-912762", params={"apiKey": "k"}, data={"statusId": 3, "assigneeId": 315996}).json()
+        assert patched["status"]["name"] == "Resolved"
+        assert fake.patches == [{"key": "OOP-912762", "form": {"statusId": ["3"], "assigneeId": ["315996"]}}]
+        assert requests.get(f"{base}/issues/OOP-1", params={"apiKey": "k"}).status_code == 404
+        assert requests.get(f"{base}/space", params={"apiKey": "k"}).status_code == 404
+        assert fake.unhandled == [{"method": "GET", "path": "/api/v2/space"}]
 ```
 
-- [ ] **Step 2: Chạy, kỳ vọng FAIL** — `ModuleNotFoundError: evals.fake_backlog`.
-
-- [ ] **Step 3: Viết `evals/fake_backlog.py`**
+`tests/test_fake_fidelity.py` (chạy trên cassette thật; bỏ qua khi máy không có cassette):
 
 ```python
-"""Local fake of the Backlog API endpoints the MCP server uses, built from real response fixtures."""
+import copy
+
+import pytest
+
+from evals.cassettes import load_cassette
+from evals.fake_backlog import SCENARIO_KEYS, apply_patch, display_value, matches_list
+
+CASSETTE = load_cassette()
+pytestmark = pytest.mark.skipif(CASSETTE is None, reason="no local cassette (evals/cassettes/ is git-ignored)")
+
+
+def test_cassette_has_every_scenario_issue():
+    assert set(SCENARIO_KEYS) <= set(CASSETTE["issues"])
+
+
+def test_every_recorded_list_result_passes_the_fake_filter():
+    for record in CASSETTE["lists"]:
+        for body in record["bodies"]:
+            assert matches_list(body, record["params"]), (record["ts"], body["issueKey"])
+
+
+def test_every_recorded_patch_is_reproduced():
+    assert CASSETTE["patches"], "cassette has no PATCH pairs"
+    for record in CASSETTE["patches"]:
+        got = apply_patch(copy.deepcopy(record["before"]), record["data"])
+        after = record["after"]
+        where = (record["ts"], record["key"])
+        assert got["status"]["name"] == after["status"]["name"], where
+        assert (got.get("assignee") or {}).get("id") == (after.get("assignee") or {}).get("id"), where
+        for key in ("estimatedHours", "actualHours"):
+            assert got.get(key) == after.get(key), (where, key)
+        for key in ("startDate", "dueDate"):
+            assert (got.get(key) or "")[:10] == (after.get(key) or "")[:10], (where, key)
+        sent = {int(k.split("_")[1]) for k in record["data"] if k.startswith("customField_")}
+        got_fields = {f["id"]: f.get("value") for f in got["customFields"]}
+        for field in after["customFields"]:
+            if field["id"] in sent:
+                assert display_value(got_fields[field["id"]]) == display_value(field.get("value")), (where, field["name"])
+```
+
+- [ ] **Step 3: Chạy, kỳ vọng FAIL** — `uv run --extra dev pytest tests/test_cassettes.py tests/test_fake_backlog.py tests/test_fake_fidelity.py -q` → `ModuleNotFoundError: evals.cassettes`.
+
+- [ ] **Step 4: Viết `evals/cassettes.py`**
+
+```python
+"""Real Backlog API responses extracted from legacy telemetry, re-keyed, for the fake backend.
+
+Cassettes contain real project data and stay local: evals/cassettes/ is git-ignored.
+"""
+
+import argparse
+import json
+import os
+import re
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+CASSETTE_PATH = os.path.join(ROOT, "evals", "cassettes", "oop.json")
+OPEN_STATUSES = {"Open", "In Progress"}
+_KEY = re.compile(r"\b([A-Z][A-Z0-9_]*)-(\d+)\b")
+
+
+def rekey(key):
+    project, number = key.rsplit("-", 1)
+    return f"{project}-9{number}"
+
+
+def _rekey_all(value):
+    # Real keys become OOP-9xxxxx so a misconfigured eval can never touch a real issue.
+    text = json.dumps(value, ensure_ascii=False)
+    return json.loads(_KEY.sub(lambda m: f"{m.group(1)}-9{m.group(2)}", text))
+
+
+def _rows(path):
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            if line.startswith("{"):
+                try:
+                    yield json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+
+def extract(legacy_path):
+    rows = sorted(
+        (r for r in _rows(legacy_path)
+         if r.get("event") == "api_call" and r.get("tool") and r.get("status") == 200 and r.get("responseBody")),
+        key=lambda r: r.get("ts") or "",
+    )
+    issues, lists, patches, gets_by_trace = {}, [], [], {}
+    for row in rows:
+        body = json.loads(row["responseBody"])
+        path = row["path"]
+        if row["method"] == "GET" and path.startswith("/issues/"):
+            gets_by_trace.setdefault(row["traceId"], {})[body["issueKey"]] = body
+            if (body.get("status") or {}).get("name") in OPEN_STATUSES:
+                issues[body["issueKey"]] = body
+        elif row["method"] == "GET" and path == "/issues":
+            lists.append({
+                "ts": row["ts"], "params": (row.get("request") or {}).get("params") or {},
+                "result": [item["issueKey"] for item in body], "bodies": body,
+            })
+        elif row["method"] == "PATCH":
+            key = path.split("/")[2]
+            before = gets_by_trace.get(row["traceId"], {}).get(key)
+            if before is not None:
+                patches.append({
+                    "ts": row["ts"], "key": key, "before": before,
+                    "data": (row.get("request") or {}).get("data") or {}, "after": body,
+                })
+    return _rekey_all({
+        "version": 1, "source": os.path.basename(legacy_path),
+        "issues": issues, "lists": lists, "patches": patches,
+    })
+
+
+def load_cassette(path=CASSETTE_PATH):
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Extract a fake-Backlog cassette from legacy telemetry.")
+    sub = parser.add_subparsers(dest="command", required=True)
+    cmd = sub.add_parser("extract")
+    cmd.add_argument("--from", dest="source", required=True)
+    cmd.add_argument("--out", default=CASSETTE_PATH)
+    args = parser.parse_args(argv)
+    cassette = extract(args.source)
+    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    with open(args.out, "w", encoding="utf-8") as handle:
+        json.dump(cassette, handle, ensure_ascii=False, indent=1)
+    print(f"{args.out}: {len(cassette['issues'])} issues, {len(cassette['lists'])} lists, {len(cassette['patches'])} patches")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+- [ ] **Step 5: Viết `evals/fake_backlog.py`**
+
+```python
+"""Local fake of the Backlog API used by the MCP server: replays real recorded issues (cassette)
+or a synthetic set with the same keys when no cassette is available."""
 
 import argparse
 import copy
@@ -3054,52 +3274,136 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from evals.cassettes import load_cassette
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 BASE_FIXTURE = os.path.join(ROOT, "tests", "fixtures", "OOP_issue_bug.json")
+CATALOG = os.path.join(ROOT, "config", "projects", "OOP.json")
 ME = {"id": 778617, "name": "Hieu Nguyen Duy (DN.DEV)"}
 REPORTER = {"id": 315996, "name": "tamtt"}
-STATUSES = {1: "Open", 2: "In Progress", 3: "Resolved", 4: "Closed"}
-EMPTY_FIELDS = {"QC Activity", "Bug Origin", "Cause Category", "Impacted", "Corrective Action"}
+# Real "my open bugs" list at 2026-09-23 16:22, re-keyed; plus a bug with a real attachment.
+SCENARIO_OPEN = ["OOP-912779", "OOP-912777", "OOP-912774", "OOP-912773", "OOP-912762", "OOP-912749"]
+SCENARIO_KEYS = SCENARIO_OPEN + ["OOP-912744"]
+RESOLVE_FIELDS = {"QC Activity", "Bug Origin", "Cause Category", "Impacted", "Corrective Action"}
 
 
-def _issue(base, number, summary, description, role="Tester", status_id=1, attachments=None):
-    issue = copy.deepcopy(base)
-    key = f"OOP-{number}"
-    issue.update({
-        "id": number, "issueKey": key, "keyId": number, "summary": summary, "description": description,
-        "status": {**issue["status"], "id": status_id, "name": STATUSES[status_id]},
-        "assignee": {**issue["assignee"], **ME}, "createdUser": {**issue["createdUser"], **REPORTER},
-        "startDate": None, "dueDate": None, "estimatedHours": None, "actualHours": None,
-        "attachments": attachments or [],
-    })
-    for field in issue["customFields"]:
-        if field["name"] in EMPTY_FIELDS:
-            field["value"] = None
-        if field["name"] == "Detected Role":
-            field["value"] = {"id": 2 if role == "Tester" else 1, "name": role, "displayOrder": 0}
+def _catalog():
+    with open(CATALOG, encoding="utf-8") as handle:
+        bug = json.load(handle)["bug"]
+    statuses = {item["id"]: item["name"] for item in bug["status_options"]}
+    options = {
+        int(cfg["field"].split("_")[1]): cfg.get("value_options") or []
+        for cfg in bug["custom_fields"].values()
+    }
+    return statuses, options
+
+
+STATUS_NAMES, FIELD_OPTIONS = _catalog()
+
+
+def display_value(value):
+    if isinstance(value, dict):
+        return value.get("name")
+    if isinstance(value, list):
+        return [display_value(item) for item in value]
+    return value
+
+
+def _number(value):
+    text = str(value)
+    return float(text) if "." in text else int(text)
+
+
+def apply_patch(issue, data):
+    for key, value in data.items():
+        value = value[0] if isinstance(value, list) else value
+        if key == "statusId":
+            status_id = int(value)
+            issue["status"] = {**(issue.get("status") or {}), "id": status_id, "name": STATUS_NAMES.get(status_id, "?")}
+        elif key == "assigneeId":
+            issue["assignee"] = {**(issue.get("assignee") or {}), "id": int(value)}
+        elif key in ("startDate", "dueDate"):
+            issue[key] = f"{value}T00:00:00Z"
+        elif key in ("estimatedHours", "actualHours"):
+            issue[key] = _number(value)
+        elif key.startswith("customField_"):
+            field_id = int(key.split("_")[1])
+            options = FIELD_OPTIONS.get(field_id) or []
+            chosen = next(({"id": o["id"], "name": o["name"]} for o in options if str(o["id"]) == str(value)), None)
+            for field in issue.get("customFields") or []:
+                if field["id"] == field_id:
+                    field["value"] = chosen if chosen is not None else value
     return issue
 
 
-TEMPLATE = "**Environment:** DEV\n**Steps to reproduce:**\n1. Open login\n2. Submit\n**Actual:** Error 500\n**Expected:** Logged in\n**Evidence:** see attachment"
+def matches_list(issue, params):
+    def wanted(name):
+        values = params.get(name) or []
+        values = values if isinstance(values, list) else [values]
+        return {int(v) for v in values}
+
+    checks = (
+        ("projectId[]", issue.get("projectId")),
+        ("assigneeId[]", (issue.get("assignee") or {}).get("id")),
+        ("statusId[]", (issue.get("status") or {}).get("id")),
+        ("issueTypeId[]", (issue.get("issueType") or {}).get("id")),
+    )
+    for name, actual in checks:
+        values = wanted(name)
+        if values and actual not in values:
+            return False
+    keyword = params.get("keyword")
+    keyword = keyword[0] if isinstance(keyword, list) else keyword
+    if keyword:
+        text = f"{issue.get('summary') or ''} {issue.get('description') or ''}".lower()
+        return keyword.lower() in text
+    return True
 
 
-def build_issues(state="default"):
+def _synthetic():
     with open(BASE_FIXTURE, encoding="utf-8") as handle:
         base = json.load(handle)
-    issues = [
-        _issue(base, 90001, "[Admin] Partner dialog overflows on long names", TEMPLATE),
-        _issue(base, 90002, "[User] Login shows raw error code", TEMPLATE),
-        _issue(base, 90003, "[Admin] Member list misses activation status", TEMPLATE, role="Developer", status_id=2),
-        _issue(base, 90004, "[User] Login error after OTP", TEMPLATE,
-               attachments=[{"id": 7001, "name": "login-error.png", "size": 48213, "createdUser": REPORTER, "created": "2026-09-20T01:00:00Z"}]),
-        _issue(base, 90005, "[Admin] Referral badge shows dash", TEMPLATE),
-    ]
-    if state == "no_open_bugs":
-        # Resolved bugs are reassigned to the reporter, so none remain open for "me".
-        for issue in issues:
+    issues = {}
+    for index, key in enumerate(SCENARIO_KEYS):
+        issue = copy.deepcopy(base)
+        number = int(key.split("-")[1])
+        issue.update({
+            "id": number, "keyId": number, "issueKey": key, "summary": f"[Synthetic] Bug {index + 1}",
+            "description": "**Actual:** Error 500\n**Expected:** Works",
+            "status": {**issue["status"], "id": 1, "name": "Open"},
+            "assignee": {**issue["assignee"], **ME}, "createdUser": {**issue["createdUser"], **REPORTER},
+            "startDate": None, "dueDate": None, "estimatedHours": None, "actualHours": None, "attachments": [],
+        })
+        for field in issue["customFields"]:
+            if field["name"] in RESOLVE_FIELDS:
+                field["value"] = None
+            if field["name"] == "Detected Role":
+                field["value"] = {"id": 2, "name": "Tester"}
+        issues[key] = issue
+    issues["OOP-912744"]["attachments"] = [{"id": 7001, "name": "x.png", "size": 48213}]
+    return issues
+
+
+def build_issues(state="default", source="auto"):
+    cassette = load_cassette() if source in ("auto", "cassette") else None
+    if source == "cassette" and cassette is None:
+        raise FileNotFoundError("No cassette. Run: uv run python -m evals.cassettes extract --from logs/legacy/telemetry.jsonl")
+    issues = copy.deepcopy(cassette["issues"]) if cassette else _synthetic()
+    missing = [key for key in SCENARIO_KEYS if key not in issues]
+    if missing:
+        raise ValueError(f"Cassette lacks scenario issues: {missing}")
+    for key, issue in issues.items():
+        if key not in SCENARIO_OPEN or state == "no_open_bugs":
+            # A resolved bug is reassigned to its reporter, so it leaves "my open bugs".
             issue["status"] = {**issue["status"], "id": 3, "name": "Resolved"}
-            issue["assignee"] = {**issue["assignee"], **REPORTER}
-    return {issue["issueKey"]: issue for issue in issues}
+            issue["assignee"] = {**(issue.get("assignee") or {}), **{k: issue["createdUser"].get(k) for k in ("id", "name")}}
+    # Synthetic tweaks on top of real data (documented in the spec):
+    for field in issues["OOP-912749"]["customFields"]:
+        if field["name"] == "Detected Role":
+            field["value"] = {"id": 1, "name": "Developer"}
+    attachment = (issues["OOP-912744"].get("attachments") or [{"id": 7001, "size": 48213}])[0]
+    issues["OOP-912744"]["attachments"] = [{**attachment, "name": "login-error.png"}]
+    return issues
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -3122,14 +3426,10 @@ class _Handler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
         issues = self.fake.issues
         if parts[:4] == ["", "api", "v2", "issues"] and len(parts) == 4 and method == "GET":
-            statuses = {int(s) for s in query.get("statusId[]", [])}
-            assignees = {int(a) for a in query.get("assigneeId[]", [])}
-            found = [
-                i for i in issues.values()
-                if (not statuses or i["status"]["id"] in statuses)
-                and (not assignees or i["assignee"]["id"] in assignees)
-            ]
-            return self._send(200, found)
+            found = [issue for issue in issues.values() if matches_list(issue, query)]
+            offset = int((query.get("offset") or [0])[0])
+            count = int((query.get("count") or [100])[0])
+            return self._send(200, found[offset:offset + count])
         if parts[:4] == ["", "api", "v2", "issues"] and len(parts) == 5:
             issue = issues.get(parts[4])
             if issue is None:
@@ -3140,12 +3440,7 @@ class _Handler(BaseHTTPRequestHandler):
                 length = int(self.headers.get("Content-Length") or 0)
                 form = parse_qs(self.rfile.read(length).decode("utf-8"))
                 self.fake.patches.append({"key": parts[4], "form": form})
-                if "statusId" in form:
-                    status_id = int(form["statusId"][0])
-                    issue["status"] = {**issue["status"], "id": status_id, "name": STATUSES.get(status_id, "?")}
-                if "assigneeId" in form:
-                    issue["assignee"] = {**issue["assignee"], "id": int(form["assigneeId"][0])}
-                return self._send(200, issue)
+                return self._send(200, apply_patch(issue, form))
         if parts[:4] == ["", "api", "v2", "projects"] and len(parts) == 5 and method == "GET":
             return self._send(200, {"id": 82531, "projectKey": parts[4], "name": "OOP"})
         self.fake.unhandled.append({"method": method, "path": parsed.path})
@@ -3162,10 +3457,10 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 class FakeBacklog:
-    def __init__(self, state="default", port=0):
-        self.state = state
+    def __init__(self, state="default", source="auto", port=0):
+        self.issues = build_issues(state, source)
+        self.source = "cassette" if source != "synthetic" and load_cassette() is not None else "synthetic"
         self.port = port
-        self.issues = build_issues(state)
         self.patches = []
         self.unhandled = []
         self._server = None
@@ -3194,10 +3489,11 @@ class FakeBacklog:
 def main():
     parser = argparse.ArgumentParser(description="Run the fake Backlog API for manual MCP testing.")
     parser.add_argument("--state", default="default", choices=["default", "no_open_bugs"])
+    parser.add_argument("--source", default="auto", choices=["auto", "cassette", "synthetic"])
     parser.add_argument("--port", type=int, default=0)
     args = parser.parse_args()
-    fake = FakeBacklog(args.state, args.port)
-    print(f"Fake Backlog at {fake.start()} (Ctrl+C to stop)", flush=True)
+    fake = FakeBacklog(args.state, args.source, args.port)
+    print(f"Fake Backlog ({fake.source}) at {fake.start()} (Ctrl+C to stop)", flush=True)
     try:
         threading.Event().wait()
     except KeyboardInterrupt:
@@ -3208,13 +3504,23 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: Chạy test** — `uv run --extra dev pytest tests/test_fake_backlog.py -q` → PASS.
+- [ ] **Step 6: Chạy test synthetic** — `uv run --extra dev pytest tests/test_cassettes.py tests/test_fake_backlog.py -q` → PASS; `tests/test_fake_fidelity.py` → SKIPPED (chưa có cassette).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Trích cassette thật (chỉ trên máy) và chạy test độ khớp**
 
 ```bash
-git add evals/fake_backlog.py tests/test_fake_backlog.py
-git commit -m "Add fake Backlog API for evals
+uv run python -m evals.cassettes extract --from logs/legacy/telemetry.jsonl   # hoặc logs/telemetry.jsonl nếu chưa chuyển
+uv run --extra dev pytest tests/test_fake_fidelity.py -v
+git status --short evals/   # evals/cassettes/ KHÔNG được xuất hiện
+```
+
+Expected: `evals/cassettes/oop.json: 21 issues, 8 lists, 22 patches` (±, theo log thật); fidelity PASS cả 3 test. Nếu một PATCH không tái hiện được: in `where`, so `record["data"]` với `record["after"]` và sửa `apply_patch` cho đúng hành vi Backlog thật — không nới assert.
+
+- [ ] **Step 8: Commit** (không có cassette)
+
+```bash
+git add evals/cassettes.py evals/fake_backlog.py tests/fixtures/legacy_telemetry_sample.jsonl tests/test_cassettes.py tests/test_fake_backlog.py tests/test_fake_fidelity.py
+git commit -m "Add record/replay cassettes and fake Backlog with fidelity tests
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
@@ -3280,7 +3586,7 @@ def test_replay_scenario(scenario_id, tmp_path, request):
         request.applymarker(pytest.mark.xfail(reason=NEEDS_PLAN_B[scenario_id], strict=True))
     scenario = render_scenario(next(s for s in load_scenarios() if s["id"] == scenario_id))
     log_dir = tmp_path / "eval-logs"
-    with FakeBacklog(state=scenario["fakeState"]) as fake:
+    with FakeBacklog(state=scenario["fakeState"], source="auto") as fake:
         (tmp_path / ".backlog-project.json").write_text(json.dumps({"project_key": "OOP"}))
         (tmp_path / ".backlog-eval.json").write_text(json.dumps({
             "baseUrl": fake.base_url, "logDir": str(log_dir), "runId": "replay-1", "scenario": scenario_id,
@@ -3297,7 +3603,7 @@ def test_replay_scenario(scenario_id, tmp_path, request):
 ```
 
 - [ ] **Step 2: Chạy** — `uv run --extra dev pytest tests/test_replay.py -q`
-Expected: 3 PASS (`open_bugs`, `open_bugs_empty`, `fix_context`), 4 XFAIL. Nếu `open_bugs_empty` fail vì `finalAnswer` — `grade` với `final_answer=None` trả `{"skipped": …}` và không fail; nếu kịch bản nào PASS ngoài dự kiến (XPASS strict) → đọc lý do, bỏ khỏi `NEEDS_PLAN_B` nếu đúng là đã thoả.
+Expected: 3 PASS (`open_bugs`, `open_bugs_empty`, `fix_context`), 4 XFAIL — cả khi có cassette (dữ liệu thật) lẫn khi không (synthetic). Nếu `open_bugs_empty` fail vì `finalAnswer` — `grade` với `final_answer=None` trả `{"skipped": …}` và không fail; nếu kịch bản nào PASS ngoài dự kiến (XPASS strict) → đọc lý do, bỏ khỏi `NEEDS_PLAN_B` nếu đúng là đã thoả.
 
 - [ ] **Step 3: Commit**
 
@@ -3330,10 +3636,10 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 {"type":"system","subtype":"init","cwd":"/tmp/ws","model":"claude-opus-5-5[1m]","mcp_servers":[{"name":"backlog","status":"connected"}]}
 {"type":"assistant","message":{"model":"claude-opus-5-5","content":[{"type":"tool_use","id":"t1","name":"Grep","input":{"pattern":"fix"}}]}}
 {"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"none","is_error":false}]}}
-{"type":"assistant","message":{"model":"claude-opus-5-5","content":[{"type":"tool_use","id":"t2","name":"mcp__backlog__resolve_bug","input":{"issue_key":"OOP-90001","mode":"apply"}}]}}
+{"type":"assistant","message":{"model":"claude-opus-5-5","content":[{"type":"tool_use","id":"t2","name":"mcp__backlog__resolve_bug","input":{"issue_key":"OOP-912762","mode":"apply"}}]}}
 {"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t2","content":[{"type":"text","text":"{}"}],"is_error":false}]}}
-{"type":"assistant","message":{"model":"claude-opus-5-5","content":[{"type":"text","text":"Đã resolve OOP-90001."}]}}
-{"type":"result","subtype":"success","is_error":false,"duration_ms":9120,"num_turns":3,"result":"Đã resolve OOP-90001.","permission_denials":[{"tool_name":"Bash","tool_use_id":"t0","tool_input":{"command":"git log -1"}}]}
+{"type":"assistant","message":{"model":"claude-opus-5-5","content":[{"type":"text","text":"Đã resolve OOP-912762."}]}}
+{"type":"result","subtype":"success","is_error":false,"duration_ms":9120,"num_turns":3,"result":"Đã resolve OOP-912762.","permission_denials":[{"tool_name":"Bash","tool_use_id":"t0","tool_input":{"command":"git log -1"}}]}
 ```
 
 `tests/fixtures/agent_streams/agy_sample.jsonl`:
@@ -3341,9 +3647,9 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 {"event":"init","conversation_id":"c1","init":{"cwd":"/tmp/ws","tools":["call_mcp_tool","view_file"],"permission_mode":"always-proceed"}}
 {"event":"step_update","step_update":{"step_index":0,"state":"DONE","step_type":"user_input"}}
 {"event":"step_update","step_update":{"step_index":2,"state":"DONE","step_type":"tool","tool_name":"view_file","tool_info":{"name":"view_file","parameters":{"AbsolutePath":"/home/u/.gemini/antigravity-cli/mcp/backlog/resolve_bug.json"},"output":"1 lines"}}}
-{"event":"step_update","step_update":{"step_index":4,"state":"DONE","step_type":"tool","tool_name":"call_mcp_tool","tool_info":{"name":"call_mcp_tool","parameters":{"Arguments":{"issue_key":"OOP-90001","mode":"apply"},"ServerName":"backlog","ToolName":"resolve_bug"},"output":"{}"}}}
+{"event":"step_update","step_update":{"step_index":4,"state":"DONE","step_type":"tool","tool_name":"call_mcp_tool","tool_info":{"name":"call_mcp_tool","parameters":{"Arguments":{"issue_key":"OOP-912762","mode":"apply"},"ServerName":"backlog","ToolName":"resolve_bug"},"output":"{}"}}}
 {"event":"step_update","step_update":{"step_index":6,"state":"DONE","step_type":"tool","tool_name":"run_command","tool_info":{"name":"run_command","parameters":{"CommandLine":"ls"},"output":""}}}
-{"event":"result","result":{"conversation_id":"c1","status":"SUCCESS","response":"Đã resolve OOP-90001.\n","duration_seconds":12.5,"num_turns":4}}
+{"event":"result","result":{"conversation_id":"c1","status":"SUCCESS","response":"Đã resolve OOP-912762.\n","duration_seconds":12.5,"num_turns":4}}
 ```
 
 - [ ] **Step 2: Viết test fail** — `tests/test_eval_agents.py`:
@@ -3364,19 +3670,19 @@ def lines(name):
 def test_parse_claude():
     trace = parse_claude(lines("claude_sample.jsonl"))
     assert trace.model == "claude-opus-5-5"
-    assert trace.mcp_tools == [{"tool": "resolve_bug", "arguments": {"issue_key": "OOP-90001", "mode": "apply"}}]
+    assert trace.mcp_tools == [{"tool": "resolve_bug", "arguments": {"issue_key": "OOP-912762", "mode": "apply"}}]
     assert trace.non_mcp == [{"name": "Grep", "input": {"pattern": "fix"}}]
     assert trace.denied == ["Bash"]
-    assert trace.final_answer == "Đã resolve OOP-90001."
+    assert trace.final_answer == "Đã resolve OOP-912762."
     assert trace.wall_clock_ms == 9120 and trace.turns == 3 and trace.raw_ok is True
 
 
 def test_parse_agy():
     trace = parse_agy(lines("agy_sample.jsonl"))
-    assert trace.mcp_tools == [{"tool": "resolve_bug", "arguments": {"issue_key": "OOP-90001", "mode": "apply"}}]
+    assert trace.mcp_tools == [{"tool": "resolve_bug", "arguments": {"issue_key": "OOP-912762", "mode": "apply"}}]
     assert trace.schema_reads == 1
     assert trace.non_mcp == [{"name": "run_command", "input": {"CommandLine": "ls"}}]
-    assert trace.final_answer == "Đã resolve OOP-90001."
+    assert trace.final_answer == "Đã resolve OOP-912762."
     assert trace.wall_clock_ms == 12500 and trace.raw_ok is True
 
 
@@ -3560,7 +3866,7 @@ def test_grade_run_combines_logs_and_agent_trace(tmp_path, monkeypatch):
     log_dir = tmp_path / "logs"
     monkeypatch.setattr(settings, "LOG_DIR", str(log_dir))
     telemetry.set_eval_tags("run-1", "resolve_warning")
-    telemetry.start_call("resolve_bug", {"issue_key": "OOP-90003", "mode": "apply"})
+    telemetry.start_call("resolve_bug", {"issue_key": "OOP-912749", "mode": "apply"})
     telemetry.finish_call("ok", result={"ok": True}, text="{}", response_bytes=300)
     telemetry.set_eval_tags(None, None)
 
@@ -3662,13 +3968,13 @@ def grade_run(scenario, trace, log_dir, run_id):
     return result
 
 
-def run_one(agent, model, scenario, index, out_root, timeout_s, workspace=None):
+def run_one(agent, model, scenario, index, out_root, timeout_s, workspace=None, source="cassette"):
     build_command, parse = AGENTS[agent]
     run_id = f"{agent}-{scenario['id']}-{index}-{uuid.uuid4().hex[:6]}"
     with tempfile.TemporaryDirectory(prefix="backlog-eval-") as tmp:
         root = Path(workspace) if workspace else Path(tmp) / "ws"
         log_dir = Path(tmp) / "logs"
-        with FakeBacklog(state=scenario["fakeState"]) as fake:
+        with FakeBacklog(state=scenario["fakeState"], source=source) as fake:
             ws = prepare_workspace(root, scenario, run_id, fake.base_url, log_dir)
             started = time.monotonic()
             try:
@@ -3685,7 +3991,7 @@ def run_one(agent, model, scenario, index, out_root, timeout_s, workspace=None):
             trace = parse(lines)
             result = grade_run(scenario, trace, log_dir, run_id)
             result.update({
-                "runId": run_id, "agent": agent, "model": model, "scenario": scenario["id"],
+                "runId": run_id, "agent": agent, "model": model, "scenario": scenario["id"], "backendSource": fake.source,
                 "processMs": elapsed_ms, "unhandledEndpoints": fake.unhandled,
                 "patches": [p["key"] for p in fake.patches], "stderrTail": stderr_tail if not trace.raw_ok else "",
             })
@@ -3724,6 +4030,7 @@ def main(argv=None):
     parser.add_argument("--label", default="adhoc")
     parser.add_argument("--timeout", type=int, default=300)
     parser.add_argument("--workspace", help="Run inside this directory instead of a temp workspace")
+    parser.add_argument("--allow-synthetic", action="store_true", help="Use synthetic issues when no local cassette exists")
     args = parser.parse_args(argv)
 
     scenarios = [render_scenario(s) for s in load_scenarios() if args.scenario in ("all", s["id"])]
@@ -3733,7 +4040,8 @@ def main(argv=None):
     fingerprint = config_fingerprint(args.agent)
     for scenario in scenarios:
         for index in range(args.runs):
-            result = run_one(args.agent, args.model, scenario, index, folder, args.timeout, args.workspace)
+            result = run_one(args.agent, args.model, scenario, index, folder, args.timeout, args.workspace,
+                             source="auto" if args.allow_synthetic else "cassette")
             result["configFingerprint"] = fingerprint
             with out.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(result, ensure_ascii=False) + "\n")
@@ -3767,16 +4075,17 @@ Expected: mỗi lệnh in một dòng `[open_bugs #1] PASS` hoặc `FAIL …` (k
 - Server bật chế độ giả khi workspace có `.backlog-eval.json` (`baseUrl` phải là localhost); log run ghi vào `logDir` của file đó, gắn `runId`/`scenario`.
 - `claude` chạy với `--disallowedTools Bash Edit Write NotebookEdit WebFetch WebSearch`; `agy` chạy với `--sandbox`. Tool bị từ chối nằm ở `deniedTools`.
 - agy gọi MCP qua `call_mcp_tool` và đọc schema bằng `view_file` trong `~/.gemini/antigravity-cli/mcp/backlog/` → đếm ở `schemaReads`.
-- Kết quả: `evals/results/<ngày>-<nhãn>/<agent>-<model>.jsonl` (một dòng/run) và `SUMMARY.md`.
+- Kết quả: `evals/results/<ngày>-<nhãn>/<agent>-<model>.jsonl` (một dòng/run, chỉ trên máy vì chứa câu trả lời có nội dung bug) và `SUMMARY.md` (được commit).
+- Cassette dữ liệu thật: `uv run python -m evals.cassettes extract --from logs/legacy/telemetry.jsonl` → `evals/cassettes/oop.json` (gitignore). Eval mặc định bắt buộc cassette; `--allow-synthetic` để chạy bằng dữ liệu tổng hợp. Làm mới cassette: chạy một phiên với `BACKLOG_MCP_LOG_BODIES=full`, sau đó trích lại (bộ trích hiện đọc định dạng log cũ — khi cần, thêm đọc `details/`).
 - Replay không dùng model: `uv run --extra dev pytest tests/test_replay.py`.
 ````
 
-  Kiểm tra `.gitignore` không bỏ qua `evals/results/` (`git check-ignore evals/results/x.jsonl` → không in gì).
+  Kiểm tra `git status --short evals/` chỉ hiện `SUMMARY.md` (không có `.jsonl`, không có `cassettes/`).
 
 - [ ] **Step 7: Commit + push (đóng P3)**
 
 ```bash
-git add evals/run.py tests/test_eval_run.py docs/telemetry.md evals/results
+git add evals/run.py tests/test_eval_run.py docs/telemetry.md evals/results/*/SUMMARY.md   # jsonl chi tiết bị gitignore
 git commit -m "Add eval runner with smoke results for claude and agy
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"

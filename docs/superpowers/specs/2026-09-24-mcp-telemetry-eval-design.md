@@ -136,7 +136,7 @@ Tài liệu agent đọc đầu tiên: bố cục file, từng field, quy trình
 {
   "id": "resolve_fixed",
   "prompt": "backlog resolve {issue}, bug này tôi fix rồi",
-  "fixtures": {"issue": "OOP-90001"},
+  "fixtures": {"issue": "OOP-912762"},
   "match": {"keywords": ["resolve"], "issueKeys": "one"},
   "expect": {
     "calls": [{"tool": "resolve_bug", "args": {"issue_key": "{issue}", "mode": "apply"}}],
@@ -161,11 +161,11 @@ Tài liệu agent đọc đầu tiên: bố cục file, từng field, quy trình
 |---|---|---|---|---|
 | `open_bugs` | `backlog kiểm tra bugs open` | danh sách 3 bug open của OOP | `[get_my_open_bugs]` | forbidden: `get_issues`, `get_issue`, `get_bug_context`, `get_my_project_status` |
 | `open_bugs_empty` | `backlog kiểm tra bugs open` | không có bug open | `[get_my_open_bugs]` | forbidden như `open_bugs`; `finalAnswer.mustMention: ["0"]` |
-| `resolve_fixed` | `backlog resolve {issue}, bug này tôi fix rồi` | `OOP-90001` | `[resolve_bug{mode:apply}]` | forbidden như §6.1 |
-| `resolve_multi` | `backlog resolve {a}, {b}, các bug này tôi fix rồi` | `OOP-90001`, `OOP-90005` | 2 × `resolve_bug{mode:apply}`, `order: any` | |
-| `resolve_warning` | `backlog resolve {issue}, bug này tôi fix rồi` | `OOP-90003` (Detected Role = Developer) | `[resolve_bug{mode:apply}]` | `finalAnswer.mustMention: ["Tester"]` |
-| `fix_context` | `backlog fix {issue}` | `OOP-90002` | `[get_bug_context]` | forbidden: `get_issue`; tool ngoài MCP không chấm |
-| `fix_context_attachment` | `backlog fix {issue}` | `OOP-90004` (evidence là ảnh đính kèm `login-error.png`) | `[get_bug_context]` | forbidden: `get_issue`; `finalAnswer.mustMention: ["login-error.png"]` (model biết và báo có tệp đính kèm) |
+| `resolve_fixed` | `backlog resolve {issue}, bug này tôi fix rồi` | `OOP-912762` | `[resolve_bug{mode:apply}]` | forbidden như §6.1 |
+| `resolve_multi` | `backlog resolve {a}, {b}, các bug này tôi fix rồi` | `OOP-912774`, `OOP-912773` | 2 × `resolve_bug{mode:apply}`, `order: any` | |
+| `resolve_warning` | `backlog resolve {issue}, bug này tôi fix rồi` | `OOP-912749` (Detected Role đổi thành Developer) | `[resolve_bug{mode:apply}]` | `finalAnswer.mustMention: ["Tester"]` |
+| `fix_context` | `backlog fix {issue}` | `OOP-912779` | `[get_bug_context]` | forbidden: `get_issue`; tool ngoài MCP không chấm |
+| `fix_context_attachment` | `backlog fix {issue}` | `OOP-912744` (evidence là ảnh đính kèm `login-error.png`) | `[get_bug_context]` | forbidden: `get_issue`; `finalAnswer.mustMention: ["login-error.png"]` (model biết và báo có tệp đính kèm) |
 
 ### 6.3 Nhận diện prompt thật (cho `import-claude`)
 
@@ -223,13 +223,13 @@ Khi trong một flow, sau call A (tool chuyên dụng) có call B khác tool cù
 
 ## 8. Harness eval
 
-### 8.1 Backlog giả (`evals/fake_backlog.py`)
+### 8.1 Backlog giả (record/replay)
 
-- HTTP server trên `127.0.0.1:<port>` (port ngẫu nhiên), dữ liệu trong bộ nhớ, reset mỗi run.
-- Endpoint: `GET /api/v2/issues/{key}`, `PATCH /api/v2/issues/{key}`, `GET /api/v2/issues` (lọc theo assignee/status/type như client thật gửi), `GET /api/v2/projects/{key}` (phòng khi catalog thiếu id). User được resolve từ `config/backlog.json` nên không cần endpoint user. Endpoint khác → 404 và ghi vào `unhandled.jsonl` của run.
-- Assignee của mọi fixture = user `me` trong `config/backlog.json` (điều kiện của `resolve_bug`); `createdUser` = một reporter có Detected Role = Tester (trừ 90003).
-- Fixture `OOP-90001…90005` dựng từ fixture thật trong `tests/fixtures/` (dùng catalog `config/projects/OOP.json` thật): 90001 bug thường; 90002 bug có mô tả template đầy đủ; 90003 Detected Role = Developer; 90004 có ảnh đính kèm `login-error.png` (chỉ metadata trong issue); 90005 bug thường thứ hai. Mọi fixture gán cho `me` và chưa Closed nên danh sách open = cả 5 (90003 ở In Progress). Trạng thái `no_open_bugs`: mọi fixture Resolved và gán về reporter.
-- `PATCH` được ghi lại để bộ chấm và test kiểm tra payload.
+- **Cassette** (`evals/cassettes/oop.json`, chỉ trên máy — repo public): trích từ response thật trong log cũ bằng `python -m evals.cassettes extract --from logs/legacy/telemetry.jsonl`: snapshot mới nhất lúc Open của mỗi bug (21 bug OOP), 8 lần gọi danh sách thật (tham số + kết quả), 22 cặp PATCH (snapshot trước, payload, response sau). Mọi mã issue được đổi `OOP-12762` → `OOP-912762` để eval cấu hình sai không thể chạm bug thật.
+- **Độ khớp** được kiểm chứng bằng test trên cassette: mọi issue trong 8 danh sách thật thoả bộ lọc của Backlog giả; áp 22 payload PATCH thật lên snapshot trước cho ra status, assignee, giờ, ngày và custom field giống response thật.
+- **Trạng thái**: `default` = danh sách open thật lúc 2026-09-23 16:22 (`912779, 912777, 912774, 912773, 912762, 912749`), các bug khác Resolved và gán về reporter; `no_open_bugs` = mọi bug Resolved, gán về reporter. Hai chỉnh sửa tổng hợp: `912749` Detected Role = Developer (dữ liệu thật đều là Tester), tệp đính kèm của `912744` đổi tên `login-error.png`.
+- Máy không có cassette: bộ synthetic cùng mã (dựng từ `tests/fixtures/OOP_issue_bug.json`) để pytest vẫn chạy; eval thật bắt buộc cassette (trừ `--allow-synthetic`).
+- HTTP server `127.0.0.1:<port>`: `GET/PATCH /api/v2/issues/{key}`, `GET /api/v2/issues` (lọc `projectId[]`, `assigneeId[]`, `statusId[]`, `issueTypeId[]`, `keyword`, `count`, `offset`), `GET /api/v2/projects/{key}`. Endpoint khác → 404 + ghi `unhandled`.
 
 ### 8.2 File đánh dấu `.backlog-eval.json`
 
@@ -254,15 +254,15 @@ Cách lấy call từ stream-json:
 - `claude`: `assistant.message.content[].type == "tool_use"`; tool MCP có tên `mcp__backlog__<tool>`; tool khác là call ngoài MCP.
 - `agy`: event `step_update` với `state == "DONE"` và `step_type == "tool"`; `tool_name == "call_mcp_tool"` và `tool_info.parameters.ServerName == "backlog"` là MCP call (`ToolName`, `Arguments`); `view_file` trên `~/.gemini/antigravity-cli/mcp/backlog/*` được đếm là `schemaReads` (không phải extra call); tool khác là call ngoài MCP. Câu trả lời cuối = `result.response`.
 
-An toàn khi eval (model có thể tự tìm tới repo và gọi Backlog thật như trong probe): `claude` chỉ được phép `mcp__backlog__*`, `Read`, `Glob`, `Grep` (`--allowedTools`); `agy` chạy với `--sandbox`. Các lần tool bị từ chối được ghi vào kết quả run. Fixture dùng mã `OOP-900xx` không tồn tại trên Backlog thật.
+An toàn khi eval (model có thể tự tìm tới repo và gọi Backlog thật như trong probe): `claude` chỉ được phép `mcp__backlog__*`, `Read`, `Glob`, `Grep` (`--allowedTools`); `agy` chạy với `--sandbox`. Các lần tool bị từ chối được ghi vào kết quả run. Fixture dùng mã `OOP-9xxxxx` không tồn tại trên Backlog thật.
 
 Mỗi run: tạo workspace tạm (hoặc `--workspace`) → ghi `.backlog-eval.json` + `.backlog-project.json` → start Backlog giả → chạy agent → parse stream-json (prompt, model, tool call MCP và ngoài MCP, câu trả lời cuối, `startupMs` = spawn→event init, `wallClockMs` = event init→event result) → đọc log run → chấm → lưu. Model dừng để hỏi người dùng = run kết thúc; harness không trả lời.
 
 ### 8.4 Kết quả
 
-- `evals/results/<YYYY-MM-DD>-<label>/<agent>-<model>.json`: mảng kết quả §7.4 + `configFingerprint` (phiên bản agent, `gitSha`, hash mô tả tool).
+- `evals/results/<YYYY-MM-DD>-<label>/<agent>-<model>.jsonl`: một dòng/run, kết quả §7.4 + `configFingerprint` (phiên bản agent, `gitSha`, hash mô tả tool). **Chỉ trên máy** (gitignore) vì chứa câu trả lời có nội dung bug thật.
 - `evals/results/<YYYY-MM-DD>-<label>/SUMMARY.md`: bảng pass-rate theo kịch bản × agent/model, lý do fail phổ biến, token/thời gian trung vị (chỉ để review).
-- Kết quả được commit vào repo.
+- Chỉ `SUMMARY.md` được commit.
 
 ### 8.5 Model mặc định
 
@@ -379,7 +379,8 @@ Nằm trong `hieund-ai-kit-cli`, session riêng, sau khi P6 đóng. Spec này ch
 | Rủi ro | Cách xử lý |
 |---|---|
 | Client đưa cả text lẫn structured vào context | Theo chuẩn MCP (§9.4); đo token trong eval, ghi nhận nếu có. |
-| Backlog giả khác Backlog thật | Fixture dựng từ response thật; request lạ → 404 + `unhandled.jsonl`; replay test. |
+| Backlog giả khác Backlog thật | Cassette ghi từ response thật + test độ khớp (8 danh sách, 22 PATCH); request lạ → 404 + `unhandled`; replay test. |
+| Repo public làm lộ dữ liệu thật | Cassette, fixture từ log thật, kết quả eval chi tiết đều gitignore; chỉ commit `SUMMARY.md`. |
 | Model không tất định | 10 run/kịch bản, ngưỡng 9/10. |
 | Hook global làm tăng lượt/thời gian | Chấp nhận (D9); lượt ngoài MCP được báo cáo riêng. |
 | Thời gian chạy ma trận P6 (6 kịch bản × 10 run × 3 model) | Chạy nền, tuần tự; kết quả ghi dần theo run để có thể tiếp tục khi bị ngắt. |
