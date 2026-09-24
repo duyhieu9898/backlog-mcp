@@ -51,6 +51,13 @@ class ParserTest(unittest.TestCase):
         args = self.parser.parse_args(["issue", "get", "AQM-1"])
         self.assertIsNone(cli.is_dry_run(args))
 
+    def test_telemetry_commands_parse(self):
+        args = self.parser.parse_args(["telemetry", "report", "--since", "1d", "--run", "r1"])
+        self.assertEqual(("telemetry", "report", "1d", "r1"), (args.group, args.action, args.since, args.run))
+        args = self.parser.parse_args(["telemetry", "import-claude"])
+        self.assertEqual(("telemetry", "import-claude"), (args.group, args.action))
+        self.assertIsNone(cli.is_dry_run(args))
+
     def test_command_name(self):
         args = self.parser.parse_args(["bug", "resolve", "AQM-1"])
         self.assertEqual("bug:resolve", cli.command_name(args))

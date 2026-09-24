@@ -27,6 +27,7 @@ from backlog_tool.settings import (
     view_base_url,
 )
 from backlog_tool.telemetry import finish_call, log_session_start, set_surface, start_call
+from backlog_tool.telemetry_report import report_from_claude, report_from_logs, to_markdown
 from workflows.guidance import field_guidance, resolve_rules
 from workflows.audit import audit_workflows
 from workflows.resolve_bug import get_bug_context, resolve_bug
@@ -169,6 +170,17 @@ def build_parser():
     add_project(g)
     add_list_controls(g)
     g.add_argument("--query")
+
+    # telemetry --------------------------------------------------------------
+    telemetry_group = groups.add_parser("telemetry", help="Local telemetry analysis").add_subparsers(dest="action", required=True)
+    g = telemetry_group.add_parser("report", help="Flows, rule findings and scenario grades from logs/")
+    g.add_argument("--since", help="1d, 12h, or ISO date/datetime")
+    g.add_argument("--run", help="Only one eval runId")
+    g.add_argument("--json", action="store_true", dest="as_json")
+    g = telemetry_group.add_parser("import-claude", help="Grade Claude Code transcripts that mention backlog")
+    g.add_argument("--since", help="1d, 12h, or ISO date/datetime")
+    g.add_argument("--root", help="Transcript root (default ~/.claude/projects)")
+    g.add_argument("--json", action="store_true", dest="as_json")
 
     return parser
 
@@ -341,6 +353,10 @@ def run_handler(config, args):
             order=args.order,
             start_path=getattr(args, "workspace_path", None),
         )
+    if group == "telemetry":
+        if action == "report":
+            return report_from_logs(since=args.since, run_id=args.run)
+        return report_from_claude(since=args.since, root=args.root)
     return None
 
 
@@ -471,12 +487,15 @@ def execute(argv, workspace_path=None):
             except Exception:
                 project = pre_project
 
-        # If --table is specified and the output is a list of issues/stories, format it as a table
-        if getattr(args, "table", False) and isinstance(presented_data, list) and args.group in ("issue", "bug", "story"):
-            is_story = (args.group == "story" or getattr(args, "view", None) == "story")
-            text = presenter.format_issues_as_table(presented_data, is_story_view=is_story)
+        if args.group == "telemetry":
+            text = json.dumps(presented_data, indent=2, ensure_ascii=False) if args.as_json else to_markdown(presented_data)
         else:
-            text = json.dumps(presented_data, indent=2, ensure_ascii=False)
+            # If --table is specified and the output is a list of issues/stories, format it as a table
+            if getattr(args, "table", False) and isinstance(presented_data, list) and args.group in ("issue", "bug", "story"):
+                is_story = (args.group == "story" or getattr(args, "view", None) == "story")
+                text = presenter.format_issues_as_table(presented_data, is_story_view=is_story)
+            else:
+                text = json.dumps(presented_data, indent=2, ensure_ascii=False)
 
         finish_call(
             "ok",
