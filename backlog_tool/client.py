@@ -6,25 +6,10 @@ import requests
 from .settings import (
     REQUEST_TIMEOUT_SECONDS,
     api_base_url,
-    log_event,
     require_api_key,
     response_error_body,
 )
-from .telemetry import current_tool_name, ensure_trace, log_telemetry, serialized_bytes
-
-
-def log_response(method, path, response):
-    if response.ok:
-        log_event("info", "api", method=method, path=path, status=response.status_code)
-    else:
-        log_event(
-            "error",
-            "api",
-            method=method,
-            path=path,
-            status=response.status_code,
-            body=response_error_body(response),
-        )
+from .telemetry import record_api_call, serialized_bytes
 
 
 class BacklogClient:
@@ -36,7 +21,6 @@ class BacklogClient:
         if params:
             request_params.update(params)
 
-        trace_id = ensure_trace()
         started = time.monotonic()
         request_body = {
             "params": {k: v for k, v in request_params.items() if k != "apiKey"},
@@ -50,21 +34,16 @@ class BacklogClient:
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         duration_ms = (time.monotonic() - started) * 1000
-        log_response(method, path, response)
         response_bytes = len((response.text or "").encode("utf-8"))
-        log_telemetry(
-            "api_call",
-            traceId=trace_id,
-            tool=current_tool_name(),
-            method=method,
-            path=path,
-            status=response.status_code,
-            ok=response.ok,
-            durationMs=round(duration_ms, 1),
-            requestBytes=serialized_bytes(request_body),
-            responseBytes=response_bytes,
-            request=request_body,
-            responseBody=response.text,
+        record_api_call(
+            method,
+            path,
+            response.status_code,
+            response.ok,
+            duration_ms,
+            serialized_bytes(request_body),
+            response_bytes,
+            response.text,
         )
         try:
             response.raise_for_status()

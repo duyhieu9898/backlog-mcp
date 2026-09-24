@@ -3,15 +3,16 @@
 
 import json
 import os
-import time
 from typing import Annotated, Any, Literal
 
+import anyio
 from pydantic import ConfigDict, Field, ValidationError
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase
 from mcp.types import CallToolResult
 
+from .arg_errors import describe_validation_error
 from .results import _build_result, _error_result, _parse_cursor, _partial_write_result
 
 from backlog_tool.settings import (
@@ -20,7 +21,6 @@ from backlog_tool.settings import (
     project_keys,
     load_project_catalog,
     project_key_from_issue_id,
-    summarize_metrics,
     view_base_url,
 )
 from backlog_tool import issue_service, presenter
@@ -29,8 +29,13 @@ from workflows import guidance, ut_bug, story_task_overview, personal_status
 import workflows.resolve_bug as bug_workflow
 from workflows.audit import audit_config
 from backlog_tool.inspect import build_project_config, write_catalog
-from backlog_tool.telemetry import begin_tool_trace, reset_client_arguments, set_client_arguments
-from backlog_tool.workflow_efficiency import summarize_workflow_efficiency
+from backlog_tool.telemetry import (
+    log_session_start,
+    record_arg_error,
+    reset_client_arguments,
+    set_client_arguments,
+    start_call,
+)
 
 SortOrder = Literal["asc", "desc"]
 MutationMode = Literal["preview", "apply"]
@@ -116,25 +121,29 @@ def _record_rejected_tool_calls() -> None:
     """Log calls FastMCP rejects before the tool body runs.
 
     Argument validation (including extra="forbid") happens inside FastMCP, so a
-    rejected call never reaches begin_tool_trace and would be invisible in
-    metrics/telemetry. Tool bodies catch their own errors, so any ToolError that
+    rejected call never reaches start_call and would be invisible in
+    telemetry. Tool bodies catch their own errors, so any ToolError that
     escapes the manager is a rejection: invalid arguments or an unknown tool.
 
-    The raw client arguments are also exposed to begin_tool_trace so tool_start
-    records what the client sent rather than every defaulted parameter.
+    The raw client arguments are also exposed to start_call so tool calls
+    record what the client sent rather than every defaulted parameter.
     """
     manager = mcp._tool_manager
     call_tool = manager.call_tool
 
     async def call_tool_with_rejection_log(name, arguments, context=None, convert_result=False):
-        started = time.monotonic()
         token = set_client_arguments(arguments)
         try:
             return await call_tool(name, arguments, context=context, convert_result=convert_result)
         except ToolError as error:
-            status = "invalid_arguments" if isinstance(error.__cause__, ValidationError) else "rejected"
-            begin_tool_trace(name, arguments)
-            _error_result(name, error, started=started, status=status)
+            cause = error.__cause__
+            status = "invalid_arguments" if isinstance(cause, ValidationError) else "rejected"
+            start_call(name, arguments)
+            if isinstance(cause, ValidationError):
+                tool = manager.get_tool(name)
+                valid = list((tool.parameters or {}).get("properties", {})) if tool else []
+                record_arg_error(name, arguments, describe_validation_error(cause, valid))
+            _error_result(name, error, status=status)
             raise
         finally:
             reset_client_arguments(token)
@@ -201,8 +210,7 @@ def get_issue(
     Do not use as the first step for investigating or fixing a Bug; use get_bug_context instead.
     Do not use for discovery; use a personal domain list/status tool when possible.
     """
-    started = time.monotonic()
-    begin_tool_trace("get_issue", locals())
+    start_call("get_issue", locals())
     try:
         config = get_config_instance()
         raw_issue = issue_service.get_issue(config, issue_ref)
@@ -211,9 +219,9 @@ def get_issue(
         else:
             base_url = view_base_url(config)
             data = presenter.compact_issue(raw_issue, view=view, base_url=base_url)
-        return _build_result(data, "get_issue", started=started, project=project_key_from_issue_id(issue_ref))
+        return _build_result(data, "get_issue", project=project_key_from_issue_id(issue_ref))
     except Exception as e:
-        return _error_result("get_issue", e, started=started, project=project_key_from_issue_id(issue_ref))
+        return _error_result("get_issue", e, project=project_key_from_issue_id(issue_ref))
 
 
 @mcp.tool()
@@ -244,12 +252,11 @@ def get_issues(
     Do not use for open personal bugs; use get_my_open_bugs.
     Do not use to investigate a specific bug; use get_bug_context.
     """
-    started = time.monotonic()
-    begin_tool_trace("get_issues", locals())
+    start_call("get_issues", locals())
     try:
         offset = _parse_cursor(cursor)
     except ValueError as e:
-        return _error_result("get_issues", e, started=started, project=project_key)
+        return _error_result("get_issues", e, project=project_key)
 
     try:
         config = get_config_instance()
@@ -277,11 +284,10 @@ def get_issues(
             limit=limit,
             offset=offset,
             paginated=True,
-            started=started,
             project=project_key,
         )
     except Exception as e:
-        return _error_result("get_issues", e, started=started, project=project_key)
+        return _error_result("get_issues", e, project=project_key)
 
 
 @mcp.tool()
@@ -306,8 +312,7 @@ def create_issue(
     Use when the user asks to create a generic Backlog issue and has supplied the issue type.
     Do not use when the user asks for the opinionated Unit Test bug workflow; use create_ut_bug.
     """
-    started = time.monotonic()
-    begin_tool_trace("create_issue", locals())
+    start_call("create_issue", locals())
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
@@ -337,12 +342,11 @@ def create_issue(
         return _build_result(
             data,
             "create_issue",
-            started=started,
             dry_run=dry_run,
             project=project_key,
         )
     except Exception as e:
-        return _error_result("create_issue", e, started=started, dry_run=dry_run, project=project_key)
+        return _error_result("create_issue", e, dry_run=dry_run, project=project_key)
 
 
 @mcp.tool()
@@ -368,8 +372,7 @@ def update_issue(
     Use as an escape hatch for explicit field changes outside a specialized personal workflow.
     Do not use to complete a bug resolution workflow; use resolve_bug.
     """
-    started = time.monotonic()
-    begin_tool_trace("update_issue", locals())
+    start_call("update_issue", locals())
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
@@ -400,7 +403,6 @@ def update_issue(
         return _build_result(
             data,
             "update_issue",
-            started=started,
             dry_run=dry_run,
             project=project_key or project_key_from_issue_id(issue_ref),
         )
@@ -408,7 +410,6 @@ def update_issue(
         return _error_result(
             "update_issue",
             e,
-            started=started,
             dry_run=dry_run,
             project=project_key or project_key_from_issue_id(issue_ref),
         )
@@ -438,12 +439,11 @@ def get_my_open_bugs(
     Use when Backlog is explicitly invoked and the user asks for their current bugs/bug queue.
     Prefer this one-call personal workflow over generic get_issues filtering.
     """
-    started = time.monotonic()
-    begin_tool_trace("get_my_open_bugs", locals())
+    start_call("get_my_open_bugs", locals())
     try:
         offset = _parse_cursor(cursor)
     except ValueError as e:
-        return _error_result("get_my_open_bugs", e, started=started, project=project_key)
+        return _error_result("get_my_open_bugs", e, project=project_key)
 
     try:
         config = get_config_instance()
@@ -466,11 +466,10 @@ def get_my_open_bugs(
             limit=limit,
             offset=offset,
             paginated=True,
-            started=started,
             project=project_key,
         )
     except Exception as e:
-        return _error_result("get_my_open_bugs", e, started=started, project=project_key)
+        return _error_result("get_my_open_bugs", e, project=project_key)
 
 
 @mcp.tool()
@@ -483,14 +482,13 @@ def get_bug_context(
     Do not call get_issue first just to inspect the same bug.
     Do not use for listing bugs; use get_my_open_bugs.
     """
-    started = time.monotonic()
-    begin_tool_trace("get_bug_context", locals())
+    start_call("get_bug_context", locals())
     try:
         config = get_config_instance()
         data = bug_workflow.get_bug_context(config, issue_key)
-        return _build_result(data, "get_bug_context", started=started, project=project_key_from_issue_id(issue_key))
+        return _build_result(data, "get_bug_context", project=project_key_from_issue_id(issue_key))
     except Exception as e:
-        return _error_result("get_bug_context", e, started=started, project=project_key_from_issue_id(issue_key))
+        return _error_result("get_bug_context", e, project=project_key_from_issue_id(issue_key))
 
 
 @mcp.tool()
@@ -517,8 +515,7 @@ def resolve_bug(
     Do not pre-call get_bug_rules or get_bug_fields unless resolve_bug reports ambiguity/missing guidance.
     Do not use for unrelated generic issue updates; use update_issue.
     """
-    started = time.monotonic()
-    begin_tool_trace("resolve_bug", locals())
+    start_call("resolve_bug", locals())
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
@@ -554,7 +551,6 @@ def resolve_bug(
         return _build_result(
             data,
             "resolve_bug",
-            started=started,
             dry_run=dry_run,
             project=project_key_from_issue_id(issue_key),
         )
@@ -562,7 +558,6 @@ def resolve_bug(
         return _error_result(
             "resolve_bug",
             e,
-            started=started,
             dry_run=dry_run,
             project=project_key_from_issue_id(issue_key),
         )
@@ -582,8 +577,7 @@ def create_ut_bug(
     The workflow validates/loads the parent internally; do not call get_issue first just to prepare this action.
     Do not use for generic bugs or tasks; use create_issue.
     """
-    started = time.monotonic()
-    begin_tool_trace("create_ut_bug", locals())
+    start_call("create_ut_bug", locals())
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
@@ -603,7 +597,6 @@ def create_ut_bug(
         return _build_result(
             data,
             "create_ut_bug",
-            started=started,
             dry_run=dry_run,
             project=project_key,
         )
@@ -622,11 +615,10 @@ def create_ut_bug(
                     "updatePayload": e.payload,
                 },
             },
-            started=started,
             project=project_key,
         )
     except Exception as e:
-        return _error_result("create_ut_bug", e, started=started, dry_run=dry_run, project=project_key)
+        return _error_result("create_ut_bug", e, dry_run=dry_run, project=project_key)
 
 
 def _support_project_key(project_key: str, issue_key: str) -> str:
@@ -649,16 +641,15 @@ def get_bug_rules(
     This is a support/debug tool, not a normal step before resolve_bug.
     Use only when the user asks for the rules or resolve_bug needs clarification.
     """
-    started = time.monotonic()
-    begin_tool_trace("get_bug_rules", locals())
+    start_call("get_bug_rules", locals())
     project_key = project_key or project_key_from_issue_id(issue_key) or ""
     try:
         config = get_config_instance()
         project_key = _support_project_key(project_key, issue_key)
         data = guidance.resolve_rules(config, project_key or None, start_path=_workspace_path())
-        return _build_result(data, "get_bug_rules", started=started, project=project_key)
+        return _build_result(data, "get_bug_rules", project=project_key)
     except Exception as e:
-        return _error_result("get_bug_rules", e, started=started, project=project_key)
+        return _error_result("get_bug_rules", e, project=project_key)
 
 
 @mcp.tool()
@@ -672,16 +663,15 @@ def get_bug_fields(
     This is a support/debug tool, not a normal step before resolve_bug.
     Use only when a field is ambiguous, missing, or explicitly requested.
     """
-    started = time.monotonic()
-    begin_tool_trace("get_bug_fields", locals())
+    start_call("get_bug_fields", locals())
     project_key = project_key or project_key_from_issue_id(issue_key) or ""
     try:
         config = get_config_instance()
         project_key = _support_project_key(project_key, issue_key)
         data = guidance.field_guidance(field or None, config, project_key or None, start_path=_workspace_path())
-        return _build_result(data, "get_bug_fields", started=started, project=project_key)
+        return _build_result(data, "get_bug_fields", project=project_key)
     except Exception as e:
-        return _error_result("get_bug_fields", e, started=started, project=project_key)
+        return _error_result("get_bug_fields", e, project=project_key)
 
 
 @mcp.tool()
@@ -708,12 +698,11 @@ def get_my_work_overview(
     Use when Backlog is explicitly invoked and the user specifically asks for Stories/Tasks or deadlines.
     For the broader personal Backlog status including bugs, prefer get_my_project_status.
     """
-    started = time.monotonic()
-    begin_tool_trace("get_my_work_overview", locals())
+    start_call("get_my_work_overview", locals())
     try:
         offset = _parse_cursor(cursor)
     except ValueError as e:
-        return _error_result("get_my_work_overview", e, started=started, project=project_key)
+        return _error_result("get_my_work_overview", e, project=project_key)
 
     try:
         config = get_config_instance()
@@ -734,11 +723,10 @@ def get_my_work_overview(
             limit=limit,
             offset=offset,
             paginated=True,
-            started=started,
             project=project_key,
         )
     except Exception as e:
-        return _error_result("get_my_work_overview", e, started=started, project=project_key)
+        return _error_result("get_my_work_overview", e, project=project_key)
 
 
 @mcp.tool()
@@ -751,8 +739,7 @@ def get_my_project_status(
     This is a personal work view, not a PM/team/project-health dashboard.
     It combines assigned Stories/Tasks and open Bugs in one MCP call.
     """
-    started = time.monotonic()
-    begin_tool_trace("get_my_project_status", locals())
+    start_call("get_my_project_status", locals())
     try:
         config = get_config_instance()
         data = personal_status.get_my_project_status(
@@ -763,11 +750,10 @@ def get_my_project_status(
         return _build_result(
             data,
             "get_my_project_status",
-            started=started,
             project=project_key,
         )
     except Exception as e:
-        return _error_result("get_my_project_status", e, started=started, project=project_key)
+        return _error_result("get_my_project_status", e, project=project_key)
 
 
 @mcp.tool()
@@ -777,8 +763,7 @@ def list_configured_projects() -> CallToolResult:
     Use when choosing or confirming a project key.
     Do not use to fetch live project metadata; use inspect_project for one explicit project.
     """
-    started = time.monotonic()
-    begin_tool_trace("list_configured_projects", locals())
+    start_call("list_configured_projects", locals())
     try:
         config = get_config_instance()
         rows = []
@@ -788,9 +773,9 @@ def list_configured_projects() -> CallToolResult:
                 rows.append({"key": key, "id": catalog.get("id"), "name": catalog.get("name")})
             except Exception:
                 rows.append({"key": key, "id": None, "name": "(missing catalog)"})
-        return _build_result(rows, "list_configured_projects", list_key="projects", started=started)
+        return _build_result(rows, "list_configured_projects", list_key="projects")
     except Exception as e:
-        return _error_result("list_configured_projects", e, started=started)
+        return _error_result("list_configured_projects", e)
 
 
 @mcp.tool()
@@ -800,13 +785,12 @@ def get_config() -> CallToolResult:
     Use when diagnosing local MCP configuration or defaults.
     Do not use to retrieve secrets; credentials are intentionally excluded.
     """
-    started = time.monotonic()
-    begin_tool_trace("get_config", locals())
+    start_call("get_config", locals())
     try:
         config = get_config_instance()
-        return _build_result(redact_config(config), "get_config", started=started)
+        return _build_result(redact_config(config), "get_config")
     except Exception as e:
-        return _error_result("get_config", e, started=started)
+        return _error_result("get_config", e)
 
 
 @mcp.tool()
@@ -824,14 +808,13 @@ def audit_config_workflows(
     catalog-backed mutations when Backlog metadata may have changed.
     Do not use to refresh catalogs; live mode is read-only.
     """
-    started = time.monotonic()
-    begin_tool_trace("audit_config_workflows", locals())
+    start_call("audit_config_workflows", locals())
     try:
         config = get_config_instance()
         data = audit_config(config, mode=mode)
-        return _build_result(data, "audit_config_workflows", started=started)
+        return _build_result(data, "audit_config_workflows")
     except Exception as e:
-        return _error_result("audit_config_workflows", e, started=started)
+        return _error_result("audit_config_workflows", e)
 
 
 @mcp.tool()
@@ -844,8 +827,7 @@ def inspect_project(
     Use when the user names one project and needs its metadata or catalog refreshed.
     Do not use to enumerate every project; use list_configured_projects.
     """
-    started = time.monotonic()
-    begin_tool_trace("inspect_project", locals())
+    start_call("inspect_project", locals())
     try:
         config = get_config_instance()
         project_config = build_project_config(config, project_key)
@@ -857,11 +839,10 @@ def inspect_project(
         return _build_result(
             data,
             "inspect_project",
-            started=started,
             project=project_key,
         )
     except Exception as e:
-        return _error_result("inspect_project", e, started=started, project=project_key)
+        return _error_result("inspect_project", e, project=project_key)
 
 
 @mcp.prompt()
@@ -947,26 +928,6 @@ def config_resource() -> str:
 
 
 @mcp.resource(
-    "backlog://metrics",
-    mime_type="application/json",
-    meta={"kind": "metrics", "scope": "workstation"},
-)
-def metrics_resource() -> str:
-    """Read aggregated local MCP usage metrics as JSON."""
-    return json.dumps(summarize_metrics(), indent=2, ensure_ascii=False)
-
-
-@mcp.resource(
-    "backlog://workflow-efficiency",
-    mime_type="application/json",
-    meta={"kind": "workflow_efficiency", "scope": "workstation"},
-)
-def workflow_efficiency_resource() -> str:
-    """Analyze local telemetry for redundant MCP calls and workflow-path inefficiency."""
-    return json.dumps(summarize_workflow_efficiency(), indent=2, ensure_ascii=False)
-
-
-@mcp.resource(
     "backlog://issue/{issue_key}",
     mime_type="application/json",
     meta={"kind": "issue", "scope": "project"},
@@ -983,6 +944,8 @@ def issue_resource(issue_key: str) -> str:
 
 def main() -> None:
     """Run the workstation-local server over stdio."""
+    tools = anyio.run(mcp.list_tools)
+    log_session_start(backend="real", workspace=_workspace_path() or os.getcwd(), tool_count=len(tools))
     mcp.run(transport="stdio")
 
 

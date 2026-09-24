@@ -115,7 +115,10 @@ def test_get_issues_with_invalid_cursor_returns_error():
 
 
 def test_build_result_returns_stable_success_envelope_with_pagination():
+    from backlog_tool import telemetry
+
     data = [{"issueKey": "AQM-1", "summary": "Fix it", "status": "Open"}]
+    telemetry.start_call("get_issues", {})
     result = server._build_result(
         data,
         tool="get_issues",
@@ -256,11 +259,6 @@ def test_resources_have_json_mime_type_and_issue_template():
 
     assert resource_by_uri["backlog://config"].mimeType == "application/json"
     assert resource_by_uri["backlog://config"].meta == {"kind": "config", "scope": "workstation"}
-    assert resource_by_uri["backlog://workflow-efficiency"].mimeType == "application/json"
-    assert resource_by_uri["backlog://workflow-efficiency"].meta == {
-        "kind": "workflow_efficiency",
-        "scope": "workstation",
-    }
     assert template_by_uri["backlog://issue/{issue_key}"].mimeType == "application/json"
     assert template_by_uri["backlog://issue/{issue_key}"].meta == {"kind": "issue", "scope": "project"}
 
@@ -284,26 +282,6 @@ def test_to_markdown_formatting():
     assert "PROJ-123" in res_single
     assert "Database error" in res_single
     assert "[Closed]" in res_single
-
-
-def test_tool_execution_logs_metrics_on_success_and_error():
-    with mock.patch("backlog_mcp.results.log_metric") as log_metric_mock, \
-         mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", return_value={"issueKey": "AQM-1"}):
-        result = server.get_bug_context("AQM-1")
-        assert result.isError is False
-        log_metric_mock.assert_called_once()
-        call_args = log_metric_mock.call_args
-        assert call_args.args[0] == "get_bug_context"
-        assert call_args.args[3] == "ok"
-
-    with mock.patch("backlog_mcp.results.log_metric") as log_metric_mock, \
-         mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", side_effect=ValueError("Boom")):
-        result = server.get_bug_context("AQM-1")
-        assert result.isError is True
-        log_metric_mock.assert_called_once()
-        call_args = log_metric_mock.call_args
-        assert call_args.args[0] == "get_bug_context"
-        assert call_args.args[3] == "error"
 
 
 def test_config_resource_excludes_sensitive_keys():
@@ -407,40 +385,6 @@ def test_audit_config_workflows_live_mode_is_read_only():
     assert result.structuredContent["data"]["writesPerformed"] is False
 
 
-def test_result_metrics_include_structured_and_total_response_bytes():
-    with mock.patch("backlog_mcp.results.log_metric") as metric:
-        result = server._build_result(
-            {"issueKey": "AQM-1", "description": "x" * 2000},
-            tool="get_issue",
-            started=0.0,
-        )
-
-    kwargs = metric.call_args.kwargs
-    assert kwargs["text_bytes"] > 0
-    assert kwargs["structured_bytes"] > 0
-    assert kwargs["total_response_bytes"] >= kwargs["text_bytes"]
-    assert kwargs["total_response_bytes"] >= kwargs["structured_bytes"]
-    assert kwargs["total_response_bytes"] > max(
-        kwargs["text_bytes"],
-        kwargs["structured_bytes"],
-    )
-    assert kwargs["trace_id"] == result.meta["traceId"]
-
-
-def test_error_metrics_count_error_response_bytes():
-    with mock.patch("backlog_mcp.results.log_metric") as metric:
-        result = server._error_result(
-            "get_issue",
-            ValueError("x" * 500),
-            started=0.0,
-        )
-
-    kwargs = metric.call_args.kwargs
-    assert kwargs["text_bytes"] > 0
-    assert kwargs["total_response_bytes"] > 0
-    assert result.meta["traceId"]
-
-
 def test_personal_project_status_aggregates_work_and_bugs_in_one_tool():
     with mock.patch(
         "backlog_mcp.server.personal_status.get_my_project_status",
@@ -513,38 +457,6 @@ def test_personal_prompts_use_minimal_domain_paths():
     assert "get_my_open_bugs" not in status_prompt
 
 
-def test_workflow_efficiency_resource_serializes_analyzer():
-    payload = {
-        "schemaVersion": 1,
-        "overview": {"candidateTasks": 2},
-        "tasks": [],
-    }
-    with mock.patch(
-        "backlog_mcp.server.summarize_workflow_efficiency",
-        return_value=payload,
-    ):
-        result = json.loads(server.workflow_efficiency_resource())
-
-    assert result == payload
-
-
-def test_issue_scoped_tools_record_project_from_issue_key():
-    with mock.patch("backlog_mcp.results.log_metric") as metric, \
-         mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", return_value={"issueKey": "OOP-1"}):
-        server.get_bug_context("OOP-1")
-    assert metric.call_args.kwargs["project"] == "OOP"
-
-    with mock.patch("backlog_mcp.results.log_metric") as metric, \
-         mock.patch("backlog_mcp.server.bug_workflow.resolve_bug", side_effect=ValueError("Boom")):
-        server.resolve_bug("OOP-1")
-    assert metric.call_args.kwargs["project"] == "OOP"
-
-    with mock.patch("backlog_mcp.results.log_metric") as metric, \
-         mock.patch("backlog_mcp.server.issue_service.get_issue", return_value={"issueKey": "OOP-1"}):
-        server.get_issue("OOP-1", view="full")
-    assert metric.call_args.kwargs["project"] == "OOP"
-
-
 def test_bug_support_tools_resolve_project_from_issue_key():
     with mock.patch("backlog_mcp.server.guidance.resolve_rules", return_value={"ok": True}) as rules:
         result = server.get_bug_rules(issue_key="OOP-12760")
@@ -559,17 +471,6 @@ def test_bug_support_tools_resolve_project_from_issue_key():
     result = server.get_bug_rules(project_key="AQM", issue_key="OOP-12760")
     assert result.isError is True
     assert "does not match" in result.content[0].text
-
-
-def test_rejected_tool_arguments_are_recorded_in_metrics_and_telemetry():
-    with mock.patch("backlog_mcp.results.log_metric") as metric, \
-         mock.patch("backlog_mcp.server.begin_tool_trace") as trace:
-        with pytest.raises(Exception, match="dry_run"):
-            anyio.run(server.mcp.call_tool, "resolve_bug", {"issue_key": "OOP-1", "dry_run": False})
-
-    trace.assert_called_once_with("resolve_bug", {"issue_key": "OOP-1", "dry_run": False})
-    assert metric.call_args.args[0] == "resolve_bug"
-    assert metric.call_args.args[3] == "invalid_arguments"
 
 
 def test_client_metadata_uses_mcp_client_info(monkeypatch):
@@ -593,18 +494,65 @@ def test_client_metadata_uses_mcp_client_info(monkeypatch):
         request_ctx.reset(token)
 
 
-def test_tests_never_write_workstation_logs():
-    assert not settings.METRICS_PATH.startswith(os.path.join(settings.MCP_ROOT, "logs"))
-    assert not settings.TELEMETRY_PATH.startswith(os.path.join(settings.MCP_ROOT, "logs"))
-    assert not settings.LOG_PATH.startswith(os.path.join(settings.MCP_ROOT, "logs"))
+from backlog_tool import telemetry
 
 
-def test_tool_start_omits_defaulted_mutation_arguments():
+def _rows(kind):
+    path = telemetry.log_paths()[kind]
+    with open(path, encoding="utf-8") as handle:
+        return [json.loads(line) for line in handle if line.strip()]
+
+
+def _details():
+    folder = telemetry.log_paths()["details_dir"]
+    rows = []
+    for name in sorted(os.listdir(folder)):
+        with open(os.path.join(folder, name), encoding="utf-8") as handle:
+            rows += [json.loads(line) for line in handle if line.strip()]
+    return rows
+
+
+def test_tool_success_and_error_are_logged_with_project_from_issue_key():
+    with mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", return_value={"issueKey": "OOP-1"}):
+        ok = server.get_bug_context("OOP-1")
+    with mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", side_effect=ValueError("Boom")):
+        bad = server.get_bug_context("OOP-1")
+
+    first, second = _rows("calls")
+    assert (first["tool"], first["status"], first["projectKey"]) == ("get_bug_context", "ok", "OOP")
+    assert (second["status"], second["projectKey"]) == ("error", "OOP")
+    assert ok.meta["traceId"] == first["traceId"] and bad.meta["traceId"] == second["traceId"]
+    assert _rows("errors")[0]["message"] == "Boom"
+    assert _details()[0]["result"] == ok.structuredContent
+    assert _details()[0]["text"] == ok.content[0].text
+
+
+def test_response_bytes_count_full_serialized_result():
+    with mock.patch("backlog_mcp.server.issue_service.get_issue", return_value={"issueKey": "OOP-1", "description": "x" * 2000}):
+        server.get_issue("OOP-1", view="full")
+    call = _rows("calls")[0]
+    assert call["responseBytes"] > 2000 and call["estTokens"] == round(call["responseBytes"] / 4)
+
+
+def test_rejected_arguments_logged_with_suggestion():
+    with pytest.raises(Exception):
+        anyio.run(server.mcp.call_tool, "resolve_bug", {"issueKey": "OOP-1"})
+    call = _rows("calls")[0]
+    error = _rows("errors")[0]
+    assert (call["tool"], call["status"]) == ("resolve_bug", "invalid_arguments")
+    assert error["kind"] == "arg_error"
+    assert error["unknown"] == ["issueKey"] and error["missingRequired"] == ["issue_key"]
+    assert error["suggested"] == {"issueKey": "issue_key"}
+
+
+def test_tool_call_logs_only_client_sent_arguments():
     with mock.patch("backlog_mcp.server.bug_workflow.resolve_bug", return_value={"dryRun": True, "warnings": []}), \
          mock.patch("backlog_mcp.server.get_config_instance", return_value={}):
         anyio.run(server.mcp.call_tool, "resolve_bug", {"issue_key": "OOP-1", "commit": "abc"})
+    assert _details()[0]["arguments"] == {"issue_key": "OOP-1", "commit": "abc"}
 
-    with open(settings.TELEMETRY_PATH, "r", encoding="utf-8") as handle:
-        starts = [json.loads(line) for line in handle if '"tool_start"' in line]
 
-    assert starts[-1]["arguments"] == {"issue_key": "OOP-1", "commit": "abc"}
+def test_metrics_and_workflow_resources_are_gone():
+    resources = anyio.run(server.mcp.list_resources)
+    uris = {str(resource.uri) for resource in resources}
+    assert "backlog://metrics" not in uris and "backlog://workflow-efficiency" not in uris
