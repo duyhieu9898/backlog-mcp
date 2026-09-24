@@ -16,7 +16,7 @@ def _same_subject(a, b):
     return a.issue_key == b.issue_key or not (a.issue_key and b.issue_key)
 
 
-def apply_rules(flow):
+def apply_rules(flow, final_answer=None):
     calls = flow.calls
     findings = []
 
@@ -54,5 +54,16 @@ def apply_rules(flow):
             findings.append(_finding("retry_after_error", f"{call.tool} retried after status {call.status}.", [call, calls[i + 1]], severity="info"))
         if call.response_bytes > LARGE_RESPONSE_BYTES:
             findings.append(_finding("large_response", f"{call.tool} returned {call.response_bytes} bytes.", [call], severity="info"))
+
+    from .telemetry_missing import find_missing_fields
+
+    for item in find_missing_fields(flow, final_answer):
+        if item["verdict"] == "missing_field":
+            reason = f"{item['followUp']} after {item['after']} supplied fields that were then used: {item['confirmed']}"
+            severity = "warning"
+        else:
+            reason = f"{item['followUp']} after {item['after']} but none of its extra fields were used (routing/wording)."
+            severity = "candidate"
+        findings.append({"code": item["verdict"], "severity": severity, "reason": reason, "traceIds": item["traceIds"]})
 
     return findings
