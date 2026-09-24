@@ -54,3 +54,14 @@ Log trước 2026-09-24 (`backlog.log`, `metrics.log`, `telemetry.jsonl*`, `sess
 ```bash
 mkdir -p logs/legacy && mv logs/backlog.log* logs/metrics.log* logs/telemetry.jsonl* logs/sessions logs/legacy/ 2>/dev/null
 ```
+
+## Eval
+- Kịch bản: `evals/scenarios.json`. Backlog giả: `uv run python -m evals.fake_backlog [--state no_open_bugs]`.
+- Chạy: `uv run python -m evals.run --agent claude|agy --model <m> --scenario <id|all> --runs N --label <nhãn>`.
+- Server bật chế độ giả khi workspace có `.backlog-eval.json` (`baseUrl` phải là localhost); log run ghi vào `logDir` của file đó, gắn `runId`/`scenario`.
+- `claude` chạy với `--disallowedTools Bash Edit Write NotebookEdit WebFetch WebSearch`; `agy` chạy với `--sandbox`. Tool bị từ chối nằm ở `deniedTools`.
+- agy gọi MCP qua `call_mcp_tool` và đọc schema bằng `view_file` trong `~/.gemini/antigravity-cli/mcp/backlog/` → đếm ở `schemaReads`.
+- Kết quả: `evals/results/<ngày>-<nhãn>/<agent>-<model>.jsonl` (một dòng/run, chỉ trên máy vì chứa câu trả lời có nội dung bug) và `SUMMARY.md` (được commit).
+- Cassette dữ liệu thật: `uv run python -m evals.cassettes extract --from logs/legacy/telemetry.jsonl` → `evals/cassettes/oop.json` (gitignore). Eval mặc định bắt buộc cassette; `--allow-synthetic` để chạy bằng dữ liệu tổng hợp. Làm mới cassette: chạy một phiên với `BACKLOG_MCP_LOG_BODIES=full`, sau đó trích lại (bộ trích hiện đọc định dạng log cũ — khi cần, thêm đọc `details/`).
+- Replay không dùng model: `uv run --extra dev pytest tests/test_replay.py`.
+- Smoke 2026-09-24: `claude opus` và `agy gemini-3.8-flash-medium` cả hai khởi động MCP server thật (không cần bỏ `--sandbox`, agy chạy bình thường với nó) và thấy marker `.backlog-eval.json` (`backendSource: "cassette"`, `unhandledEndpoints: []`, `agentOk: true`). `claude` PASS kịch bản `open_bugs`; `agy` FAIL vì gọi thêm `list_configured_projects`/`get_my_open_bugs` (lặp)/`get_bug_context` ngoài kỳ vọng — không chặn đóng P3 (pass/fail chưa quan trọng ở bước này).
