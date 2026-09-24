@@ -37,3 +37,24 @@ def test_invalid_type_is_reported():
 def test_no_suggestion_for_unrelated_name():
     details = describe_validation_error(error_for({"issue_key": "OOP-1", "zzzz": 1}), ["issue_key", "limit"])
     assert details["suggested"] == {}
+
+
+def test_format_arg_error_suggests_and_lists_valid():
+    from backlog_mcp.arg_errors import format_arg_error
+
+    details = {"unknown": ["issueKey"], "missingRequired": ["issue_key"], "invalid": [], "suggested": {"issueKey": "issue_key"}}
+    text = format_arg_error("resolve_bug", details, ["issue_key", "status", "mode"])
+    assert text == ("Invalid arguments for resolve_bug: unknown 'issueKey' (did you mean 'issue_key'?); "
+                    "missing required 'issue_key'. Valid parameters: issue_key, status, mode")
+
+
+def test_format_arg_error_without_close_match_or_unknown():
+    from backlog_mcp.arg_errors import format_arg_error
+
+    details = {"unknown": ["foo"], "missingRequired": [], "invalid": [{"name": "limit", "reason": "less_than_equal"}], "suggested": {}}
+    text = format_arg_error("get_issues", details, ["limit"])
+    assert "did you mean" not in text
+    assert text == "Invalid arguments for get_issues: unknown 'foo'; invalid 'limit' (less_than_equal). Valid parameters: limit"
+    missing_only = {"unknown": [], "missingRequired": ["issue_key"], "invalid": [], "suggested": {}}
+    assert format_arg_error("get_bug_context", missing_only, ["issue_key"]) == (
+        "Invalid arguments for get_bug_context: missing required 'issue_key'. Valid parameters: issue_key")

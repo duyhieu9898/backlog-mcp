@@ -12,7 +12,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase
 from mcp.types import CallToolResult
 
-from .arg_errors import describe_validation_error
+from .arg_errors import describe_validation_error, format_arg_error
 from .results import _build_result, _error_result, _parse_cursor, _partial_write_result
 
 from backlog_tool.settings import (
@@ -143,9 +143,12 @@ def _record_rejected_tool_calls() -> None:
             if isinstance(cause, ValidationError):
                 tool = manager.get_tool(name)
                 valid = list((tool.parameters or {}).get("properties", {})) if tool else []
-                record_arg_error(name, arguments, describe_validation_error(cause, valid))
+                details = describe_validation_error(cause, valid)
+                record_arg_error(name, arguments, details)
+                error = ToolError(format_arg_error(name, details, valid))
+                error.__cause__ = cause
             _error_result(name, error, status=status)
-            raise
+            raise error
         finally:
             reset_client_arguments(token)
 

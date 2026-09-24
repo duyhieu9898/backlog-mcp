@@ -38,3 +38,13 @@ def describe_validation_error(error, valid_params):
         "invalid": invalid,
         "suggested": _suggest(unknown, valid_params),
     }
+
+
+def format_arg_error(tool, details, valid_params):
+    parts = []
+    for name in details.get("unknown") or []:
+        hint = details.get("suggested", {}).get(name)
+        parts.append(f"unknown '{name}'" + (f" (did you mean '{hint}'?)" if hint else ""))
+    parts += [f"missing required '{name}'" for name in details.get("missingRequired") or []]
+    parts += [f"invalid '{item['name']}' ({item['reason']})" for item in details.get("invalid") or []]
+    return f"Invalid arguments for {tool}: {'; '.join(parts)}. Valid parameters: {', '.join(valid_params)}"

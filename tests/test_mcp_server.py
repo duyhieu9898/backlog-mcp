@@ -535,7 +535,7 @@ def test_response_bytes_count_full_serialized_result():
 
 
 def test_rejected_arguments_logged_with_suggestion():
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match=r"unknown 'issueKey' \(did you mean 'issue_key'\?\)"):
         anyio.run(server.mcp.call_tool, "resolve_bug", {"issueKey": "OOP-1"})
     call = _rows("calls")[0]
     error = _rows("errors")[0]
