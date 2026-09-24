@@ -1,9 +1,11 @@
 import json
 
+import pytest
+
 from backlog_tool import settings, telemetry
 from backlog_tool.telemetry_grader import load_scenarios, render_scenario
 from evals.agents import AgentTrace
-from evals.run import grade_run, prepare_workspace, write_summary
+from evals.run import grade_run, prepare_workspace, run_one, write_summary
 
 
 def scenario(scenario_id):
@@ -38,6 +40,23 @@ def test_grade_run_with_no_calls_fails(tmp_path):
     trace = AgentTrace(final_answer="Tôi cần thêm thông tin.", raw_ok=True)
     result = grade_run(scenario("fix_context"), trace, tmp_path / "logs", "run-x")
     assert result["pass"] is False and result["reasons"]
+
+
+def test_run_one_removes_markers_from_supplied_workspace_on_error(tmp_path, monkeypatch):
+    import evals.run as run_module
+
+    def boom(*args, **kwargs):
+        raise FileNotFoundError("agent binary not found")
+
+    monkeypatch.setattr(run_module.subprocess, "run", boom)
+    ws = tmp_path / "ws"
+    ws.mkdir()
+
+    with pytest.raises(FileNotFoundError):
+        run_one("claude", "opus", scenario("open_bugs"), 0, 30, workspace=str(ws), source="synthetic")
+
+    assert not (ws / ".backlog-eval.json").exists()
+    assert not (ws / ".backlog-project.json").exists()
 
 
 def test_write_summary(tmp_path):

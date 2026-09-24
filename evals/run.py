@@ -68,7 +68,7 @@ def grade_run(scenario, trace, log_dir, run_id):
     return result
 
 
-def run_one(agent, model, scenario, index, out_root, timeout_s, workspace=None, source="cassette"):
+def run_one(agent, model, scenario, index, timeout_s, workspace=None, source="cassette"):
     build_command, parse = AGENTS[agent]
     run_id = f"{agent}-{scenario['id']}-{index}-{uuid.uuid4().hex[:6]}"
     with tempfile.TemporaryDirectory(prefix="backlog-eval-") as tmp:
@@ -76,28 +76,30 @@ def run_one(agent, model, scenario, index, out_root, timeout_s, workspace=None, 
         log_dir = Path(tmp) / "logs"
         with FakeBacklog(state=scenario["fakeState"], source=source) as fake:
             ws = prepare_workspace(root, scenario, run_id, fake.base_url, log_dir)
-            started = time.monotonic()
             try:
-                proc = subprocess.run(
-                    build_command(scenario["prompt"], model) if agent == "claude" else build_command(scenario["prompt"], model, timeout_s),
-                    cwd=ws, capture_output=True, text=True, timeout=timeout_s + 30,
-                )
-                lines = proc.stdout.splitlines()
-                stderr_tail = proc.stderr[-2000:]
-            except subprocess.TimeoutExpired as error:
-                lines = (error.stdout or b"").decode("utf-8", "replace").splitlines() if isinstance(error.stdout, bytes) else (error.stdout or "").splitlines()
-                stderr_tail = "timeout"
-            elapsed_ms = round((time.monotonic() - started) * 1000)
-            trace = parse(lines)
-            result = grade_run(scenario, trace, log_dir, run_id)
-            result.update({
-                "runId": run_id, "agent": agent, "model": model, "scenario": scenario["id"], "backendSource": fake.source,
-                "processMs": elapsed_ms, "unhandledEndpoints": fake.unhandled,
-                "patches": [p["key"] for p in fake.patches], "stderrTail": stderr_tail if not trace.raw_ok else "",
-            })
-            if workspace:
-                for marker in (".backlog-eval.json", ".backlog-project.json"):
-                    (ws / marker).unlink(missing_ok=True)
+                started = time.monotonic()
+                try:
+                    proc = subprocess.run(
+                        build_command(scenario["prompt"], model) if agent == "claude" else build_command(scenario["prompt"], model, timeout_s),
+                        cwd=ws, capture_output=True, text=True, timeout=timeout_s + 30,
+                    )
+                    lines = proc.stdout.splitlines()
+                    stderr_tail = proc.stderr[-2000:]
+                except subprocess.TimeoutExpired as error:
+                    lines = (error.stdout or b"").decode("utf-8", "replace").splitlines() if isinstance(error.stdout, bytes) else (error.stdout or "").splitlines()
+                    stderr_tail = "timeout"
+                elapsed_ms = round((time.monotonic() - started) * 1000)
+                trace = parse(lines)
+                result = grade_run(scenario, trace, log_dir, run_id)
+                result.update({
+                    "runId": run_id, "agent": agent, "model": model, "scenario": scenario["id"], "backendSource": fake.source,
+                    "processMs": elapsed_ms, "unhandledEndpoints": fake.unhandled,
+                    "patches": [p["key"] for p in fake.patches], "stderrTail": stderr_tail if not trace.raw_ok else "",
+                })
+            finally:
+                if workspace:
+                    for marker in (".backlog-eval.json", ".backlog-project.json"):
+                        (ws / marker).unlink(missing_ok=True)
     return result
 
 
@@ -140,7 +142,7 @@ def main(argv=None):
     fingerprint = config_fingerprint(args.agent)
     for scenario in scenarios:
         for index in range(args.runs):
-            result = run_one(args.agent, args.model, scenario, index, folder, args.timeout, args.workspace,
+            result = run_one(args.agent, args.model, scenario, index, args.timeout, args.workspace,
                              source="auto" if args.allow_synthetic else "cassette")
             result["configFingerprint"] = fingerprint
             with out.open("a", encoding="utf-8") as handle:
