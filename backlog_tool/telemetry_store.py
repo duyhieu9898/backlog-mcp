@@ -79,6 +79,8 @@ def _rotated(path):
 def load_calls(log_dir=None, since=None, run_id=None):
     log_dir = log_dir or settings.LOG_DIR
     index = [row for path in _rotated(os.path.join(log_dir, "calls.jsonl")) for row in _read_jsonl(path)]
+    # Skip rows without traceId
+    index = [row for row in index if "traceId" in row]
     if since:
         index = [row for row in index if (row.get("ts") or "") >= since]
     if run_id:
@@ -103,9 +105,12 @@ def load_calls(log_dir=None, since=None, run_id=None):
 
     calls = []
     for row in sorted(index, key=lambda item: item.get("ts") or ""):
-        detail = details.get(row["traceId"], {})
+        trace_id = row.get("traceId")
+        if not trace_id:
+            continue
+        detail = details.get(trace_id, {})
         calls.append(Call(
-            trace_id=row["traceId"],
+            trace_id=trace_id,
             ts=row.get("ts") or "",
             tool=row.get("tool") or "unknown",
             arguments=detail.get("arguments") or {},
@@ -124,7 +129,7 @@ def load_calls(log_dir=None, since=None, run_id=None):
             result=detail.get("result"),
             text=detail.get("text"),
             mutation=detail.get("mutation"),
-            errors=errors.get(row["traceId"], []),
+            errors=errors.get(trace_id, []),
         ))
     return calls
 

@@ -54,3 +54,60 @@ def test_group_flows_heuristic_splits_on_issue_session_and_gap():
     calls[1].session_id = calls[0].session_id
     calls[1].ts = "2999-01-01T00:00:00.000+07:00"
     assert len(group_flows(calls)) == 3
+
+
+def test_load_calls_skips_malformed_and_missing_trace_id():
+    import os
+    import json
+    from backlog_tool import settings
+
+    # Create a calls.jsonl with garbage line + line without traceId + valid call
+    calls_path = os.path.join(settings.LOG_DIR, "calls.jsonl")
+    os.makedirs(settings.LOG_DIR, exist_ok=True)
+
+    # Start a real call to have a valid row
+    make_call("get_bug_context", {"issue_key": "OOP-1"})
+
+    # Append garbage and missing-traceId lines to the file
+    with open(calls_path, "a", encoding="utf-8") as f:
+        f.write("this is not valid json\n")
+        f.write(json.dumps({"ts": "2026-01-01T00:00:00Z", "tool": "orphan", "status": "ok"}) + "\n")
+
+    calls = load_calls()
+    # Should have only 1 call (the valid one from make_call), not 3
+    assert len(calls) == 1
+    assert calls[0].tool == "get_bug_context"
+
+
+def test_load_calls_reads_rotated_backup_files():
+    import os
+    import json
+    from backlog_tool import settings
+
+    calls_path = os.path.join(settings.LOG_DIR, "calls.jsonl")
+    os.makedirs(settings.LOG_DIR, exist_ok=True)
+
+    # Create a call in calls.jsonl.1 (rotated backup)
+    backup_path = f"{calls_path}.1"
+    with open(backup_path, "w", encoding="utf-8") as f:
+        f.write(json.dumps({
+            "traceId": "trace-backup",
+            "ts": "2026-01-01T00:00:00.000Z",
+            "tool": "backup_tool",
+            "status": "ok",
+        }) + "\n")
+
+    # Create another call in calls.jsonl
+    with open(calls_path, "w", encoding="utf-8") as f:
+        f.write(json.dumps({
+            "traceId": "trace-current",
+            "ts": "2026-01-02T00:00:00.000Z",
+            "tool": "current_tool",
+            "status": "ok",
+        }) + "\n")
+
+    calls = load_calls()
+    assert len(calls) == 2
+    # Should be sorted by ts: backup first, then current
+    assert calls[0].tool == "backup_tool"
+    assert calls[1].tool == "current_tool"
