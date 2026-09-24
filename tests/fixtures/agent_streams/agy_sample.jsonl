@@ -1,0 +1,6 @@
+{"event":"init","conversation_id":"c1","init":{"cwd":"/tmp/ws","tools":["call_mcp_tool","view_file"],"permission_mode":"always-proceed"}}
+{"event":"step_update","step_update":{"step_index":0,"state":"DONE","step_type":"user_input"}}
+{"event":"step_update","step_update":{"step_index":2,"state":"DONE","step_type":"tool","tool_name":"view_file","tool_info":{"name":"view_file","parameters":{"AbsolutePath":"/home/u/.gemini/antigravity-cli/mcp/backlog/resolve_bug.json"},"output":"1 lines"}}}
+{"event":"step_update","step_update":{"step_index":4,"state":"DONE","step_type":"tool","tool_name":"call_mcp_tool","tool_info":{"name":"call_mcp_tool","parameters":{"Arguments":{"issue_key":"OOP-912762","mode":"apply"},"ServerName":"backlog","ToolName":"resolve_bug"},"output":"{}"}}}
+{"event":"step_update","step_update":{"step_index":6,"state":"DONE","step_type":"tool","tool_name":"run_command","tool_info":{"name":"run_command","parameters":{"CommandLine":"ls"},"output":""}}}
+{"event":"result","result":{"conversation_id":"c1","status":"SUCCESS","response":"Đã resolve OOP-912762.\n","duration_seconds":12.5,"num_turns":4}}
