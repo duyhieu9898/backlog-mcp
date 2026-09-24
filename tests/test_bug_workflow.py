@@ -533,6 +533,15 @@ class BugWorkflowTest(unittest.TestCase):
                             for w in result["warnings"]))
         self.assertFalse(any("uses the bug summary" in w for w in result["warnings"]))
 
+    def test_resolve_treats_dash_corrective_action_as_empty(self):
+        self.client.get_issue.return_value = {
+            **BUG_ISSUE,
+            "customFields": [{"id": 5, "field": "customField_5", "value": "-"}],
+        }
+        result = bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2))
+        self.assertEqual("fixed Save fails", result["payload"]["customField_5"])
+        self.assertFalse(any("kept the existing Corrective Action" in w for w in result["warnings"]))
+
     def test_resolve_with_fix_description_overwrites_existing_corrective_action(self):
         self.client.get_issue.return_value = {
             **BUG_ISSUE,

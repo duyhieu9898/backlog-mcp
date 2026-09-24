@@ -138,7 +138,8 @@ def created_user_ref(issue):
     return int(created_user_id)
 
 
-IGNORE_VALUES = ["update please"]
+# "-" is how Backlog shows an empty text field; "update please" is a team placeholder.
+IGNORE_VALUES = ["-", "update please"]
 
 
 def has_value(value):
