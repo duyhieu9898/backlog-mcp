@@ -36,7 +36,7 @@ The directory layout separates the MCP protocol interface from the core domain l
 hieund-backlog-mcp/
 ├── backlog_mcp/                  # MCP Server Interface
 │   ├── __init__.py
-│   └── server.py                 # FastMCP router — tools, prompts, resources
+│   └── server.py                 # FastMCP router — tools, instructions, issue resource
 ├── backlog_tool/                 # Core Domain Runtime
 │   ├── client.py                 # Backlog REST API HTTP client
 │   ├── settings.py               # Config, local paths, project resolution, metrics
@@ -65,9 +65,8 @@ hieund-backlog-mcp/
 
 ### 1. MCP Server Interface (`backlog_mcp`)
 Defined in `backlog_mcp/server.py`, this module uses the FastMCP SDK to expose three kinds of MCP primitives:
-* **Tools** — callable actions (issue CRUD, bug workflow, project & config inspection). Invokes domain service functions directly with typed arguments and returns structured MCP responses.
-* **Prompts** — guided multi-step workflows (`resolve_bug_prompt`, `create_ut_bug_prompt`, `project_status_prompt`) that sequence tool calls for the agent.
-* **Resources** — readable data endpoints: `backlog://config`, `backlog://metrics`, `backlog://issue/{issue_key}`.
+* **Tools** — 12 callable actions (issue CRUD, bug workflow, personal status). Invokes domain service functions directly with typed arguments and returns structured MCP responses whose text content is the same result as compact JSON. Project/config administration is CLI-only.
+* **Resources** — `backlog://issue/{issue_key}` (one issue as JSON).
 
 ### 2. Core Domain Runtime (`backlog_tool`)
 The underlying engine that executes command actions:
@@ -99,7 +98,7 @@ Because this server operates locally on a developer's workstation with mutation 
 
 > [!IMPORTANT]
 > **Dry Run Heuristic**
-> All tools modifying state (`create_issue`, `update_issue`, `resolve_bug`, `create_ut_bug`) run in **preview mode by default**. They build and return the payload that would be sent. Mutations are only submitted to the Backlog API if `mode="apply"` is explicitly passed.
+> All tools modifying state (`create_issue`, `update_issue`, `resolve_bug`, `create_ut_bug`) run in **preview mode by default**. They build and return the payload that would be sent. Mutations are only submitted to the Backlog API if `mode="apply"` is explicitly passed. `resolve_bug` is the one tool the instructions tell the model to call with `mode="apply"` directly, once, when the user asks to resolve.
 
 > [!WARNING]
 > **Credential Protection**

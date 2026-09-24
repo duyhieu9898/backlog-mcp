@@ -65,12 +65,15 @@ Normal personal intents map to domain tools:
 | Create a configured UT bug | `create_ut_bug` |
 
 `get_issue`, `get_issues`, `create_issue`, and `update_issue` are escape
-hatches for generic/custom operations. Diagnostic/config tools such as
-`get_bug_rules`, `get_bug_fields`, `inspect_project`, and
-`audit_config_workflows` are not normal pre-steps for the personal workflows.
+hatches for generic/custom operations. `get_bug_rules` and `get_bug_fields` are
+diagnostic tools, not normal pre-steps for the personal workflows. Project and
+config administration (list projects, inspect/refresh a catalog, show config,
+audit workflows) is CLI-only: `backlog-cli config list-projects|show|audit-workflows`
+and `backlog-cli project inspect <KEY>`.
 
-For read intents, the design target is usually one MCP call. Mutations normally
-use two calls because preview then apply is intentional.
+The design target is one MCP call per intent. `resolve_bug` is called once with
+`mode="apply"` when the user asks to resolve a bug; `create_issue`,
+`update_issue` and `create_ut_bug` keep preview → confirm → apply.
 
 ## Usage Modes
 
@@ -135,8 +138,8 @@ mutation tools and bug workflow tools require it.
 
 **Limitations of Mode 2:**
 - A new project cannot be used until steps 1–2 above are completed manually.
-- The catalog can become stale; re-run `inspect_project` with
-  `mode="refresh_catalog"` to sync it.
+- The catalog can become stale; re-run `uv run backlog-cli project inspect XYZ`
+  to sync it.
 
 ---
 
@@ -155,15 +158,15 @@ The active project is also resolved from the `BACKLOG_WORKSPACE_PATH` or
 | `create_issue` | Create a Backlog issue (`mode="preview"` by default, `"apply"` to submit). |
 | `update_issue` | Update fields on an existing issue (`mode="preview"` / `"apply"`). |
 
-Generic issue tools use `issue_ref` for a key or numeric ID. Bug-domain tools use `issue_key` for Backlog keys such as `OOP-12748`; MCP tool arguments use snake_case rather than Backlog API camelCase names.
+Every tool names the issue it acts on `issue_key` (`get_issue` also accepts a numeric ID) and the parent `parent_key`; keys look like `OOP-12748` and are upper-cased and checked against the configured projects before any Backlog call. Arguments are snake_case; a wrong argument name returns an error that suggests the right one and lists the valid parameters. Successful results carry the full structured result as compact JSON text too (lists include `count`), so clients that only show text get the same data.
 
 ### Bugs
 
 | Tool | Description |
 |---|---|
 | `get_my_open_bugs` | List open bugs assigned to the configured user. |
-| `get_bug_context` | Get AI-ready context for a specific bug (fields needed to understand or resolve it). |
-| `resolve_bug` | Resolve a bug with workflow defaults (`mode="preview"` / `"apply"`). Apply requires `fix_description`; guided fields and hours only fill empty values and warn when a passed value is not applied. |
+| `get_bug_context` | Get AI-ready context for a specific bug, including its attachments (`id`, `name`, `size`, `isImage`). |
+| `resolve_bug` | Resolve a bug with workflow defaults in one `mode="apply"` call. `fix_description`/`commit` are optional (Corrective Action falls back to `fixed <summary>`); guided fields and hours only fill empty values; warnings (e.g. Detected Role is not Tester) never block and are returned with the changes. `mode="preview"` only when asked. |
 | `create_ut_bug` | Create a Unit Test sub-task bug under a parent issue (`mode="preview"` / `"apply"`). |
 | `get_bug_rules` | Get the resolve-bug workflow rules for a project (or the project of `issue_key`). |
 | `get_bug_fields` | Get allowed values and guidance for bug workflow fields (e.g. `qc_activity`, `cause_category`). |
@@ -175,37 +178,19 @@ Generic issue tools use `issue_ref` for a key or numeric ID. Bug-domain tools us
 | `get_my_project_status` | One-call personal Backlog status: assigned Stories/Tasks, deadlines, and open Bugs. |
 | `get_my_work_overview` | List assigned Stories and Tasks with deadline and status context when that narrower view is explicitly needed. |
 
-### Project & Config
-
-| Tool | Description |
-|---|---|
-| `list_configured_projects` | List all locally configured Backlog projects. |
-| `inspect_project` | Fetch metadata for one project (`mode="read"`) or refresh its local catalog (`mode="refresh_catalog"`). |
-| `get_config` | Show local configuration with credentials excluded. |
-| `audit_config_workflows` | Validate workflow config and project catalogs for drift. |
-
-## Prompts
-
-| Prompt | Description |
-|---|---|
-| `resolve_bug_prompt` | Guided step-by-step workflow to resolve a bug following project policies. |
-| `create_ut_bug_prompt` | Guided workflow to create a Unit Test sub-task bug under a parent issue. |
-| `project_status_prompt` | One-call personal Backlog status workflow using `get_my_project_status`. |
-
 ## Resources
 
 | URI | Description |
 |---|---|
-| `backlog://config` | Workstation-wide Backlog configuration as JSON (credentials excluded). |
 | `backlog://issue/{issue_key}` | One Backlog issue as full JSON by issue key. |
 
 ## Safety
 
 - Mutation tools (`create_issue`, `update_issue`, `create_ut_bug`, `resolve_bug`)
   default to `mode="preview"` — a dry run that returns the planned change without
-  writing. Pass `mode="apply"` only after reviewing the preview.
-- `inspect_project` defaults to `mode="read"` (no writes). Use
-  `mode="refresh_catalog"` to update the local catalog.
+  writing. `create_issue`, `update_issue` and `create_ut_bug` apply only after the
+  user confirms the preview; `resolve_bug` applies directly when the user asks to
+  resolve (the user accepts the Backlog notification to the new assignee).
 - Project key is resolved from workspace context only when unambiguous; the server
   returns an error instead of guessing.
 - API keys and full request URLs containing query strings are never logged.

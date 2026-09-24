@@ -332,19 +332,15 @@ def test_personal_routing_contract_is_explicit_and_domain_first():
 
 
 def test_server_instructions_require_backlog_activation_and_minimal_bug_paths():
-    instructions = server.SERVER_INSTRUCTIONS.lower()
-    assert "activation:" in instructions
-    assert "provides a backlog issue key" in instructions
-    assert "without an activation signal" in instructions
-    assert "resolve/close a bug -> resolve_bug" in instructions
-    assert "already fixed" in instructions
-    assert "use resolve_bug directly: preview -> apply" in instructions
-    assert "not fixed yet" in instructions
-    assert "use get_bug_context first" in instructions
-    assert "do not pre-call get_issue, get_bug_rules, or get_bug_fields" in instructions
-    assert "do not add or change mutation fields after preview" in instructions
-    assert "previewing the final payload again" in instructions
-    assert "read before mutating" not in instructions
+    instructions = server.SERVER_INSTRUCTIONS
+    assert "Activation:" in instructions and "without an activation signal" in instructions
+    assert '-> resolve_bug directly with mode="apply" (one call)' in instructions
+    assert "-> get_bug_context (it lists attachments" in instructions
+    assert "resolve_bug: apply directly when the user asks to resolve; report warnings afterwards." in instructions
+    assert "create_issue, update_issue, create_ut_bug: preview first, apply only after the user confirms." in instructions
+    assert "preview -> apply" not in instructions
+    assert "Project resolution:" in instructions and "Security:" in instructions
+
 
 
 def test_bug_support_tools_resolve_project_from_issue_key():

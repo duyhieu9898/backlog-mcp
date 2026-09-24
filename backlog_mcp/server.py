@@ -84,21 +84,15 @@ Activation:
 - Do not route generic requests such as "what should I do?" or "project status" to Backlog without an activation signal.
 
 Preferred tools:
-- Personal status -> get_my_project_status
 - My open bugs -> get_my_open_bugs
-- Investigate/fix a specific bug -> get_bug_context
-- Resolve/close a bug -> resolve_bug
+- Resolve/close a bug, or the user says it is already fixed -> resolve_bug directly with mode="apply" (one call)
+- Fix/investigate a bug that is not fixed yet -> get_bug_context (it lists attachments; tell the user when an attachment matters instead of fetching it)
+- Personal status -> get_my_project_status
 - Generic get/search/update tools are escape hatches only.
 
-Bug workflow:
-- If the user says the bug is already fixed, use resolve_bug directly: preview -> apply.
-- If the bug is not fixed yet, use get_bug_context first, then resolve_bug after the code fix.
-- Do not pre-call get_issue, get_bug_rules, or get_bug_fields unless the specialized tool reports missing or ambiguous guidance.
-
 Mutation safety:
-- Preview mutations before apply.
-- Apply only when the user explicitly requests the write.
-- Do not add or change mutation fields after preview without previewing the final payload again.
+- resolve_bug: apply directly when the user asks to resolve; report warnings afterwards.
+- create_issue, update_issue, create_ut_bug: preview first, apply only after the user confirms.
 
 Project resolution:
 - Prefer an explicit project key.

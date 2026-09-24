@@ -1,7 +1,7 @@
 # Backlog MCP: Telemetry nền tảng + Eval đa model — Design Spec
 
 - Ngày: 2026-09-24
-- Trạng thái: Draft chờ duyệt
+- Trạng thái: Đã duyệt; P0–P5 xong (2026-09-24). P6 chỉ eval Claude opus — Gemini bị loại theo quyết định người dùng ngày 2026-09-24 (API Gemini không ổn định).
 - Thay thế: `docs/superpowers/plans/2026-09-23-telemetry-and-payload.md` (xem §11)
 
 ## 1. Bối cảnh
@@ -248,13 +248,13 @@ Khi trong một flow, sau call A (tool chuyên dụng) có call B khác tool cù
 | Agent | Lệnh | Ghi chú |
 |---|---|---|
 | `claude` | `claude -p "<prompt>" --model <m> --output-format stream-json --verbose --strict-mcp-config --mcp-config <tmp>/mcp.json --disallowedTools Bash Edit Write NotebookEdit WebFetch WebSearch Task Agent` | Chạy trong workspace eval. Ở permission mode `auto` `--allowedTools` không chặn tool (đã probe) nên cô lập bằng MCP: `mcp.json` (trong thư mục tạm của run, không trong workspace) chỉ khai báo server `backlog` = `uv --project <repo> run backlog-mcp-server`; env của agent bỏ mọi biến `BACKLOG_*` trừ `BACKLOG_WORKSPACE_PATH`. Hook/skill global giữ nguyên (D9). |
-| `agy` | `agy -p "<prompt>" --model <m> --output-format stream-json --dangerously-skip-permissions --sandbox --print-timeout <t>` | Chạy trong workspace eval. |
+| `agy` | `agy -p "<prompt>" --model <m> --output-format stream-json --dangerously-skip-permissions --print-timeout <t>` | Chạy trong workspace eval. Không `--sandbox` (làm hỏng mọi lệnh terminal). agy không có `--strict-mcp-config`: runner tạm `agy mcp disable` các MCP server global khác trong batch và bật lại sau. Server `backlog` của agy là cấu hình global chạy từ thư mục repo, nên không sửa code repo trong lúc eval agy. |
 
 Cách lấy call từ stream-json:
 - `claude`: `assistant.message.content[].type == "tool_use"`; tool MCP có tên `mcp__backlog__<tool>`; tool khác là call ngoài MCP.
 - `agy`: event `step_update` với `state == "DONE"` và `step_type == "tool"`; `tool_name == "call_mcp_tool"` và `tool_info.parameters.ServerName == "backlog"` là MCP call (`ToolName`, `Arguments`); `view_file` trên `~/.gemini/antigravity-cli/mcp/backlog/*` được đếm là `schemaReads` (không phải extra call); tool khác là call ngoài MCP. Câu trả lời cuối = `result.response`.
 
-An toàn khi eval (model có thể tự tìm tới repo và gọi Backlog thật như trong probe): `claude` chỉ được phép `mcp__backlog__*`, `Read`, `Glob`, `Grep` (`--allowedTools`); `agy` chạy với `--sandbox`. Các lần tool bị từ chối được ghi vào kết quả run. Fixture dùng mã `OOP-9xxxxx` không tồn tại trên Backlog thật.
+An toàn khi eval (model có thể tự tìm tới repo và gọi Backlog thật như trong probe): `claude` chạy với `--strict-mcp-config` + MCP config chỉ có server `backlog` + `--disallowedTools Bash Edit Write NotebookEdit WebFetch WebSearch Task Agent` (ở permission mode `auto`, `--allowedTools` không chặn tool); env của mọi agent bỏ `BACKLOG_*` trừ `BACKLOG_WORKSPACE_PATH`; backend là Backlog giả bật bằng `.backlog-eval.json`; `agy` không `--sandbox`. Các lần tool bị từ chối được ghi vào kết quả run. Fixture dùng mã `OOP-9xxxxx` không tồn tại trên Backlog thật.
 
 Mỗi run: tạo workspace tạm (hoặc `--workspace`) → ghi `.backlog-eval.json` + `.backlog-project.json` → start Backlog giả → chạy agent → parse stream-json (prompt, model, tool call MCP và ngoài MCP, câu trả lời cuối, `startupMs` = spawn→event init, `wallClockMs` = event init→event result) → đọc log run → chấm → lưu. Model dừng để hỏi người dùng = run kết thúc; harness không trả lời.
 
@@ -296,6 +296,8 @@ Wrapper `call_tool` hiện có bắt `ValidationError` và dựng lại thông �
 Gợi ý dùng `difflib.get_close_matches` trên tên sau khi chuẩn hoá (bỏ `_`, chữ thường). Đồng thời ghi `arg_error` (§5.5).
 
 ### 9.4 Text content đủ nội dung
+
+Bổ sung sau baseline: kết quả dạng danh sách có thêm `count` (`{"bugs": [], "count": 0}`) để model không phải gọi lại khi danh sách rỗng.
 
 Theo spec MCP (Tools, 2025-06-18): tool trả `structuredContent` **SHOULD** trả kèm bản JSON serialize của nó trong một `TextContent`. Quyết định: text content = JSON compact (`separators=(",", ":")`, `ensure_ascii=False`) của `structuredContent`; bỏ `_to_markdown` và các dòng `(structured data)`. Client đọc text hay structured đều nhận đủ dữ liệu. Nếu eval cho thấy một client đưa cả hai vào context (token gấp đôi), ghi nhận trong `SUMMARY.md` để xem xét riêng; không đổi quyết định trong dự án này.
 
