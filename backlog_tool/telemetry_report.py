@@ -4,7 +4,7 @@ import re
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 
-from .claude_transcripts import find_transcripts, read_prompt_turns, turn_to_flow
+from .claude_transcripts import find_transcripts, is_eval_turn, read_prompt_turns, turn_to_flow
 from .telemetry_grader import expect_for, grade, load_scenarios, match_prompt, render_scenario
 from .telemetry_rules import apply_rules
 from .telemetry_store import group_flows, load_calls
@@ -111,14 +111,28 @@ def report_from_logs(since=None, run_id=None, log_dir=None):
     return build_report(flows, load_scenarios())
 
 
+def _instant(value):
+    """Aware datetime for an ISO timestamp (transcripts use UTC `Z`, `since` is local); naive = local time."""
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (AttributeError, ValueError):
+        return None
+    return parsed if parsed.tzinfo else parsed.astimezone()
+
+
 def report_from_claude(since=None, root=None, log_dir=None):
     since_iso = parse_since(since)
+    since_at = _instant(since_iso) if since_iso else None
     calls = load_calls(log_dir=log_dir, since=since_iso)
     flows = []
     for path in find_transcripts(since_iso, root):
         for turn in read_prompt_turns(path):
-            if since_iso and turn.ts[:19] < since_iso[:19]:
+            if is_eval_turn(turn):
                 continue
+            if since_at:
+                turn_at = _instant(turn.ts)
+                if turn_at is None or turn_at < since_at:
+                    continue
             uses_backlog = any((u["name"] or "").startswith("mcp__backlog__") for u in turn.tool_uses)
             if "backlog" not in turn.prompt.lower() and not uses_backlog:
                 continue

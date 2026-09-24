@@ -4,6 +4,7 @@ import glob
 import json
 import os
 import re
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -11,6 +12,7 @@ from .telemetry_store import Call, Flow
 
 MCP_PREFIX = "mcp__backlog__"
 MATCH_WINDOW_SECONDS = 5
+EVAL_DIR_MARKER = "backlog-eval-"
 _WRAPPED = re.compile(
     r"^\s*(<(system-reminder|command-name|command-message|command-args|local-command-stdout|local-command-caveat)\b"
     r"|Base directory for this skill:|\[Request interrupted|Caveat: )"
@@ -82,11 +84,19 @@ def read_prompt_turns(path):
 
 def find_transcripts(since=None, root=None):
     root = root or os.path.expanduser("~/.claude/projects")
-    paths = glob.glob(os.path.join(root, "*", "*.jsonl"))
+    paths = [
+        p for p in glob.glob(os.path.join(root, "*", "*.jsonl"))
+        if EVAL_DIR_MARKER not in os.path.basename(os.path.dirname(p))
+    ]
     if since:
         cutoff = datetime.fromisoformat(since[:10]).timestamp()
         paths = [p for p in paths if os.path.getmtime(p) >= cutoff]
     return sorted(paths)
+
+
+def is_eval_turn(turn):
+    """Turns run by the eval harness (evals/run.py works in tempdir/backlog-eval-*)."""
+    return bool(turn.project_dir) and turn.project_dir.startswith(os.path.join(tempfile.gettempdir(), EVAL_DIR_MARKER))
 
 
 def _epoch(ts):
@@ -94,6 +104,12 @@ def _epoch(ts):
         return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
     except (AttributeError, ValueError):
         return None
+
+
+def _call_start(call):
+    """Telemetry ts is written when the call finishes; the tool_use happens at its start."""
+    finished = _epoch(call.ts)
+    return None if finished is None else finished - (call.duration_ms or 0) / 1000
 
 
 def turn_to_flow(turn, calls):
@@ -109,8 +125,8 @@ def turn_to_flow(turn, calls):
         match = next((
             call for call in calls
             if call.trace_id not in used and call.tool == tool and call.arguments == use["input"]
-            and use_time is not None and _epoch(call.ts) is not None
-            and abs(_epoch(call.ts) - use_time) <= MATCH_WINDOW_SECONDS
+            and use_time is not None and _call_start(call) is not None
+            and abs(_call_start(call) - use_time) <= MATCH_WINDOW_SECONDS
         ), None)
         if match is None:
             match = Call(

@@ -63,3 +63,43 @@ def test_final_answer_none_when_tool_use_is_last_content(tmp_path):
     assert turn.model == "claude-opus-5-5"
     assert [u["name"] for u in turn.tool_uses] == ["mcp__backlog__get_bug_context"]
     assert turn.final_answer is None  # No text after tool_use, so final_answer should be None
+
+
+def _write_transcript(path, turns):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        for ts, cwd, prompt in turns:
+            handle.write(json.dumps({"type": "user", "timestamp": ts, "cwd": cwd, "message": {"role": "user", "content": prompt}}) + "\n")
+            handle.write(json.dumps({"type": "assistant", "timestamp": ts, "message": {"model": "m", "content": [{"type": "text", "text": "ok"}]}}) + "\n")
+
+
+def test_eval_transcripts_are_skipped(tmp_path):
+    import tempfile
+
+    from backlog_tool.claude_transcripts import find_transcripts
+    from backlog_tool.telemetry_report import report_from_claude
+
+    root = tmp_path / "projects"
+    eval_cwd = os.path.join(tempfile.gettempdir(), "backlog-eval-abc123", "ws")
+    _write_transcript(root / "-tmp-backlog-eval-abc123-ws" / "s1.jsonl", [("2026-09-24T03:30:00Z", eval_cwd, "backlog eval prompt")])
+    real = root / "-home-u-proj" / "s2.jsonl"
+    _write_transcript(real, [
+        ("2026-09-24T03:30:00Z", "/home/u/proj", "backlog real prompt"),
+        ("2026-09-24T03:31:00Z", eval_cwd, "backlog eval prompt in shared dir"),
+    ])
+    assert find_transcripts(root=str(root)) == [str(real)]
+    report = report_from_claude(root=str(root), log_dir=str(tmp_path / "logs"))
+    assert [f["prompt"] for f in report["flows"]] == ["backlog real prompt"]
+
+
+def test_turn_to_flow_matches_call_by_start_time():
+    turn = read_prompt_turns(SAMPLE)[0]
+    use_ts = next(u["ts"] for u in turn.tool_uses if u["name"] == "mcp__backlog__resolve_bug")
+    assert use_ts == "2026-09-23T10:20:08.000Z"
+    slow = Call(
+        trace_id="slow", ts="2026-09-23T17:20:16.000+07:00", tool="resolve_bug",
+        arguments={"issue_key": "OOP-12781", "mode": "apply"}, status="ok", duration_ms=8000, api_calls=2,
+        response_bytes=800, est_tokens=200, client="claude-code", session_id="s", surface="mcp", run_id=None,
+        scenario=None, issue_key="OOP-12781", project_key="OOP",
+    )
+    assert [c.trace_id for c in turn_to_flow(turn, [slow]).calls] == ["slow"]

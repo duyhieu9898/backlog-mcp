@@ -38,3 +38,17 @@ def test_build_report_real_usage_uses_prompt_match():
     flow.prompt = "backlog resolve OOP-1, bug này tôi fix rồi"
     report = build_report([flow], load_scenarios())
     assert report["flows"][0]["grade"]["pass"] is True
+
+
+def test_report_from_claude_compares_since_as_instants(tmp_path):
+    import json
+
+    from backlog_tool.telemetry_report import report_from_claude
+
+    path = tmp_path / "projects" / "-home-u-proj" / "s.jsonl"
+    path.parent.mkdir(parents=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        for ts, prompt in (("2026-01-10T02:30:00Z", "backlog before"), ("2026-01-10T03:30:00Z", "backlog after")):
+            handle.write(json.dumps({"type": "user", "timestamp": ts, "cwd": "/home/u/proj", "message": {"role": "user", "content": prompt}}) + "\n")
+    report = report_from_claude(since="2026-01-10T10:00:00+07:00", root=str(tmp_path / "projects"), log_dir=str(tmp_path / "logs"))
+    assert [f["prompt"] for f in report["flows"]] == ["backlog after"]
