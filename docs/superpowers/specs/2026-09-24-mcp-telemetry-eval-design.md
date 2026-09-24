@@ -161,7 +161,7 @@ Tài liệu agent đọc đầu tiên: bố cục file, từng field, quy trình
 | `resolve_multi` | `backlog resolve {a}, {b}, các bug này tôi fix rồi` | `OOP-90001`, `OOP-90005` | 2 × `resolve_bug{mode:apply}`, `order: any` | |
 | `resolve_warning` | `backlog resolve {issue}, bug này tôi fix rồi` | `OOP-90003` (Detected Role = Developer) | `[resolve_bug{mode:apply}]` | `finalAnswer.mustMention: ["Tester"]` |
 | `fix_context` | `backlog fix {issue}` | `OOP-90002` | `[get_bug_context]` | forbidden: `get_issue`; tool ngoài MCP không chấm |
-| `fix_context_image` | `backlog fix {issue}` | `OOP-90004` (evidence là ảnh đính kèm) | `[get_bug_context, get_bug_attachment]` | |
+| `fix_context_image` | `backlog fix {issue}` | `OOP-90004` (evidence là ảnh đính kèm) | `[get_bug_context, get_bug_attachment]` | `finalAnswer.mustMention: ["ERR-4471"]` (chữ in trong ảnh mẫu) |
 
 ### 6.3 Nhận diện prompt thật (cho `import-claude`)
 
@@ -235,7 +235,7 @@ Khi trong một flow, sau call A (tool chuyên dụng) có call B khác tool cù
 - Server **từ chối khởi động** nếu `baseUrl` không phải `127.0.0.1`/`localhost`.
 - Workspace eval cũng có `.backlog-project.json` = `{"project_key": "OOP"}`.
 - Cơ chế này không đụng cấu hình MCP global của Claude Code hay agy: client vẫn chạy MCP server backlog thật như hằng ngày.
-- **Cần kiểm chứng ở P3:** agy khởi động MCP server với `cwd` = workspace của phiên. Nếu không, fallback: harness tạm `agy mcp add --env BACKLOG_WORKSPACE_PATH=<workspace> backlog …` trước khi chạy và khôi phục cấu hình cũ sau khi chạy (in cảnh báo không dùng Antigravity trong lúc eval).
+- **Đã kiểm chứng (2026-09-24):** `agy -p` chạy trong một thư mục tạm khởi động `backlog-mcp-server` với `cwd` và `PWD` = thư mục đó; `claude` đặt `CLAUDE_PROJECT_DIR`. Cả hai client đều tìm được file đánh dấu mà không cần sửa cấu hình MCP global.
 
 ### 8.3 Adapter
 
@@ -287,11 +287,9 @@ Gợi ý dùng `difflib.get_close_matches` trên tên sau khi chuẩn hoá (bỏ
 
 ### 9.4 Text content đủ nội dung
 
-Mỗi tool dựng text riêng thay cho `_to_markdown` chung (bỏ các dòng `(structured data)`). Quyết định hình thức ở P3 dựa trên dữ liệu:
-- Kiểm tra trong transcript `claude -p` và stream-json `agy` xem model nhận text, structured hay cả hai.
-- Nếu một client chỉ đưa text → text là bản rút gọn **đầy đủ** (mọi field cần để hành động).
-- Nếu cả hai client đều đưa structured → text là 1–3 dòng tóm tắt, tránh gửi dữ liệu hai lần.
-- Kết luận ghi vào `docs/telemetry.md` và test hợp đồng tương ứng.
+Theo spec MCP (Tools, 2025-06-18): tool trả `structuredContent` **SHOULD** trả kèm bản JSON serialize của nó trong một `TextContent`. Quyết định: text content = JSON compact (`separators=(",", ":")`, `ensure_ascii=False`) của `structuredContent`; bỏ `_to_markdown` và các dòng `(structured data)`. Client đọc text hay structured đều nhận đủ dữ liệu. Nếu eval cho thấy một client đưa cả hai vào context (token gấp đôi), ghi nhận trong `SUMMARY.md` để xem xét riêng; không đổi quyết định trong dự án này.
+
+Test hợp đồng: với mọi tool, `json.loads(text) == structuredContent`.
 
 ### 9.5 `resolve_bug`
 
@@ -333,8 +331,8 @@ Giữ nguyên khối Activation, Project resolution, Security.
 ### 9.7 Ảnh đính kèm
 
 - `get_bug_context` thêm `attachments: [{id, name, size, isImage}]` (chỉ khi có).
-- `get_bug_attachment(issue_key, attachment_id)`: tải qua `GET /api/v2/issues/{issue_key}/attachments/{attachment_id}`; ảnh (png/jpeg/gif/webp, ≤ 5 MB) trả MCP `ImageContent`; loại khác hoặc quá lớn → lỗi nêu tên, kích thước, loại. Docstring: "Use when get_bug_context lists an image attachment that is needed to understand the bug."
-- **Cần kiểm chứng ở P3:** endpoint tải file của Backlog API (với fixture thật) và việc `claude`/`agy` đưa ảnh cho model (kịch bản `fix_context_image`).
+- `get_bug_attachment(issue_key, attachment_id)`: tải qua endpoint chính thức *Get Issue Attachment* `GET /api/v2/issues/{issue_key}/attachments/{attachment_id}`; ảnh (png/jpeg/gif/webp, ≤ 5 MB) trả MCP `ImageContent`; loại khác hoặc quá lớn → lỗi nêu tên, kích thước, loại. Docstring: "Use when get_bug_context lists an image attachment that is needed to understand the bug."
+- Ảnh trả về theo chuẩn MCP: content item `{type: "image", data: <base64>, mimeType}` trong kết quả tool. Việc `claude`/`agy` đưa ảnh cho model được kiểm chứng bằng kịch bản `fix_context_image` (câu trả lời cuối phải mô tả nội dung có trong ảnh mẫu: `finalAnswer.mustMention` = chữ in trong PNG fixture).
 
 ## 10. Phase và điều kiện đóng
 
@@ -345,7 +343,7 @@ Một spec, hai plan: **Plan A** = P0–P3; **Plan B** = P4–P6 (viết sau khi
 | P0 Dọn dẹp | Xoá 8 import thừa và code chết (`IssueView`, `SKILL_DIR`, 6 getter `BacklogClient`, `journal.log_ai/list_sessions`); sửa docstring CLI; đánh dấu plan 2026-09-23 là superseded. | `pytest` pass; `ruff check --select F` sạch. |
 | P1 Log nền tảng | §5 toàn bộ (ghi + CLI + xoá sink cũ + `docs/telemetry.md`). | Test mỗi file/event; một ngày dùng thật: đủ 4 loại file, mọi `calls.traceId` có dòng `details`, không `api` mồ côi. |
 | P2 Phân tích | §7 toàn bộ. Script một lần chuyển log legacy 2026-09-23 thành fixture định dạng mới trong `tests/fixtures/telemetry-2026-09-23/`. | Test với log tổng hợp; trên fixture 2026-09-23: phát hiện đủ 4 `generic_after_specialized` và các `duplicate_call` đã biết; `import-claude` trên transcript thật gán đúng prompt cho các call `resolve_bug` ngày 23/09. |
-| P3 Harness | §8 toàn bộ; replay test; kiểm chứng các mục "cần kiểm chứng" (§8.2, §9.4, §9.7) và ghi kết luận vào spec/docs. | Replay test pass cả 6 kịch bản; các kịch bản phụ thuộc thay đổi ở P5 (`resolve_*` apply không có `fix_description`, `fix_context_image`) được đánh dấu `xfail` và bỏ đánh dấu ở P5; 1 run thật mỗi agent ra file kết quả hợp lệ. |
+| P3 Harness | §8 toàn bộ; replay test; ghi lại trong `docs/telemetry.md` cách đọc stream-json của từng agent. | Replay test pass cả 6 kịch bản; các kịch bản phụ thuộc thay đổi ở P5 (`resolve_*` apply không có `fix_description`, `fix_context_image`) được đánh dấu `xfail` và bỏ đánh dấu ở P5; 1 run thật mỗi agent ra file kết quả hợp lệ. |
 | P4 Baseline | Chạy MCP hiện tại: mỗi agent/model 5 run × 6 kịch bản. | Commit `evals/results/<ngày>-baseline/` + `SUMMARY.md`. |
 | P5 Sửa MCP | §9 toàn bộ. Replay test cập nhật theo hành vi mới. | Test đơn vị, test hợp đồng, replay test pass. |
 | P6 Eval lại | Mỗi agent/model 10 run × 6 kịch bản. Chưa đạt → phân tích bằng `telemetry report`, sửa, chạy lại. Kết quả + so sánh baseline vào `SUMMARY.md`; cập nhật README. | Mỗi kịch bản × mỗi agent/model: ≥ 9/10 pass và 0 `arg_error`; **hoặc** người dùng chấp nhận bằng văn bản ngoại lệ cụ thể (kịch bản, model, lý do). |
@@ -371,8 +369,7 @@ Nằm trong `hieund-ai-kit-cli`, session riêng, sau khi P6 đóng. Spec này ch
 
 | Rủi ro | Cách xử lý |
 |---|---|
-| agy không khởi động MCP với `cwd` = workspace | Fallback §8.2, kiểm chứng ở P3. |
-| Text đầy đủ làm gửi dữ liệu hai lần | Quyết định theo dữ liệu ở P3 (§9.4). |
+| Client đưa cả text lẫn structured vào context | Theo chuẩn MCP (§9.4); đo token trong eval, ghi nhận nếu có. |
 | Backlog giả khác Backlog thật | Fixture dựng từ response thật; request lạ → 404 + `unhandled.jsonl`; replay test. |
 | Model không tất định | 10 run/kịch bản, ngưỡng 9/10. |
 | Hook global làm tăng lượt/thời gian | Chấp nhận (D9); lượt ngoài MCP được báo cáo riêng. |
