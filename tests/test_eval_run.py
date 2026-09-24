@@ -69,8 +69,8 @@ def test_write_summary(tmp_path):
     (tmp_path / "claude-opus.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     write_summary(tmp_path)
     text = (tmp_path / "SUMMARY.md").read_text()
-    assert "| Scenario | Pass/Runs | EnvErr | Median estTokens | Median wallClockMs |" in text
-    assert "| open_bugs | 2/3 | 0 | 200 | 6500 |" in text and "claude-opus" in text and "extra calls ×1" in text
+    assert "| Scenario | Pass/Runs | EnvErr | ArgErr | Median estTokens | Median wallClockMs |" in text
+    assert "| open_bugs | 2/3 | 0 | 0 | 200 | 6500 |" in text and "claude-opus" in text and "extra calls ×1" in text
 
 
 def _completed(stdout=""):
@@ -273,7 +273,7 @@ def test_write_summary_counts_env_errors(tmp_path):
     (tmp_path / "agy-flash.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     write_summary(tmp_path)
     text = (tmp_path / "SUMMARY.md").read_text()
-    assert "| open_bugs | 1/2 | 1 | - | - |" in text
+    assert "| open_bugs | 1/2 | 1 | 0 | - | - |" in text
     assert "Lỗi môi trường: service_unavailable ×1" in text
     assert "missing expected call ×1" not in text
 
@@ -306,3 +306,11 @@ def test_agy_other_mcp_servers_disabled_and_restored(monkeypatch):
             raise RuntimeError("batch crashed")
     assert calls[3:] == [["agy", "mcp", "enable", "chrome-devtools-mcp"],
                          ["agy", "mcp", "enable", "website-design-systems"]]
+
+
+def test_write_summary_counts_runs_with_arg_errors(tmp_path):
+    rows = [{"scenario": "resolve_fixed", "pass": False, "argErrors": [{"tool": "resolve_bug"}], "reasons": ["argument errors: x"]},
+            {"scenario": "resolve_fixed", "pass": True, "argErrors": []}]
+    (tmp_path / "claude-opus.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    write_summary(tmp_path)
+    assert "| resolve_fixed | 1/2 | 0 | 1 | - | - |" in (tmp_path / "SUMMARY.md").read_text()

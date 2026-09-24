@@ -270,14 +270,15 @@ def write_summary(folder):
                 continue
             for reason in row.get("reasons") or []:
                 reasons[reason.split(":")[0]] += 1
-        lines += [f"## {path.stem}", "", "| Scenario | Pass/Runs | EnvErr | Median estTokens | Median wallClockMs |",
-                  "|---|---|---|---|---|"]
+        lines += [f"## {path.stem}", "", "| Scenario | Pass/Runs | EnvErr | ArgErr | Median estTokens | Median wallClockMs |",
+                  "|---|---|---|---|---|---|"]
         for scenario, group in sorted(by_scenario.items()):
             ok = sum(bool(row.get("pass")) for row in group)
             env = sum(bool(row.get("envError")) and not row.get("pass") for row in group)
+            arg = sum(bool(row.get("argErrors")) for row in group)
             tokens = _median(row.get("estTokens") for row in group)
             wall = _median(row.get("wallClockMs") for row in group)
-            lines.append(f"| {scenario} | {ok}/{len(group)} | {env} | {tokens} | {wall} |")
+            lines.append(f"| {scenario} | {ok}/{len(group)} | {env} | {arg} | {tokens} | {wall} |")
         if reasons:
             lines += ["", "Lý do fail phổ biến: " + ", ".join(f"{k} ×{v}" for k, v in sorted(reasons.items(), key=lambda kv: -kv[1]))]
         if env_errors:
