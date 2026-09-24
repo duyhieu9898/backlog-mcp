@@ -27,7 +27,7 @@ Backlog MCP được dùng hằng ngày qua Claude Code và Antigravity (Gemini)
 **Trong phạm vi**
 - Telemetry mới (ghi), tài liệu schema, phân tích (flow, rule chung, chấm theo kịch bản, field thiếu), CLI `telemetry report` và `telemetry import-claude`.
 - Harness eval: Backlog giả, adapter `claude` và `agy`, bộ kịch bản, kết quả lưu trong repo.
-- Thay đổi MCP: 4 tool quản trị sang CLI; chuẩn hoá tên tham số; gợi ý khi sai tham số; text content đủ nội dung; `resolve_bug` fast path; tool xem ảnh đính kèm; bỏ MCP prompts và 2 resource phân tích cũ.
+- Thay đổi MCP: 4 tool quản trị sang CLI; chuẩn hoá tên tham số; gợi ý khi sai tham số; text content đủ nội dung; `resolve_bug` fast path; `get_bug_context` liệt kê ảnh/tệp đính kèm; bỏ MCP prompts và 2 resource phân tích cũ.
 - Baseline trước khi sửa MCP, eval lại sau khi sửa, báo cáo so sánh.
 
 **Ngoài phạm vi**
@@ -35,6 +35,7 @@ Backlog MCP được dùng hằng ngày qua Claude Code và Antigravity (Gemini)
 - Phân tích field thừa: người dùng tự review response.
 - Ngưỡng thời gian/token cứng: thời gian và token chỉ được báo cáo để review.
 - Codex CLI; Gemini CLI (legacy).
+- Tải/gửi nội dung ảnh đính kèm cho model: người dùng tự xem ảnh và nhắc trong prompt khi cần; model chỉ cần biết tệp tồn tại.
 - Làm gọn `get_bug_context` / `get_my_open_bugs` (bỏ `rawDescription`, bỏ description trong list): để người dùng tự review sau khi có log field.
 
 ## 4. Quyết định đã chốt
@@ -47,7 +48,7 @@ Backlog MCP được dùng hằng ngày qua Claude Code và Antigravity (Gemini)
 | D4 | Eval chạy trên Backlog giả local; chế độ giả bật bằng file đánh dấu `.backlog-eval.json` trong workspace eval, không sửa cấu hình MCP global của client. |
 | D5 | `resolve_bug`: khi người dùng yêu cầu resolve, gọi **một lần** `mode="apply"`; không preview; không chặn khi có warning; model báo warnings trong câu trả lời. Người dùng chấp nhận rủi ro thông báo Backlog gửi tới người được gán. Chỉ áp dụng cho `resolve_bug`; `create_issue`, `update_issue`, `create_ut_bug` giữ preview → hỏi → apply. |
 | D6 | `fix_description` và `commit` không bắt buộc ở mọi mode; thiếu `fix_description` thì Corrective Action = `fixed <summary>`. Model không đọc git/source để tìm nội dung fix. |
-| D7 | `get_config`, `audit_config_workflows`, `inspect_project`, `list_configured_projects` chỉ còn ở CLI. MCP còn 13 tool. |
+| D7 | `get_config`, `audit_config_workflows`, `inspect_project`, `list_configured_projects` chỉ còn ở CLI. MCP còn 12 tool. |
 | D8 | Prompt người dùng luôn chứa `backlog`/`backlog mcp` và mã issue đầy đủ (`OOP-12465`). |
 | D9 | Hook/skill global (superpowers) được giữ nguyên khi eval — đo đúng trải nghiệm thật. |
 | D10 | Điều kiện đóng dự án là **tính đúng** (§10), không phải thời gian. |
@@ -161,11 +162,11 @@ Tài liệu agent đọc đầu tiên: bố cục file, từng field, quy trình
 | `resolve_multi` | `backlog resolve {a}, {b}, các bug này tôi fix rồi` | `OOP-90001`, `OOP-90005` | 2 × `resolve_bug{mode:apply}`, `order: any` | |
 | `resolve_warning` | `backlog resolve {issue}, bug này tôi fix rồi` | `OOP-90003` (Detected Role = Developer) | `[resolve_bug{mode:apply}]` | `finalAnswer.mustMention: ["Tester"]` |
 | `fix_context` | `backlog fix {issue}` | `OOP-90002` | `[get_bug_context]` | forbidden: `get_issue`; tool ngoài MCP không chấm |
-| `fix_context_image` | `backlog fix {issue}` | `OOP-90004` (evidence là ảnh đính kèm) | `[get_bug_context, get_bug_attachment]` | `finalAnswer.mustMention: ["ERR-4471"]` (chữ in trong ảnh mẫu) |
+| `fix_context_attachment` | `backlog fix {issue}` | `OOP-90004` (evidence là ảnh đính kèm `login-error.png`) | `[get_bug_context]` | forbidden: `get_issue`; `finalAnswer.mustMention: ["login-error.png"]` (model biết và báo có tệp đính kèm) |
 
 ### 6.3 Nhận diện prompt thật (cho `import-claude`)
 
-Prompt phải chứa `backlog` (không phân biệt hoa thường). Mã issue = mọi chuỗi khớp `\b[A-Z][A-Z0-9_]*-\d+\b`. Thứ tự xét: `resolve` + ≥2 mã → `resolve_multi` (kỳ vọng N apply); `resolve` + 1 mã → `resolve_fixed`; `fix` + 1 mã → `fix_context`; `bug` + (`open` | `mở`) + 0 mã → `open_bugs`. Không khớp → chỉ áp tầng 2. Với prompt thật, `resolve_warning`/`fix_context_image` không được gán (chỉ dùng trong eval).
+Prompt phải chứa `backlog` (không phân biệt hoa thường). Mã issue = mọi chuỗi khớp `\b[A-Z][A-Z0-9_]*-\d+\b`. Thứ tự xét: `resolve` + ≥2 mã → `resolve_multi` (kỳ vọng N apply); `resolve` + 1 mã → `resolve_fixed`; `fix` + 1 mã → `fix_context`; `bug` + (`open` | `mở`) + 0 mã → `open_bugs`. Không khớp → chỉ áp tầng 2. Với prompt thật, `resolve_warning`/`fix_context_attachment` không được gán (chỉ dùng trong eval).
 
 ## 7. Tầng 2 và 3 — Phân tích
 
@@ -222,9 +223,9 @@ Khi trong một flow, sau call A (tool chuyên dụng) có call B khác tool cù
 ### 8.1 Backlog giả (`evals/fake_backlog.py`)
 
 - HTTP server trên `127.0.0.1:<port>` (port ngẫu nhiên), dữ liệu trong bộ nhớ, reset mỗi run.
-- Endpoint: `GET /api/v2/issues/{key}`, `PATCH /api/v2/issues/{key}`, `GET /api/v2/issues` (lọc theo assignee/status/type như client thật gửi), `GET /api/v2/issues/{key}/attachments/{id}` (PNG mẫu), `GET /api/v2/projects/{key}` (phòng khi catalog thiếu id). User được resolve từ `config/backlog.json` nên không cần endpoint user. Endpoint khác → 404 và ghi vào `unhandled.jsonl` của run.
+- Endpoint: `GET /api/v2/issues/{key}`, `PATCH /api/v2/issues/{key}`, `GET /api/v2/issues` (lọc theo assignee/status/type như client thật gửi), `GET /api/v2/projects/{key}` (phòng khi catalog thiếu id). User được resolve từ `config/backlog.json` nên không cần endpoint user. Endpoint khác → 404 và ghi vào `unhandled.jsonl` của run.
 - Assignee của mọi fixture = user `me` trong `config/backlog.json` (điều kiện của `resolve_bug`); `createdUser` = một reporter có Detected Role = Tester (trừ 90003).
-- Fixture `OOP-90001…90005` dựng từ fixture thật trong `tests/fixtures/` (dùng catalog `config/projects/OOP.json` thật): 90001 bug thường; 90002 bug có mô tả template đầy đủ; 90003 Detected Role = Developer; 90004 evidence là ảnh đính kèm; 90005 bug thường thứ hai. Danh sách open = 90001, 90002, 90005.
+- Fixture `OOP-90001…90005` dựng từ fixture thật trong `tests/fixtures/` (dùng catalog `config/projects/OOP.json` thật): 90001 bug thường; 90002 bug có mô tả template đầy đủ; 90003 Detected Role = Developer; 90004 có ảnh đính kèm `login-error.png` (chỉ metadata trong issue); 90005 bug thường thứ hai. Danh sách open = 90001, 90002, 90005.
 - `PATCH` được ghi lại để bộ chấm và test kiểm tra payload.
 
 ### 8.2 File đánh dấu `.backlog-eval.json`
@@ -260,9 +261,9 @@ Claude: `opus`. agy: `gemini-3.8-flash-medium`, `gemini-3.1-pro-high`. Đổi qu
 
 ## 9. Thay đổi MCP
 
-### 9.1 Tool (13)
+### 9.1 Tool (12)
 
-`get_issue`, `get_issues`, `create_issue`, `update_issue`, `get_my_open_bugs`, `get_bug_context`, `get_bug_attachment` (mới), `resolve_bug`, `create_ut_bug`, `get_bug_rules`, `get_bug_fields`, `get_my_work_overview`, `get_my_project_status`.
+`get_issue`, `get_issues`, `create_issue`, `update_issue`, `get_my_open_bugs`, `get_bug_context`, `resolve_bug`, `create_ut_bug`, `get_bug_rules`, `get_bug_fields`, `get_my_work_overview`, `get_my_project_status`.
 
 Chuyển sang CLI (xoá khỏi MCP): `get_config`, `audit_config_workflows`, `inspect_project`, `list_configured_projects`. Xoá 3 MCP prompt (`resolve_bug_prompt`, `create_ut_bug_prompt`, `project_status_prompt`) và resource `backlog://config`, `backlog://metrics`, `backlog://workflow-efficiency`. Giữ `backlog://issue/{issue_key}`.
 
@@ -275,7 +276,7 @@ Chuyển sang CLI (xoá khỏi MCP): `get_config`, `audit_config_workflows`, `in
 | Project | `project_key` | giữ |
 | Chế độ ghi | `mode: "preview"\|"apply"` | Chỉ còn ở tool ghi (tool quản trị có `mode` khác đã sang CLI) |
 
-Test hợp đồng (`tests/test_tool_contract.py`): mọi tham số snake_case; cùng khái niệm dùng cùng tên theo bảng trên; tham số có tập giá trị cố định dùng `Literal`; `additionalProperties: false`; số tool = 13; mọi mô tả tool có câu "Use when"; mô tả tham số mã issue có ví dụ `OOP-123`.
+Test hợp đồng (`tests/test_tool_contract.py`): mọi tham số snake_case; cùng khái niệm dùng cùng tên theo bảng trên; tham số có tập giá trị cố định dùng `Literal`; `additionalProperties: false`; số tool = 12; mọi mô tả tool có câu "Use when"; mô tả tham số mã issue có ví dụ `OOP-123`.
 
 Mã issue được kiểm tra theo `^[A-Z][A-Z0-9_]*-\d+$` (trừ `get_issue` nhận thêm số); tiền tố chưa cấu hình → lỗi nêu danh sách project đã cấu hình.
 
@@ -318,7 +319,7 @@ Thay khối routing và mutation safety:
 Preferred tools:
 - My open bugs -> get_my_open_bugs
 - Resolve/close a bug, or the user says it is already fixed -> resolve_bug directly with mode="apply" (one call)
-- Fix/investigate a bug that is not fixed yet -> get_bug_context (then get_bug_attachment for image evidence)
+- Fix/investigate a bug that is not fixed yet -> get_bug_context (it lists attachments; tell the user when an attachment matters instead of fetching it)
 - Personal status -> get_my_project_status
 - Generic get/search/update tools are escape hatches only.
 
@@ -328,11 +329,10 @@ Mutation safety:
 ```
 Giữ nguyên khối Activation, Project resolution, Security.
 
-### 9.7 Ảnh đính kèm
+### 9.7 Tệp đính kèm
 
-- `get_bug_context` thêm `attachments: [{id, name, size, isImage}]` (chỉ khi có).
-- `get_bug_attachment(issue_key, attachment_id)`: tải qua endpoint chính thức *Get Issue Attachment* `GET /api/v2/issues/{issue_key}/attachments/{attachment_id}`; ảnh (png/jpeg/gif/webp, ≤ 5 MB) trả MCP `ImageContent`; loại khác hoặc quá lớn → lỗi nêu tên, kích thước, loại. Docstring: "Use when get_bug_context lists an image attachment that is needed to understand the bug."
-- Ảnh trả về theo chuẩn MCP: content item `{type: "image", data: <base64>, mimeType}` trong kết quả tool. Việc `claude`/`agy` đưa ảnh cho model được kiểm chứng bằng kịch bản `fix_context_image` (câu trả lời cuối phải mô tả nội dung có trong ảnh mẫu: `finalAnswer.mustMention` = chữ in trong PNG fixture).
+- `get_bug_context` thêm `attachments: [{id, name, size, isImage}]` (chỉ khi issue có tệp), lấy từ field `attachments` của response `GET /issues/{key}` — không thêm API call.
+- Không có tool tải nội dung tệp. Tham khảo khi cần sau này: endpoint *Get Issue Attachment* `GET /api/v2/issues/:issueIdOrKey/attachments/:attachmentId` và MCP image content `{type: "image", data, mimeType}`.
 
 ## 10. Phase và điều kiện đóng
 
@@ -343,7 +343,7 @@ Một spec, hai plan: **Plan A** = P0–P3; **Plan B** = P4–P6 (viết sau khi
 | P0 Dọn dẹp | Xoá 8 import thừa và code chết (`IssueView`, `SKILL_DIR`, 6 getter `BacklogClient`, `journal.log_ai/list_sessions`); sửa docstring CLI; đánh dấu plan 2026-09-23 là superseded. | `pytest` pass; `ruff check --select F` sạch. |
 | P1 Log nền tảng | §5 toàn bộ (ghi + CLI + xoá sink cũ + `docs/telemetry.md`). | Test mỗi file/event; một ngày dùng thật: đủ 4 loại file, mọi `calls.traceId` có dòng `details`, không `api` mồ côi. |
 | P2 Phân tích | §7 toàn bộ. Script một lần chuyển log legacy 2026-09-23 thành fixture định dạng mới trong `tests/fixtures/telemetry-2026-09-23/`. | Test với log tổng hợp; trên fixture 2026-09-23: phát hiện đủ 4 `generic_after_specialized` và các `duplicate_call` đã biết; `import-claude` trên transcript thật gán đúng prompt cho các call `resolve_bug` ngày 23/09. |
-| P3 Harness | §8 toàn bộ; replay test; ghi lại trong `docs/telemetry.md` cách đọc stream-json của từng agent. | Replay test pass cả 6 kịch bản; các kịch bản phụ thuộc thay đổi ở P5 (`resolve_*` apply không có `fix_description`, `fix_context_image`) được đánh dấu `xfail` và bỏ đánh dấu ở P5; 1 run thật mỗi agent ra file kết quả hợp lệ. |
+| P3 Harness | §8 toàn bộ; replay test; ghi lại trong `docs/telemetry.md` cách đọc stream-json của từng agent. | Replay test pass cả 6 kịch bản; các kịch bản phụ thuộc thay đổi ở P5 (`resolve_*` apply không có `fix_description`, `fix_context_attachment`) được đánh dấu `xfail` và bỏ đánh dấu ở P5; 1 run thật mỗi agent ra file kết quả hợp lệ. |
 | P4 Baseline | Chạy MCP hiện tại: mỗi agent/model 5 run × 6 kịch bản. | Commit `evals/results/<ngày>-baseline/` + `SUMMARY.md`. |
 | P5 Sửa MCP | §9 toàn bộ. Replay test cập nhật theo hành vi mới. | Test đơn vị, test hợp đồng, replay test pass. |
 | P6 Eval lại | Mỗi agent/model 10 run × 6 kịch bản. Chưa đạt → phân tích bằng `telemetry report`, sửa, chạy lại. Kết quả + so sánh baseline vào `SUMMARY.md`; cập nhật README. | Mỗi kịch bản × mỗi agent/model: ≥ 9/10 pass và 0 `arg_error`; **hoặc** người dùng chấp nhận bằng văn bản ngoại lệ cụ thể (kịch bản, model, lý do). |
