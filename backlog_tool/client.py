@@ -10,7 +10,7 @@ from .settings import (
     require_api_key,
     response_error_body,
 )
-from .telemetry import current_trace_id, current_tool_name, ensure_trace, log_telemetry, serialized_bytes
+from .telemetry import current_tool_name, ensure_trace, log_telemetry, serialized_bytes
 
 
 def log_response(method, path, response):
@@ -118,21 +118,3 @@ class BacklogClient:
 
     def update_issue(self, issue_id, payload):
         return self.request_json("PATCH", f"/issues/{issue_id}", data=payload)
-
-    def get_priorities(self):
-        return self.request_json("GET", "/priorities")
-
-    def get_project_statuses(self, project_key):
-        return self.request_json("GET", f"/projects/{project_key}/statuses")
-
-    def get_project(self, project_key):
-        return self.request_json("GET", f"/projects/{project_key}")
-
-    def get_issue_types(self, project_key):
-        return self.request_json("GET", f"/projects/{project_key}/issueTypes")
-
-    def get_categories(self, project_key):
-        return self.request_json("GET", f"/projects/{project_key}/categories")
-
-    def get_custom_fields(self, project_key):
-        return self.request_json("GET", f"/projects/{project_key}/customFields")

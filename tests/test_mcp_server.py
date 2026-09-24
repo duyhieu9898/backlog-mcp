@@ -7,6 +7,7 @@ import pytest
 from mcp.types import CallToolResult, TextContent
 
 from backlog_mcp import server
+from backlog_mcp.results import _to_markdown
 from backlog_tool import settings
 
 
@@ -270,7 +271,7 @@ def test_to_markdown_formatting():
         {"issueKey": "PROJ-1", "summary": "Fix login issue", "status": "In Progress"},
         {"issueKey": "PROJ-2", "summary": "Design landing page", "status": "Open"}
     ]
-    res_list = server._to_markdown(data_list, "get_issues")
+    res_list = _to_markdown(data_list, "get_issues")
     assert "PROJ-1" in res_list
     assert "Fix login issue" in res_list
     assert "[In Progress]" in res_list
@@ -279,7 +280,7 @@ def test_to_markdown_formatting():
 
     # Test formatting single issue with status
     data_single = {"issueKey": "PROJ-123", "summary": "Database error", "status": "Closed"}
-    res_single = server._to_markdown(data_single, "get_issue")
+    res_single = _to_markdown(data_single, "get_issue")
     assert "PROJ-123" in res_single
     assert "Database error" in res_single
     assert "[Closed]" in res_single

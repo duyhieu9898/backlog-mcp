@@ -5,7 +5,7 @@ from datetime import date
 
 from .bug_template import bug_context
 from backlog_tool.client import BacklogClient
-from backlog_tool.resolver import find_option, issue_type_options, resolve_custom_field_value, status_options
+from backlog_tool.resolver import find_option, issue_type_options, resolve_custom_field_defaults, resolve_custom_field_value, status_options
 from backlog_tool.settings import load_workflow_config, log_event, resolve_project, resolve_project_key, resolve_user_id
 from .config import require_int, require_list, require_value, require_mapping
 from .resolution_plan import ResolutionPlan, resolution_plan_to_payload

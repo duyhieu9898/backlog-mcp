@@ -8,8 +8,6 @@ from copy import deepcopy
 from datetime import datetime, timezone
 
 MCP_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-# Keep the old name as an internal compatibility alias for existing callers.
-SKILL_DIR = MCP_ROOT
 CONFIG_PATH = os.path.join(MCP_ROOT, "config", "backlog.json")
 PROJECTS_CONFIG_DIR = os.path.join(MCP_ROOT, "config", "projects")
 WORKFLOWS_CONFIG_DIR = os.path.join(MCP_ROOT, "config", "workflows")

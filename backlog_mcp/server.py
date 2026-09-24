@@ -4,7 +4,7 @@
 import json
 import os
 import time
-from typing import Annotated, Any, Literal, Sequence
+from typing import Annotated, Any, Literal
 
 from pydantic import ConfigDict, Field, ValidationError
 from mcp.server.fastmcp import FastMCP
@@ -12,7 +12,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase
 from mcp.types import CallToolResult
 
-from .results import _build_result, _error_result, _pagination, _parse_cursor, _partial_write_result, _resource_uris, _to_markdown
+from .results import _build_result, _error_result, _parse_cursor, _partial_write_result
 
 from backlog_tool.settings import (
     load_config,
@@ -32,7 +32,6 @@ from backlog_tool.inspect import build_project_config, write_catalog
 from backlog_tool.telemetry import begin_tool_trace, reset_client_arguments, set_client_arguments
 from backlog_tool.workflow_efficiency import summarize_workflow_efficiency
 
-IssueView = Literal["compact", "full"]
 SortOrder = Literal["asc", "desc"]
 MutationMode = Literal["preview", "apply"]
 IssueSort = Literal[

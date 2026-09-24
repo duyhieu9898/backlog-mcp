@@ -2,11 +2,11 @@
 """Unified Backlog CLI.
 
 One entry point with grouped subcommands: issue / bug / config / project /
-story / metrics. Behaviour is consistent across groups:
+story / telemetry. Behaviour is consistent across groups:
 - compact output by default, --json-full for raw JSON
 - write commands are dry-run by default, --apply to write
 - errors go to stderr
-- every run is measured into logs/metrics.log
+- every run is traced into logs/ (see docs/telemetry.md)
 """
 import argparse
 import json
@@ -27,8 +27,6 @@ from backlog_tool.settings import (
     resolve_project_key,
     resolve_project_key_for_issue,
     resolve_user_id,
-    save_config,
-    summarize_metrics,
     view_base_url,
 )
 from workflows.guidance import field_guidance, resolve_rules

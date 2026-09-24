@@ -9,7 +9,6 @@ from backlog_tool.settings import log_event, log_metric
 from backlog_tool.telemetry import (
     clear_trace,
     client_metadata,
-    current_trace_id,
     ensure_trace,
     log_telemetry,
     serialized_bytes,
