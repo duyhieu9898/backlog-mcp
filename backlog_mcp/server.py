@@ -3,6 +3,7 @@
 
 import json
 import os
+import re
 from typing import Annotated, Any, Literal
 
 import anyio
@@ -200,6 +201,23 @@ def _workspace_path() -> str | None:
     )
 
 
+ISSUE_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]*-\d+$")
+
+
+def _issue_key(value: str, allow_numeric: bool = False) -> str:
+    """Normalize and validate an issue key before any Backlog call."""
+    key = str(value or "").strip().upper()
+    if allow_numeric and key.isdigit():
+        return key
+    if not ISSUE_KEY_RE.match(key):
+        raise ValueError(f"Invalid issue key '{value}'. Expected a Backlog key such as 'OOP-123'.")
+    configured = project_keys(get_config_instance())
+    prefix = key.split("-")[0]
+    if prefix not in configured:
+        raise ValueError(f"Project '{prefix}' is not configured. Configured projects: {', '.join(configured)}")
+    return key
+
+
 def activate_workspace(workspace: str | None) -> dict | None:
     """Find and apply eval marker in workspace, then reload config singleton if needed.
 
@@ -218,27 +236,28 @@ def activate_workspace(workspace: str | None) -> dict | None:
 
 @mcp.tool()
 def get_issue(
-    issue_ref: Annotated[str, Field(description="Issue reference: Backlog issue key (e.g., 'PROJ-123') or numeric ID. Parameter name is issue_ref.")],
+    issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123', or a numeric issue ID.")],
     view: Annotated[Literal["compact", "full"], Field(description="Detail level: compact for general triage, full for raw Backlog fields.")] = "compact",
 ) -> CallToolResult:
     """Get raw/current details of one Backlog issue by key or numeric ID.
 
-    Use as an escape hatch for generic or non-bug Backlog issue inspection, or when raw fields are explicitly needed.
+    Use when inspecting a generic or non-bug Backlog issue, or when raw fields are explicitly needed (escape hatch).
     Do not use as the first step for investigating or fixing a Bug; use get_bug_context instead.
     Do not use for discovery; use a personal domain list/status tool when possible.
     """
     start_call("get_issue", locals())
     try:
         config = get_config_instance()
-        raw_issue = issue_service.get_issue(config, issue_ref)
+        issue_key = _issue_key(issue_key, allow_numeric=True)
+        raw_issue = issue_service.get_issue(config, issue_key)
         if view == "full":
             data = raw_issue
         else:
             base_url = view_base_url(config)
             data = presenter.compact_issue(raw_issue, view=view, base_url=base_url)
-        return _build_result(data, "get_issue", project=project_key_from_issue_id(issue_ref))
+        return _build_result(data, "get_issue", project=project_key_from_issue_id(issue_key))
     except Exception as e:
-        return _error_result("get_issue", e, project=project_key_from_issue_id(issue_ref))
+        return _error_result("get_issue", e, project=project_key_from_issue_id(issue_key))
 
 
 @mcp.tool()
@@ -312,7 +331,7 @@ def create_issue(
     summary: Annotated[str, Field(description="Issue summary title")],
     issue_type: Annotated[str, Field(description="Issue type name or ID (e.g., 'Bug', 'Task', 'Story'). Required by Backlog for creation.")],
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
-    parent_key: Annotated[str, Field(description="Parent issue key (e.g., 'PRJ-123'). Omit or pass an empty string for no parent.")] = "",
+    parent_key: Annotated[str, Field(description="Parent issue key such as 'OOP-123'. Omit or pass an empty string for no parent.")] = "",
     description: Annotated[str, Field(description="Issue description detail text. Omit or pass an empty string for no description.")] = "",
     priority: Annotated[str, Field(description="Priority name or ID (e.g., 'High', 'Normal', 'Low'). Omit for project default.")] = "",
     assignee: Annotated[str, Field(description="Assignee user reference from config.users or raw user ID. Omit for project default.")] = "",
@@ -333,6 +352,7 @@ def create_issue(
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
+        parent_key = _issue_key(parent_key) if parent_key else ""
         res = issue_service.create_issue(
             config,
             summary=summary,
@@ -368,7 +388,7 @@ def create_issue(
 
 @mcp.tool()
 def update_issue(
-    issue_ref: Annotated[str, Field(description="Issue reference: Backlog issue key (e.g., 'PROJ-123') or numeric ID. Parameter name is issue_ref.")],
+    issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123'.")],
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to infer from issue key or active workspace context.")] = "",
     summary: Annotated[str, Field(description="New issue summary title. Omit or pass an empty string to keep current summary.")] = "",
     status: Annotated[str, Field(description="Status name or ID to transition to. Omit to keep current status.")] = "",
@@ -386,16 +406,17 @@ def update_issue(
 ) -> CallToolResult:
     """Update arbitrary fields on an existing Backlog issue.
 
-    Use as an escape hatch for explicit field changes outside a specialized personal workflow.
+    Use when the user asks for explicit field changes outside a specialized personal workflow (escape hatch).
     Do not use to complete a bug resolution workflow; use resolve_bug.
     """
     start_call("update_issue", locals())
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
+        issue_key = _issue_key(issue_key)
         res = issue_service.update_issue(
             config,
-            issue_id=issue_ref,
+            issue_id=issue_key,
             project_key=project_key,
             summary=summary,
             status=status,
@@ -421,14 +442,14 @@ def update_issue(
             data,
             "update_issue",
             dry_run=dry_run,
-            project=project_key or project_key_from_issue_id(issue_ref),
+            project=project_key or project_key_from_issue_id(issue_key),
         )
     except Exception as e:
         return _error_result(
             "update_issue",
             e,
             dry_run=dry_run,
-            project=project_key or project_key_from_issue_id(issue_ref),
+            project=project_key or project_key_from_issue_id(issue_key),
         )
 
 
@@ -491,17 +512,18 @@ def get_my_open_bugs(
 
 @mcp.tool()
 def get_bug_context(
-    issue_key: Annotated[str, Field(description="Bug issue key (e.g., 'PRJ-123') to analyze. Parameter name is issue_key (snake_case).")],
+    issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123'.")],
 ) -> CallToolResult:
     """Get AI-ready Backlog context for a specific bug.
 
-    This is the primary entry point when a Backlog bug key/link is supplied and the user wants to understand, investigate, fix, discuss, or prepare to resolve it.
+    Use when a Backlog bug key/link is supplied and the user wants to understand, investigate or fix it (it is the primary entry point).
     Do not call get_issue first just to inspect the same bug.
     Do not use for listing bugs; use get_my_open_bugs.
     """
     start_call("get_bug_context", locals())
     try:
         config = get_config_instance()
+        issue_key = _issue_key(issue_key)
         data = bug_workflow.get_bug_context(config, issue_key)
         return _build_result(data, "get_bug_context", project=project_key_from_issue_id(issue_key))
     except Exception as e:
@@ -510,7 +532,7 @@ def get_bug_context(
 
 @mcp.tool()
 def resolve_bug(
-    issue_key: Annotated[str, Field(description="Bug issue key to resolve (e.g., 'PRJ-123'). Parameter name is issue_key (snake_case).")],
+    issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123'.")],
     status: Annotated[str, Field(description="Target status name or ID. Omit to use the configured resolved/closed status.")] = "",
     actual_hours: Annotated[float | None, Field(description="Actual hours spent fixing the bug. Used only when the issue has no actual hours yet; otherwise ignored with a warning. Omit when unknown.")] = None,
     estimated_hours: Annotated[float | None, Field(description="Estimated hours. Used only when the issue has no estimate yet; otherwise ignored with a warning. Omit when unknown.")] = None,
@@ -536,6 +558,7 @@ def resolve_bug(
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
+        issue_key = _issue_key(issue_key)
         res = bug_workflow.resolve_bug(
             config,
             issue_key=issue_key,
@@ -582,7 +605,7 @@ def resolve_bug(
 
 @mcp.tool()
 def create_ut_bug(
-    parent_key: Annotated[str, Field(description="Parent issue key (e.g., 'PRJ-123') to attach the UT bug to")],
+    parent_key: Annotated[str, Field(description="Parent issue key such as 'OOP-123' to attach the UT bug to.")],
     module: Annotated[str, Field(description="Name of the module or file with the failing unit test")],
     description: Annotated[str, Field(description="Unit test failure description details")],
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
@@ -598,6 +621,7 @@ def create_ut_bug(
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
+        parent_key = _issue_key(parent_key)
         res = ut_bug.create_subtask_bug(
             config,
             project_key=project_key or None,
@@ -642,7 +666,7 @@ def _support_project_key(project_key: str, issue_key: str) -> str:
     """Project for support tools: explicit key, else the prefix of a bug key."""
     issue_project = project_key_from_issue_id(issue_key) if issue_key else None
     if issue_key and not issue_project:
-        raise ValueError(f"Invalid issue_key '{issue_key}'. Expected a Backlog key such as 'PRJ-123'.")
+        raise ValueError(f"Invalid issue_key '{issue_key}'. Expected a Backlog key such as 'OOP-123'.")
     if project_key and issue_project and project_key != issue_project:
         raise ValueError(f"project_key '{project_key}' does not match issue_key '{issue_key}'.")
     return project_key or issue_project or ""
@@ -651,17 +675,17 @@ def _support_project_key(project_key: str, issue_key: str) -> str:
 @mcp.tool()
 def get_bug_rules(
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit when issue_key is given; otherwise resolved from the active workspace path or configuration.")] = "",
-    issue_key: Annotated[str, Field(description="Bug issue key (e.g., 'PRJ-123') whose project rules to show. Preferred over project_key when working on a specific bug.")] = "",
+    issue_key: Annotated[str, Field(description="Bug issue key such as 'OOP-123' whose project rules/options to show. Preferred over project_key when working on a specific bug.")] = "",
 ) -> CallToolResult:
     """Inspect configured resolve-bug workflow rules for diagnostics or ambiguity.
 
-    This is a support/debug tool, not a normal step before resolve_bug.
-    Use only when the user asks for the rules or resolve_bug needs clarification.
+    Use when the user asks for the rules or resolve_bug needs clarification; not a normal step before resolve_bug.
     """
     start_call("get_bug_rules", locals())
     project_key = project_key or project_key_from_issue_id(issue_key) or ""
     try:
         config = get_config_instance()
+        issue_key = _issue_key(issue_key) if issue_key else ""
         project_key = _support_project_key(project_key, issue_key)
         data = guidance.resolve_rules(config, project_key or None, start_path=_workspace_path())
         return _build_result(data, "get_bug_rules", project=project_key)
@@ -673,17 +697,17 @@ def get_bug_rules(
 def get_bug_fields(
     field: Annotated[str, Field(description="Field name to get guidance for, e.g. qc_activity, bug_origin, cause_category. Omit for all fields.")] = "",
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit when issue_key is given; otherwise resolved from the active workspace path or configuration.")] = "",
-    issue_key: Annotated[str, Field(description="Bug issue key (e.g., 'PRJ-123') whose project field options to show. Preferred over project_key when working on a specific bug.")] = "",
+    issue_key: Annotated[str, Field(description="Bug issue key such as 'OOP-123' whose project rules/options to show. Preferred over project_key when working on a specific bug.")] = "",
 ) -> CallToolResult:
     """Inspect allowed values/guidance for configured bug workflow fields.
 
-    This is a support/debug tool, not a normal step before resolve_bug.
-    Use only when a field is ambiguous, missing, or explicitly requested.
+    Use when a field is ambiguous, missing, or explicitly requested; not a normal step before resolve_bug.
     """
     start_call("get_bug_fields", locals())
     project_key = project_key or project_key_from_issue_id(issue_key) or ""
     try:
         config = get_config_instance()
+        issue_key = _issue_key(issue_key) if issue_key else ""
         project_key = _support_project_key(project_key, issue_key)
         data = guidance.field_guidance(field or None, config, project_key or None, start_path=_workspace_path())
         return _build_result(data, "get_bug_fields", project=project_key)
