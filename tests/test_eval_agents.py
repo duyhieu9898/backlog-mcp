@@ -1,6 +1,6 @@
 import os
 
-from evals.agents import agy_command, claude_command, parse_agy, parse_claude
+from evals.agents import agy_command, claude_command, codex_command, parse_agy, parse_claude, parse_codex
 
 STREAMS = os.path.join(os.path.dirname(__file__), "fixtures", "agent_streams")
 
@@ -60,3 +60,34 @@ def test_parse_agy_failed_status_is_not_ok():
     stream = [*lines("agy_sample.jsonl")[:-1],
               '{"event":"result","result":{"status":"ERROR","response":"x","duration_seconds":1,"num_turns":1}}']
     assert parse_agy(stream).raw_ok is False
+
+
+def test_parse_codex():
+    trace = parse_codex(lines("codex_sample.jsonl"))
+    assert trace.mcp_tools == [{"tool": "resolve_bug", "arguments": {"issue_key": "OOP-912762", "mode": "apply"}}]
+    assert trace.non_mcp == [{"name": "command_execution", "input": {"command": "ls"}}]
+    assert trace.final_answer == "Đã resolve OOP-912762."
+    assert trace.turns == 1 and trace.raw_ok is True
+
+
+def test_parse_codex_without_turn_completed_is_not_ok():
+    trace = parse_codex(lines("codex_sample.jsonl")[:-1])
+    assert trace.raw_ok is False
+
+
+def test_parse_codex_failed_turn_is_not_ok():
+    stream = [*lines("codex_sample.jsonl")[:-1], '{"type":"turn.failed","error":{"message":"boom"}}']
+    assert parse_codex(stream).raw_ok is False
+
+
+def test_codex_command_isolates_mcp_and_points_backlog_at_workspace():
+    command = codex_command("p", "gpt-5.6-terra", "/tmp/ws", ["Playwright", "exa"])
+    assert command[:3] == ["codex", "exec", "--json"]
+    assert command[command.index("-m") + 1] == "gpt-5.6-terra"
+    assert command[command.index("--sandbox") + 1] == "read-only"
+    assert "mcp_servers.Playwright.enabled=false" in command and "mcp_servers.exa.enabled=false" in command
+    overrides = [command[i + 1] for i, part in enumerate(command) if part == "-c"]
+    assert any(o.startswith("mcp_servers.backlog.args=") and "backlog-mcp-server" in o for o in overrides)
+    assert 'mcp_servers.backlog.env={BACKLOG_WORKSPACE_PATH="/tmp/ws"}' in overrides
+    assert "mcp_servers.backlog.startup_timeout_sec=60" in overrides
+    assert command[-1] == "p"

@@ -3,6 +3,8 @@
 import json
 from dataclasses import dataclass, field
 
+from backlog_tool import settings
+
 CLAUDE_MCP_PREFIX = "mcp__backlog__"
 # In the user's auto permission mode --allowedTools does not block other tools, so MCP servers are
 # isolated with --strict-mcp-config (only our backlog server) and built-in tools are denied explicitly.
@@ -111,7 +113,52 @@ def parse_agy(lines):
     return trace
 
 
+def codex_command(prompt, model, workspace, other_servers):
+    """codex exec with only our backlog server (run from this repo) and a read-only shell sandbox."""
+    args = json.dumps(["--project", settings.MCP_ROOT, "run", "backlog-mcp-server"])
+    command = ["codex", "exec", "--json", "--skip-git-repo-check", "-m", model, "--sandbox", "read-only"]
+    for name in other_servers:
+        command += ["-c", f"mcp_servers.{name}.enabled=false"]
+    command += [
+        "-c", "mcp_servers.backlog.command=\"uv\"",
+        "-c", f"mcp_servers.backlog.args={args}",
+        "-c", f"mcp_servers.backlog.env={{BACKLOG_WORKSPACE_PATH={json.dumps(str(workspace))}}}",
+        # Codex silently drops a server that is not up within 10 s; `uv run` here can take longer.
+        "-c", "mcp_servers.backlog.startup_timeout_sec=60",
+        prompt,
+    ]
+    return command
+
+
+def parse_codex(lines):
+    trace = AgentTrace()
+    failed = False
+    for event in _events(lines):
+        kind = event.get("type")
+        if kind == "item.completed":
+            item = event.get("item") or {}
+            if item.get("type") == "mcp_tool_call":
+                if item.get("server") == "backlog":
+                    trace.mcp_tools.append({"tool": item.get("tool"), "arguments": item.get("arguments") or {}})
+                else:
+                    trace.non_mcp.append({"name": f"{item.get('server')}.{item.get('tool')}", "input": item.get("arguments") or {}})
+            elif item.get("type") == "agent_message":
+                trace.final_answer = (item.get("text") or "").strip() or None
+            elif item.get("type") == "command_execution":
+                trace.non_mcp.append({"name": "command_execution", "input": {"command": item.get("command")}})
+            elif item.get("type") not in ("reasoning", None):
+                trace.non_mcp.append({"name": item.get("type"), "input": {}})
+        elif kind == "turn.completed":
+            trace.turns = (trace.turns or 0) + 1
+            trace.raw_ok = True
+        elif kind in ("turn.failed", "error"):
+            failed = True
+    trace.raw_ok = trace.raw_ok and not failed
+    return trace
+
+
 AGENTS = {
     "claude": (claude_command, parse_claude),
     "agy": (agy_command, parse_agy),
+    "codex": (codex_command, parse_codex),
 }

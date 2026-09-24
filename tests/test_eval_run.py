@@ -314,3 +314,46 @@ def test_write_summary_counts_runs_with_arg_errors(tmp_path):
     (tmp_path / "claude-opus.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     write_summary(tmp_path)
     assert "| resolve_fixed | 1/2 | 0 | 1 | - | - |" in (tmp_path / "SUMMARY.md").read_text()
+
+
+def test_run_one_builds_codex_command_for_the_eval_workspace(tmp_path, monkeypatch):
+    import evals.run as run_module
+
+    seen = {}
+
+    def fake_run(command, cwd, env, timeout_s):
+        seen.update(command=command, cwd=cwd, env=env)
+        return _completed()
+
+    monkeypatch.setattr(run_module, "run_agent", fake_run)
+    monkeypatch.setattr(run_module, "codex_other_servers", lambda: ["Playwright"])
+    result = run_one("codex", "gpt-5.6-terra", scenario("open_bugs"), 0, 30, source="synthetic")
+    overrides = [seen["command"][i + 1] for i, part in enumerate(seen["command"]) if part == "-c"]
+    assert f'mcp_servers.backlog.env={{BACKLOG_WORKSPACE_PATH="{seen["cwd"]}"}}' in overrides
+    assert "mcp_servers.Playwright.enabled=false" in overrides
+    assert "BACKLOG_API_KEY" not in seen["env"]
+    assert result["wallClockMs"] == result["processMs"]
+
+
+def test_codex_other_servers_lists_enabled_servers_except_backlog(monkeypatch):
+    import subprocess
+
+    import evals.run as run_module
+
+    listing = json.dumps([{"name": "Playwright", "enabled": True}, {"name": "backlog", "enabled": True},
+                          {"name": "old", "enabled": False}, {"name": "exa", "enabled": True}])
+    monkeypatch.setattr(run_module.subprocess, "run",
+                        lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=listing, stderr=""))
+    assert run_module.codex_other_servers() == ["Playwright", "exa"]
+
+
+def test_run_agent_gives_the_agent_no_stdin(tmp_path):
+    import sys
+    import time
+
+    from evals.run import run_agent
+
+    script = "import sys\nsys.stdin.read()\nprint('{\"type\":\"result\"}', flush=True)\n"
+    started = time.monotonic()
+    proc = run_agent([sys.executable, "-c", script], cwd=tmp_path, env=None, timeout_s=20, grace_s=0)
+    assert time.monotonic() - started < 10 and proc.timed_out is False and proc.lines == ['{"type":"result"}']

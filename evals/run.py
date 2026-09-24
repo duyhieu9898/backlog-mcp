@@ -45,7 +45,7 @@ def _is_result_event(line):
 def run_agent(command, cwd, env, timeout_s, grace_s=30):
     """Stream the agent's stdout and stop it at the result event (agy keeps running until --print-timeout)."""
     with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stderr:
-        proc = subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=stderr, text=True)
+        proc = subprocess.Popen(command, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=stderr, text=True)
         timed_out = threading.Event()
 
         def kill():
@@ -100,6 +100,12 @@ def _agy_enabled_servers():
         if len(parts) >= 3 and parts[2] == "enabled" and parts[0] != "backlog":
             servers.append(parts[0])
     return servers
+
+
+def codex_other_servers():
+    """Global Codex MCP servers to switch off per run (with -c, no config change)."""
+    listing = subprocess.run(["codex", "mcp", "list", "--json"], capture_output=True, text=True, timeout=60, check=True).stdout
+    return [s["name"] for s in json.loads(listing) if s.get("enabled") and s.get("name") != "backlog"]
 
 
 @contextmanager
@@ -230,12 +236,16 @@ def run_one(agent, model, scenario, index, timeout_s, workspace=None, source="ca
                 ws = prepare_workspace(root, scenario, run_id, fake.base_url, log_dir)
                 if agent == "claude":
                     command = build_command(scenario["prompt"], model, write_mcp_config(tmp))
+                elif agent == "codex":
+                    command = build_command(scenario["prompt"], model, ws, codex_other_servers())
                 else:
                     command = build_command(scenario["prompt"], model, timeout_s)
                 started = time.monotonic()
                 proc = run_agent(command, cwd=ws, env=agent_env(ws), timeout_s=timeout_s)
                 elapsed_ms = round((time.monotonic() - started) * 1000)
                 trace = parse(proc.lines)
+                if agent == "codex":
+                    trace.wall_clock_ms = elapsed_ms  # codex --json reports no duration
                 result = grade_run(scenario, trace, log_dir, run_id)
                 result.update({
                     "runId": run_id, "agent": agent, "model": model, "scenario": scenario["id"], "backendSource": fake.source,
