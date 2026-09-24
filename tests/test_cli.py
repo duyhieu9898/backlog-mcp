@@ -1,13 +1,17 @@
 import argparse
 import unittest
 
+import json as _json
+import os as _os
 import sys
 from pathlib import Path
+from unittest import mock as _mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from backlog_tool import cli, presenter
+from backlog_tool import telemetry
 
 
 RAW_ISSUE = {
@@ -129,6 +133,34 @@ class PresenterRoutingTest(unittest.TestCase):
         ]
 
         self.assertEqual(result, cli.present(result, args))
+
+
+class CliTelemetryTest(unittest.TestCase):
+    def _rows(self, kind):
+        with open(telemetry.log_paths()[kind], encoding="utf-8") as handle:
+            return [_json.loads(line) for line in handle if line.strip()]
+
+    def test_cli_command_traced_under_mcp_tool_name(self):
+        with _mock.patch.object(cli, "load_config", return_value={"base_url": "https://x"}), \
+             _mock.patch.object(cli, "run_handler", return_value={"dryRun": True, "issue": "OOP-1"}), \
+             _mock.patch.object(cli, "resolve_project_key_for_issue", return_value="OOP"):
+            cli.execute(["bug", "resolve", "OOP-1"])
+        [call] = self._rows("calls")
+        [session] = self._rows("sessions")
+        self.assertEqual(("resolve_bug", "cli", "ok", "preview"), (call["tool"], call["surface"], call["status"], call["mode"]))
+        self.assertEqual("cli", session["surface"])
+        folder = telemetry.log_paths()["details_dir"]
+        detail = _json.loads(open(_os.path.join(folder, _os.listdir(folder)[0]), encoding="utf-8").readline())
+        self.assertEqual("OOP-1", detail["arguments"]["issue_key"])
+
+    def test_cli_error_closes_trace(self):
+        with _mock.patch.object(cli, "load_config", side_effect=ValueError("bad config")):
+            with self.assertRaises(ValueError):
+                cli.execute(["bug", "context", "OOP-1"])
+        [call] = self._rows("calls")
+        self.assertEqual(("get_bug_context", "error"), (call["tool"], call["status"]))
+        self.assertEqual("bad config", self._rows("errors")[0]["message"])
+        self.assertIsNone(telemetry.current_trace_id())
 
 
 if __name__ == "__main__":

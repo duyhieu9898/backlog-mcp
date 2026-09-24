@@ -10,25 +10,23 @@ story / telemetry. Behaviour is consistent across groups:
 """
 import argparse
 import json
+import os
 import sys
-import time
 from dataclasses import dataclass
 
 from backlog_tool import presenter
-from backlog_tool import journal
 from backlog_tool.issue_service import create_issue, get_issue, get_issues, update_issue
 from backlog_tool.settings import (
     load_config,
     load_env_file,
     load_project_catalog,
-    log_event,
-    log_metric,
     project_keys,
     resolve_project_key,
     resolve_project_key_for_issue,
     resolve_user_id,
     view_base_url,
 )
+from backlog_tool.telemetry import finish_call, log_session_start, set_surface, start_call
 from workflows.guidance import field_guidance, resolve_rules
 from workflows.audit import audit_workflows
 from workflows.resolve_bug import get_bug_context, resolve_bug
@@ -189,8 +187,37 @@ def is_dry_run(args):
     return None
 
 
+# CLI commands are logged under the equivalent MCP tool name so both surfaces
+# read as one workflow in telemetry.
+CLI_TOOL_NAMES = {
+    "issue:get": "get_issue",
+    "issue:list": "get_issues",
+    "issue:create": "create_issue",
+    "issue:update": "update_issue",
+    "bug:list": "get_my_open_bugs",
+    "bug:context": "get_bug_context",
+    "bug:resolve": "resolve_bug",
+    "bug:create-ut": "create_ut_bug",
+    "bug:rules": "get_bug_rules",
+    "bug:fields": "get_bug_fields",
+}
+_UNTRACED_ARGS = {"group", "action", "json_full", "table", "workspace_path", "apply"}
+
+
+def cli_trace_arguments(args):
+    arguments = {
+        key: value
+        for key, value in vars(args).items()
+        if key not in _UNTRACED_ARGS and value not in (None, False, "", [])
+    }
+    dry_run = is_dry_run(args)
+    if dry_run is not None:
+        arguments["mode"] = "preview" if dry_run else "apply"
+    return arguments
+
+
 def _extract_issue_key(result, args):
-    """Best-effort issue key extraction for journal tagging."""
+    """Best-effort issue key extraction for project resolution."""
     # Direct issue key from args
     for attr in ("issue_id", "issue_key", "parent_key"):
         value = getattr(args, attr, None)
@@ -408,8 +435,15 @@ def execute(argv, workspace_path=None):
     args.workspace_path = workspace_path
 
     name = command_name(args)
-    dry_run = is_dry_run(args)
-    config = load_config()
+
+    set_surface("cli")
+    log_session_start(backend="real", workspace=workspace_path or os.getcwd())
+    start_call(CLI_TOOL_NAMES.get(name, name), cli_trace_arguments(args))
+    try:
+        config = load_config()
+    except Exception as error:
+        finish_call("error", error=str(error))
+        raise
 
     pre_project = getattr(args, "project", None)
     if args.group in ("issue", "bug", "story"):
@@ -422,8 +456,6 @@ def execute(argv, workspace_path=None):
         except Exception:
             pre_project = None
 
-    log_event("info", "command_start", command=name, project=pre_project, dry_run=dry_run)
-    started = time.monotonic()
     try:
         result = run_handler(config, args)
         presented_data = present(result, args, base_url=view_base_url(config))
@@ -446,22 +478,15 @@ def execute(argv, workspace_path=None):
         else:
             text = json.dumps(presented_data, indent=2, ensure_ascii=False)
 
-        duration_ms = round((time.monotonic() - started) * 1000)
-        log_event("info", "command_end", command=name)
-        log_metric(name, len(text.encode("utf-8")), duration_ms, "ok", dry_run=dry_run, project=project)
-        # Journal: record CLI output for durable cross-session memory.
-        if args.group in ("issue", "bug", "story"):
-            journal.log_cli(name, text, project=project, issue_key=issue_key)
-        # create-ut --apply: surface a friendly link too.
-        if args.group == "bug" and getattr(args, "action", None) == "create-ut" and not dry_run and isinstance(result, dict):
-            key = result.get("issueKey")
-            if key:
-                log_event("info", "issue_created", issue=key, url=f"{view_base_url(config)}/view/{key}")
+        finish_call(
+            "ok",
+            result=presented_data,
+            text=text,
+            response_bytes=len(text.encode("utf-8")),
+            project_key=project,
+        )
         return CommandResult(data=presented_data, text=text)
     except Exception as error:
-        duration_ms = round((time.monotonic() - started) * 1000)
-        log_event("error", "command_error", command=name, error=error)
-        
         project = getattr(args, "project", None)
         if args.group in ("issue", "bug", "story"):
             issue_id = getattr(args, "issue_id", None) or getattr(args, "issue_key", None) or getattr(args, "parent_key", None)
@@ -473,7 +498,7 @@ def execute(argv, workspace_path=None):
             except Exception:
                 project = pre_project
 
-        log_metric(name, 0, duration_ms, "error", dry_run=dry_run, project=project)
+        finish_call("error", error=str(error), project_key=project)
         raise
 
 

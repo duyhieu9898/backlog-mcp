@@ -5,7 +5,6 @@ import re
 import sys
 import tempfile
 from copy import deepcopy
-from datetime import datetime, timezone
 
 MCP_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CONFIG_PATH = os.path.join(MCP_ROOT, "config", "backlog.json")
@@ -13,9 +12,6 @@ PROJECTS_CONFIG_DIR = os.path.join(MCP_ROOT, "config", "projects")
 WORKFLOWS_CONFIG_DIR = os.path.join(MCP_ROOT, "config", "workflows")
 ENV_PATH = os.path.join(MCP_ROOT, ".env")
 LOG_DIR = os.environ.get("BACKLOG_MCP_LOG_DIR") or os.path.join(MCP_ROOT, "logs")
-LOG_PATH = os.path.join(LOG_DIR, "backlog.log")
-METRICS_PATH = os.path.join(LOG_DIR, "metrics.log")
-TELEMETRY_PATH = os.path.join(LOG_DIR, "telemetry.jsonl")
 REQUEST_TIMEOUT_SECONDS = 20
 MAX_LOG_VALUE_LENGTH = 500
 
@@ -266,140 +262,6 @@ def report_log_failure(path, error):
         pass
 
 
-def log_event(level, event, **fields):
-    try:
-        os.makedirs(LOG_DIR, exist_ok=True)
-        rotate_file_if_needed(LOG_PATH)
-        timestamp = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
-        record = {
-            "ts": timestamp,
-            "level": level.upper(),
-            "event": event,
-        }
-        for key, value in fields.items():
-            if value is None:
-                continue
-            text = str(value)
-            if len(text) > MAX_LOG_VALUE_LENGTH:
-                text = text[:MAX_LOG_VALUE_LENGTH] + "...<truncated>"
-            record[key] = text
-        with open(LOG_PATH, "a", encoding="utf-8") as log_file:
-            log_file.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except Exception as error:
-        report_log_failure(LOG_PATH, error)
-
-
 def response_error_body(response):
     text = response.text or ""
     return text[:MAX_LOG_VALUE_LENGTH]
-
-
-def log_metric(
-    command,
-    output_bytes,
-    duration_ms,
-    status,
-    dry_run=None,
-    project=None,
-    *,
-    text_bytes=None,
-    structured_bytes=None,
-    total_response_bytes=None,
-    item_count=None,
-    trace_id=None,
-    client=None,
-):
-    """Append one vendor-neutral metric record.
-
-    outputBytes is retained for compatibility and now represents total MCP response
-    bytes when that value is available. Token counts are deliberately estimates:
-    actual model tokenization/caching is client-specific.
-    """
-    try:
-        os.makedirs(LOG_DIR, exist_ok=True)
-        rotate_file_if_needed(METRICS_PATH)
-        total_bytes = total_response_bytes if total_response_bytes is not None else output_bytes
-        estimated_tokens = round((total_bytes or 0) / 4)
-        record = {
-            "schemaVersion": 2,
-            "ts": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
-            "command": command,
-            "status": status,
-            "outputBytes": total_bytes or 0,
-            "textBytes": text_bytes,
-            "structuredBytes": structured_bytes,
-            "totalResponseBytes": total_bytes or 0,
-            "estimatedTokens": estimated_tokens,
-            "durationMs": duration_ms,
-            "dryRun": dry_run,
-            "project": project,
-            "itemCount": item_count,
-            "traceId": trace_id,
-            "client": client,
-        }
-        with open(METRICS_PATH, "a", encoding="utf-8") as metrics_file:
-            metrics_file.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except Exception as error:
-        report_log_failure(METRICS_PATH, error)
-
-
-def read_metrics():
-    if not os.path.exists(METRICS_PATH):
-        return []
-    records = []
-    with open(METRICS_PATH, "r", encoding="utf-8") as metrics_file:
-        for line in metrics_file:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                records.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-    return records
-
-
-def summarize_metrics():
-    records = read_metrics()
-    by_command = {}
-    for record in records:
-        command = record.get("command", "unknown")
-        bucket = by_command.setdefault(
-            command, {
-                "command": command,
-                "runs": 0,
-                "totalOutputBytes": 0,
-                "totalEstimatedTokens": 0,
-                "errors": 0,
-                "partialWrites": 0,
-                "totalTextBytes": 0,
-                "totalStructuredBytes": 0,
-                "_durations": []
-            }
-        )
-        bucket["runs"] += 1
-        bucket["totalOutputBytes"] += record.get("totalResponseBytes") or record.get("outputBytes") or 0
-        bucket["totalTextBytes"] += record.get("textBytes") or 0
-        bucket["totalStructuredBytes"] += record.get("structuredBytes") or 0
-        bucket["totalEstimatedTokens"] += record.get("estimatedTokens") or round((record.get("outputBytes") or 0) / 4)
-        if record.get("status") == "error":
-            bucket["errors"] += 1
-        if record.get("status") == "partial_write":
-            bucket["partialWrites"] += 1
-        duration = record.get("durationMs")
-        if duration is not None:
-            bucket["_durations"].append(duration)
-
-    summary = []
-    for bucket in by_command.values():
-        runs = bucket["runs"]
-        durations = sorted(bucket.pop("_durations"))
-        bucket["avgOutputBytes"] = round(bucket["totalOutputBytes"] / runs) if runs else 0
-        bucket["avgEstimatedTokens"] = round(bucket["totalEstimatedTokens"] / runs) if runs else 0
-        bucket["avgTextBytes"] = round(bucket["totalTextBytes"] / runs) if runs else 0
-        bucket["avgStructuredBytes"] = round(bucket["totalStructuredBytes"] / runs) if runs else 0
-        bucket["errorRate"] = round(bucket["errors"] / runs, 4) if runs else 0
-        bucket["p95DurationMs"] = durations[max(0, int(len(durations) * 0.95) - 1)] if durations else None
-        summary.append(bucket)
-    summary.sort(key=lambda item: item["totalOutputBytes"], reverse=True)
-    return {"totalRuns": len(records), "commands": summary}

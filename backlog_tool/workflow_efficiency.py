@@ -29,7 +29,7 @@ def _parse_ts(value: str | None):
 
 
 def _telemetry_paths():
-    path = settings.TELEMETRY_PATH
+    path = os.path.join(settings.LOG_DIR, "telemetry.jsonl")
     candidates = [path] + [f"{path}.{index}" for index in range(1, 6)]
     return [item for item in candidates if os.path.exists(item)]
 

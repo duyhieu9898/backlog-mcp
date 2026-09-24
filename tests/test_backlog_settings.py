@@ -91,36 +91,6 @@ class BacklogSettingsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Cannot determine Backlog project"):
             backlog_settings.resolve_project_key_for_issue(config, "12345")
 
-    def test_log_event_writes_timestamped_redacted_shape_without_newline_leak(self):
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            old_log_dir = backlog_settings.LOG_DIR
-            old_log_path = backlog_settings.LOG_PATH
-            try:
-                backlog_settings.LOG_DIR = tmp_dir
-                backlog_settings.LOG_PATH = os.path.join(tmp_dir, "backlog.log")
-
-                backlog_settings.log_event(
-                    "info",
-                    "api",
-                    method="GET",
-                    path="/issues",
-                    body="line one\nline two",
-                )
-
-                content = Path(backlog_settings.LOG_PATH).read_text(encoding="utf-8")
-            finally:
-                backlog_settings.LOG_DIR = old_log_dir
-                backlog_settings.LOG_PATH = old_log_path
-
-        import json
-        data = json.loads(content.strip())
-        self.assertEqual("INFO", data["level"])
-        self.assertEqual("api", data["event"])
-        self.assertEqual("GET", data["method"])
-        self.assertEqual("/issues", data["path"])
-        self.assertEqual("line one\nline two", data["body"])
-        self.assertEqual(1, len(content.splitlines()))
-
     def test_resolve_project_key_from_local_config(self):
         config = {
             "base_url": "https://example.backlog.com",
