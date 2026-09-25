@@ -3,7 +3,6 @@
 import json
 from dataclasses import dataclass, field
 
-from backlog_tool import settings
 
 CLAUDE_MCP_PREFIX = "mcp__backlog__"
 # In the user's auto permission mode --allowedTools does not block other tools, so MCP servers are
@@ -114,16 +113,22 @@ def parse_agy(lines):
 
 
 def codex_command(prompt, model, workspace, other_servers):
-    """codex exec with only our backlog server (run from this repo) and a read-only shell sandbox."""
-    args = json.dumps(["--project", settings.MCP_ROOT, "run", "backlog-mcp-server"])
-    command = ["codex", "exec", "--json", "--skip-git-repo-check", "-m", model, "--sandbox", "read-only"]
+    """codex exec with only the user's global backlog server and a read-only shell sandbox.
+
+    Under read-only, MCP calls need approval; with the user's `approval_policy = "never"` Codex refuses
+    them all, so the run asks for "on-request" and the configured auto reviewer approves.
+    The global server entry is kept as is (only its env is set): a backlog server with an overridden
+    command was never offered to the model as usable in our probes.
+    """
+    command = [
+        "codex", "exec", "--json", "--skip-git-repo-check", "-m", model, "--sandbox", "read-only",
+        "-c", 'approval_policy="on-request"',
+    ]
     for name in other_servers:
         command += ["-c", f"mcp_servers.{name}.enabled=false"]
     command += [
-        "-c", "mcp_servers.backlog.command=\"uv\"",
-        "-c", f"mcp_servers.backlog.args={args}",
         "-c", f"mcp_servers.backlog.env={{BACKLOG_WORKSPACE_PATH={json.dumps(str(workspace))}}}",
-        # Codex silently drops a server that is not up within 10 s; `uv run` here can take longer.
+        # Codex silently drops a server that is not up within 10 s; `uv run` can take longer.
         "-c", "mcp_servers.backlog.startup_timeout_sec=60",
         prompt,
     ]

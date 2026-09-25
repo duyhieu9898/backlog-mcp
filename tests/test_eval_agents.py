@@ -85,9 +85,10 @@ def test_codex_command_isolates_mcp_and_points_backlog_at_workspace():
     assert command[:3] == ["codex", "exec", "--json"]
     assert command[command.index("-m") + 1] == "gpt-5.6-terra"
     assert command[command.index("--sandbox") + 1] == "read-only"
+    assert 'approval_policy="on-request"' in [command[i + 1] for i, part in enumerate(command) if part == "-c"]
     assert "mcp_servers.Playwright.enabled=false" in command and "mcp_servers.exa.enabled=false" in command
     overrides = [command[i + 1] for i, part in enumerate(command) if part == "-c"]
-    assert any(o.startswith("mcp_servers.backlog.args=") and "backlog-mcp-server" in o for o in overrides)
+    assert not any(o.startswith(("mcp_servers.backlog.args=", "mcp_servers.backlog.command=")) for o in overrides)
     assert 'mcp_servers.backlog.env={BACKLOG_WORKSPACE_PATH="/tmp/ws"}' in overrides
     assert "mcp_servers.backlog.startup_timeout_sec=60" in overrides
     assert command[-1] == "p"
