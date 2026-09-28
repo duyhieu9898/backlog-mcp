@@ -71,6 +71,8 @@ Normal personal intents map to domain tools:
 | Resolve/close a bug | `resolve_bug` |
 | Create a configured UT bug | `create_ut_bug` |
 
+Short prompts that map straight to these tools and to the `fix-backlog-bug` skill: [docs/prompting.md](docs/prompting.md).
+
 `create_issue` and `update_issue` cover generic changes
 the personal workflows do not. `get_bug_rules` and `get_bug_fields` are
 diagnostic tools, not normal pre-steps for the personal workflows. Project and
