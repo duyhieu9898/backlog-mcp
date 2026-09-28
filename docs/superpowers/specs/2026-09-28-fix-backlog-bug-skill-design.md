@@ -27,7 +27,7 @@ Skill chỉ **thu hẹp** mặc định của instructions (ví dụ "chỉ `res
 
 | Chủ đề | Quyết định |
 |---|---|
-| Định vị code | Đang trong repo có `.backlog-project.json`: project khớp tiền tố key → sửa tại chỗ; không khớp → dừng, hỏi. Ngoài repo: map cục bộ theo máy (không commit) `project → [{path, hint}]`, chọn repo theo hint khớp tiêu đề bug; không có → hỏi một lần, đề nghị lưu. |
+| Định vị code | Một bước riêng trong skill. Đang trong repo có `.backlog-project.json`: project khớp tiền tố key → sửa tại chỗ; không khớp → dừng, hỏi. Không ở trong repo → hỏi người dùng đường dẫn repo, không đoán. (Dò repo từ thư mục khác: §8.) |
 | Test | Lệnh test lấy từ chỉ dẫn repo (`CLAUDE.md`/`AGENTS.md`/`README`), rồi cấu hình build (`package.json` script `test`, `Makefile test`, `pytest` khi có `pyproject.toml`, `go test ./...`). Fail → dừng: không commit, không resolve, báo. Không có lệnh → bỏ qua, ghi rõ trong báo cáo. Không tự viết test. |
 | Git | Commit + push lên nhánh đang đứng. Nhánh là `main`/`master` hoặc không có upstream → dừng trước commit; push bị từ chối → dừng, không resolve. Không `--force`. Thay đổi có sẵn chưa commit trước khi sửa → hỏi, không gộp. |
 | Commit | Commitlint: `fix(OOP-12345): <mô tả ngắn>` (scope = key bug). |
@@ -78,3 +78,11 @@ Prompt cả ba: `backlog fix OOP-912900`.
 | Skill global/hook của người dùng ảnh hưởng | Như D9: chấp nhận, ghi nhận trong kết quả. |
 | Lượt chạy dài (1–3 phút) | Chạy nền, `--timeout` riêng cho kịch bản code. |
 | Model không tất định | 3 lượt để phát hiện; tăng lượt khi cần mốc chính thức. |
+
+## 8. Để sau: gọi skill từ ngoài repo
+
+Làm khi người dùng bắt đầu gọi skill từ một thư mục agent chung; mở rộng **bước định vị trong cùng skill**, không viết skill riêng (quy trình sửa bug không nhân bản).
+
+- Một project có nhiều repo (OOP: admin, user, api…). Mỗi repo đã có `.backlog-project.json` → dò thay vì duy trì map đường dẫn.
+- Cấu hình theo máy, ngoài git: danh sách thư mục gốc để dò (ví dụ `~/work`).
+- Tìm mọi repo dưới thư mục gốc có marker `project_key` = tiền tố key. Một repo → dùng; nhiều repo → so tag tiêu đề bug (`[Admin]`, `[User]`) với tên repo hoặc trường tuỳ chọn `hints` trong marker (`{"project_key": "OOP", "hints": ["Admin"]}`); vẫn không rõ → hỏi.
