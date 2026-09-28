@@ -1,6 +1,6 @@
 import requests
 
-from evals.fake_backlog import SCENARIO_KEYS, SCENARIO_OPEN, FakeBacklog, apply_patch, build_issues, matches_list
+from evals.fake_backlog import CODE_BUG_KEY, SCENARIO_KEYS, SCENARIO_OPEN, FakeBacklog, apply_patch, build_issues, matches_list
 
 ME = 778617
 
@@ -50,3 +50,18 @@ def test_apply_patch_assignee_to_reporter_carries_name():
     reporter = issue["createdUser"]
     patched = apply_patch(issue, {"assigneeId": reporter["id"]})
     assert patched["assignee"]["id"] == reporter["id"] and patched["assignee"]["name"] == reporter["name"]
+
+
+def test_fix_code_state_serves_the_open_code_bug():
+    issues = build_issues(state="fix_code", source="synthetic")
+    bug = issues[CODE_BUG_KEY]
+    assert bug["status"]["name"] == "Open"
+    assert bug["assignee"]["id"] == 778617
+    assert "Referral" in bug["summary"]
+    assert "**Expected:**" in bug["description"]
+    role = next(f for f in bug["customFields"] if f["name"] == "Detected Role")
+    assert role["value"]["name"] == "Tester"
+
+
+def test_code_bug_only_exists_in_fix_code_state():
+    assert CODE_BUG_KEY not in build_issues(state="default", source="synthetic")

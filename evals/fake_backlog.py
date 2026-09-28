@@ -20,6 +20,18 @@ REPORTER = {"id": 315996, "name": "QA Reporter"}
 SCENARIO_OPEN = ["OOP-912779", "OOP-912777", "OOP-912774", "OOP-912773", "OOP-912762", "OOP-912749"]
 SCENARIO_KEYS = SCENARIO_OPEN + ["OOP-912744"]
 RESOLVE_FIELDS = {"QC Activity", "Bug Origin", "Cause Category", "Impacted", "Corrective Action"}
+CODE_BUG_KEY = "OOP-912900"
+CODE_BUG_DESCRIPTION = (
+    "**Environment:** DEV\n\n"
+    " **Pre-Condition:** \n- User A giới thiệu User B\n\n"
+    " **Steps to reproduce:** \n"
+    "1. Admin tặng miễn phí 1 NFT (giá niêm yết 500.000 ₫) cho User B\n"
+    "2. Xem Referral Reward của User A\n\n"
+    "**Actual:** \nUser A nhận 50.000 ₫ Referral Reward\n\n"
+    "**Expected:** \nNFT được tặng miễn phí (is_gift) không tính Referral Reward (0 ₫); "
+    "đơn mua bình thường vẫn nhận 10%\n\n"
+    " **Evidence:** \n-"
+)
 
 
 def _catalog():
@@ -121,6 +133,27 @@ def _synthetic():
     return issues
 
 
+def _code_bug():
+    """The bug the code-fixing scenarios fix: it lives in evals/fixtures/fix_repo."""
+    with open(BASE_FIXTURE, encoding="utf-8") as handle:
+        issue = json.load(handle)
+    number = int(CODE_BUG_KEY.split("-")[1])
+    issue.update({
+        "id": number, "keyId": number, "issueKey": CODE_BUG_KEY,
+        "summary": "[OOP-912601][Bug][User] Referral: NFT được tặng miễn phí vẫn tính Referral Reward",
+        "description": CODE_BUG_DESCRIPTION,
+        "status": {**issue["status"], "id": 1, "name": "Open"},
+        "assignee": {**issue["assignee"], **ME}, "createdUser": {**issue["createdUser"], **REPORTER},
+        "startDate": None, "dueDate": None, "estimatedHours": None, "actualHours": None, "attachments": [],
+    })
+    for field in issue["customFields"]:
+        if field["name"] in RESOLVE_FIELDS:
+            field["value"] = None
+        if field["name"] == "Detected Role":
+            field["value"] = {"id": 2, "name": "Tester"}
+    return issue
+
+
 def build_issues(state="default", source="auto"):
     cassette = load_cassette() if source in ("auto", "cassette") else None
     if source == "cassette" and cassette is None:
@@ -140,6 +173,8 @@ def build_issues(state="default", source="auto"):
             field["value"] = {"id": 1, "name": "Developer"}
     attachment = (issues["OOP-912744"].get("attachments") or [{"id": 7001, "size": 48213}])[0]
     issues["OOP-912744"]["attachments"] = [{**attachment, "name": "login-error.png"}]
+    if state == "fix_code":
+        issues[CODE_BUG_KEY] = _code_bug()
     return issues
 
 
