@@ -322,10 +322,12 @@ def build_resolution_plan(
                 f"{issue_field} {issue.get(issue_field)}, and resolve_bug only fills empty values."
             )
 
+    # The bug goes back to its reporter; warn when the reporter is not the role that does QC.
+    expected_role = workflow.get("expected_detected_role")
     roles = detected_roles(issue, project)
-    if roles and "Tester" not in roles:
+    if expected_role and roles and expected_role not in roles:
         warnings.append(
-            f"Detected Role is {', '.join(roles)}, not Tester; confirm the reporter is the intended QC assignee."
+            f"Detected Role is {', '.join(roles)}, not {expected_role}; confirm the reporter is the intended QC assignee."
         )
 
     return {

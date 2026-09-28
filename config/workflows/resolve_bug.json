@@ -9,6 +9,7 @@
   "actual_hours": 1,
   "due_in_days": 2,
   "corrective_action": "fixed {description}",
+  "expected_detected_role": "Tester",
   "custom_fields": {},
   "project_overrides": {
     "VTO": {

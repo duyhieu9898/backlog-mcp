@@ -8,6 +8,5 @@
   "defaults": {
     "assignee": "me",
     "priority_id": 3
-  },
-  "source_paths": {}
+  }
 }

@@ -120,6 +120,7 @@ class BugWorkflowTest(unittest.TestCase):
                 "actual_hours": 1,
                 "due_in_days": 2,
                 "corrective_action": "fixed {description}",
+                "expected_detected_role": "Tester",
                 "custom_fields": {
                     "qc_activity": "Integration Test",
                     "cause_category": "Not Applicable",
@@ -410,6 +411,17 @@ class BugWorkflowTest(unittest.TestCase):
         )
 
         self.assertTrue(any("not Tester" in warning for warning in result["warnings"]))
+
+    def test_detected_role_is_not_checked_without_config(self):
+        workflow = {**bug_workflow.load_workflow_config.return_value}
+        workflow.pop("expected_detected_role")
+        bug_workflow.load_workflow_config.return_value = workflow
+        self.client.get_issue.return_value = {
+            **BUG_ISSUE,
+            "customFields": [{"id": 7, "name": "Detected Role", "value": [{"id": 1, "name": "Developer"}]}],
+        }
+        result = bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2), fix_description="x")
+        self.assertFalse(any("Detected Role" in warning for warning in result["warnings"]))
 
     def test_resolve_bug_only_sets_missing_defaults(self):
         self.client.get_issue.return_value = {

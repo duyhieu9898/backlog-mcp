@@ -27,6 +27,7 @@ OVERRIDES = {
 
 
 def resolve_rules_from_config(workflow):
+    expected_role = workflow.get("expected_detected_role")
     issue_type = require_value(workflow, "issue_type", WORKFLOW_NAME)
     status = require_value(workflow, "status", WORKFLOW_NAME)
     due_in_days = require_int(workflow, "due_in_days", WORKFLOW_NAME)
@@ -62,10 +63,14 @@ def resolve_rules_from_config(workflow):
         },
         "overrides": dict(OVERRIDES),
         "safety": [
-            "resolve is dry-run by default; add --apply only after the diff is correct.",
-            "The issue must match the configured issue type, assignee, and non-excluded status.",
-            "If Detected Role is not Tester, say so in the summary before applying.",
-            "Run `fields <field>` before choosing qc_activity, bug_origin, or cause_category.",
+            line
+            for line in (
+                "resolve is dry-run by default; add --apply only after the diff is correct.",
+                "The issue must match the configured issue type, assignee, and non-excluded status.",
+                expected_role and f"If Detected Role is not {expected_role}, say so in the summary before applying.",
+                "Run `fields <field>` before choosing qc_activity, bug_origin, or cause_category.",
+            )
+            if line
         ],
     }
 
