@@ -76,31 +76,28 @@ def _forbid_unknown_tool_arguments() -> None:
 _forbid_unknown_tool_arguments()
 
 
-SERVER_INSTRUCTIONS = """This is a personal Backlog MCP for the configured user.
+SERVER_INSTRUCTIONS = """Personal Backlog MCP: every tool acts as the owner of the API key (a developer, not a PM).
 
 Activation:
-- Use Backlog tools only when the user explicitly mentions Backlog/Backlog MCP, provides a Backlog issue key, or provides a Backlog URL.
-- Do not route generic requests such as "what should I do?" or "project status" to Backlog without an activation signal.
+- Use these tools only when the user mentions Backlog, gives a Backlog issue key (e.g. OOP-123) or a Backlog URL.
+- Do not route generic requests such as "what should I do?" or "project status" here without that signal.
 
-Preferred tools:
-- My open bugs -> list_my_issues with issue_types=["Bug"]
-- Resolve/close a bug, or the user says it is already fixed -> resolve_bug directly with mode="apply" (one call)
-- Fix/investigate a bug that is not fixed yet -> get_bug_context (it lists attachments; tell the user when an attachment matters instead of fetching it)
-- My stories/tasks or deadlines -> list_my_issues with issue_types=["Story", "Task"]
-- Personal status / what do I have to do -> list_my_issues without issue_types
-- Generic get/search/update tools are escape hatches only.
+Intent -> tool:
+- My open bugs -> list_my_issues(issue_types=["Bug"])
+- My stories/tasks or deadlines -> list_my_issues(issue_types=["Story", "Task"])
+- What do I have to do / my Backlog status -> list_my_issues()
+- Investigate or fix a bug that is not fixed yet -> get_bug_context
+- Resolve/close a bug, or the user says it is fixed -> resolve_bug(mode="apply"), one call, no lookups first
+- Escape hatches, only when nothing above fits: get_issue, create_issue, update_issue
 
-Mutation safety:
-- resolve_bug: apply directly when the user asks to resolve; report warnings afterwards.
-- create_issue, update_issue, create_ut_bug: preview first, apply only after the user confirms.
+Behavior:
+- resolve_bug: apply directly; afterwards report the changes and every warning.
+- create_issue, update_issue, create_ut_bug: call with mode="preview", show the plan, apply only after the user confirms.
+- get_bug_context lists attachments; tell the user when one matters instead of fetching it.
 
-Project resolution:
-- Prefer an explicit project key.
-- Otherwise resolve from workspace configuration/path only when unambiguous.
-- If project resolution is ambiguous, fail instead of guessing.
-
-Security:
-- Never expose API keys or full request URLs containing query strings.
+Project:
+- An issue key's prefix is its project (OOP-123 -> OOP).
+- Without a key, the server resolves the project from the workspace. If it reports it cannot, use a project the user or conversation named; otherwise ask the user. Never guess.
 """
 
 mcp = FastMCP(

@@ -307,13 +307,21 @@ def test_personal_routing_contract_is_explicit_and_domain_first():
 
 def test_server_instructions_require_backlog_activation_and_minimal_bug_paths():
     instructions = server.SERVER_INSTRUCTIONS
-    assert "Activation:" in instructions and "without an activation signal" in instructions
-    assert '-> resolve_bug directly with mode="apply" (one call)' in instructions
-    assert "-> get_bug_context (it lists attachments" in instructions
-    assert "resolve_bug: apply directly when the user asks to resolve; report warnings afterwards." in instructions
-    assert "create_issue, update_issue, create_ut_bug: preview first, apply only after the user confirms." in instructions
+    assert "Activation:" in instructions and "without that signal" in instructions
+    assert 'resolve_bug(mode="apply"), one call, no lookups first' in instructions
+    assert "-> get_bug_context" in instructions and "lists attachments" in instructions
+    assert "resolve_bug: apply directly; afterwards report the changes and every warning." in instructions
+    assert 'create_issue, update_issue, create_ut_bug: call with mode="preview", show the plan, apply only after the user confirms.' in instructions
     assert "preview -> apply" not in instructions
-    assert "Project resolution:" in instructions and "Security:" in instructions
+
+
+def test_server_instructions_name_only_existing_tools():
+    import re
+
+    tools = {tool.name for tool in anyio.run(server.mcp.list_tools)}
+    named = set(re.findall(r"\b[a-z]+(?:_[a-z]+)+\b", server.SERVER_INSTRUCTIONS)) - {"issue_types"}
+    assert named <= tools, named - tools
+
 
 
 
