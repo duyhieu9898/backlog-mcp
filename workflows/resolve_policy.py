@@ -65,10 +65,10 @@ def resolve_rules_from_config(workflow):
         "safety": [
             line
             for line in (
-                "resolve is dry-run by default; add --apply only after the diff is correct.",
+                "Writes only in apply mode (MCP mode=\"apply\", CLI --apply); otherwise returns the planned changes.",
                 "The issue must match the configured issue type, assignee, and non-excluded status.",
-                expected_role and f"If Detected Role is not {expected_role}, say so in the summary before applying.",
-                "Run `fields <field>` before choosing qc_activity, bug_origin, or cause_category.",
+                expected_role and f"Warns when Detected Role is not {expected_role}: the bug goes back to its reporter for QC.",
+                "Allowed values for qc_activity, bug_origin and cause_category: get_bug_fields (CLI: bug fields <field>).",
             )
             if line
         ],
