@@ -1,12 +1,4 @@
 {
-  "base_url": "https://bapjp.backlog.com",
-  "users": {
-    "me": {
-      "id": 778617,
-      "name": "Hieu Nguyen Duy",
-      "role": "DN.DEV"
-    }
-  },
   "projects": [
     "OOP",
     "AQM",

@@ -178,6 +178,8 @@ class _Handler(BaseHTTPRequestHandler):
                 form = parse_qs(self.rfile.read(length).decode("utf-8"))
                 self.fake.patches.append({"key": parts[4], "form": form})
                 return self._send(200, apply_patch(issue, form))
+        if parts == ["", "api", "v2", "users", "myself"] and method == "GET":
+            return self._send(200, ME)
         if parts[:4] == ["", "api", "v2", "projects"] and len(parts) == 5 and method == "GET":
             return self._send(200, {"id": 82531, "projectKey": parts[4], "name": "OOP"})
         self.fake.unhandled.append({"method": method, "path": parsed.path})

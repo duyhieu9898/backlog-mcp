@@ -14,11 +14,17 @@ this directory.
 ```bash
 cd hieund-backlog-mcp
 cp .env.example .env
-# Set BACKLOG_API_KEY in .env, then install the locked project environment.
+# Set BACKLOG_API_KEY and BACKLOG_BASE_URL in .env, then install the locked project environment.
 uv sync --extra dev
 ```
 
-Never commit `.env`.
+Never commit `.env`. The MCP client's `env` block (user-level config) can set
+the same variables instead; it wins over `.env`.
+
+Who "me" is comes from the API key: the server asks Backlog `GET /users/myself`
+once per process, so `config/backlog.json` holds no personal data and every
+personal tool is scoped to the key's owner. An entry under `users.me` in
+`config/backlog.json` overrides that lookup (offline tests only).
 
 ## Register with Your MCP Client
 
@@ -78,8 +84,8 @@ The design target is one MCP call per intent. `resolve_bug` is called once with
 
 ## Usage Modes
 
-This server supports two usage modes. Both require `BACKLOG_API_KEY` and a
-valid `config/backlog.json`.
+This server supports two usage modes. Both require `BACKLOG_API_KEY`,
+`BACKLOG_BASE_URL` and a valid `config/backlog.json`.
 
 ### Mode 1 — AI client inside a source repo
 

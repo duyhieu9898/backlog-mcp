@@ -13,7 +13,7 @@ from backlog_tool.resolver import (
     status_options,
     resolve_custom_field_defaults,
 )
-from backlog_tool.settings import load_config, load_project_catalog, load_workflow_config, resolve_user_id
+from backlog_tool.settings import load_config, load_project_catalog, load_workflow_config
 from workflows.ut_bug import merge_bug_defaults
 from workflows.resolve_policy import (
     ALWAYS_OVERWRITE_FIELDS,

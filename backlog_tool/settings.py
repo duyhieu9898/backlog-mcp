@@ -33,9 +33,7 @@ def load_config():
     load_env_file()
     with open(CONFIG_PATH, "r", encoding="utf-8") as config_file:
         config = json.load(config_file)
-    env_base_url = os.environ.get("BACKLOG_BASE_URL")
-    if env_base_url:
-        config["base_url"] = env_base_url
+    config["base_url"] = os.environ.get("BACKLOG_BASE_URL", "")
     validate_config(config)
     return config
 
@@ -57,7 +55,7 @@ def save_config(config):
 
 def validate_config(config):
     if not config.get("base_url"):
-        raise ValueError("Missing config.base_url")
+        raise ValueError("Missing BACKLOG_BASE_URL. Set it in the MCP server env or in .env (see .env.example).")
     if not isinstance(config.get("projects"), list) or not config["projects"]:
         raise ValueError("Missing config.projects list")
     if "default_project_key" in config:
@@ -209,13 +207,29 @@ def resolve_project_for_issue(config, issue_id, project_key=None, start_path=Non
     return deepcopy(load_project_catalog(key))
 
 
+_CURRENT_USERS = {}
+
+
+def current_user(config):
+    """The Backlog user that owns BACKLOG_API_KEY, fetched once per space and key."""
+    cache_key = (config["base_url"], require_api_key())
+    if cache_key not in _CURRENT_USERS:
+        from .client import BacklogClient
+
+        _CURRENT_USERS[cache_key] = BacklogClient(config).request_json("GET", "/users/myself")
+    return _CURRENT_USERS[cache_key]
+
+
 def resolve_user_id(config, user_ref):
+    """Resolve a user reference; "me" is the API key's owner unless config.users overrides it."""
     if isinstance(user_ref, int):
         return user_ref
     user = config.get("users", {}).get(str(user_ref))
-    if not user or "id" not in user:
-        raise ValueError(f"Unknown Backlog user reference '{user_ref}'")
-    return int(user["id"])
+    if user and "id" in user:
+        return int(user["id"])
+    if str(user_ref) == "me":
+        return int(current_user(config)["id"])
+    raise ValueError(f"Unknown Backlog user reference '{user_ref}'")
 
 
 def require_api_key():
