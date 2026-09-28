@@ -8,6 +8,9 @@ CLAUDE_MCP_PREFIX = "mcp__backlog__"
 # In the user's auto permission mode --allowedTools does not block other tools, so MCP servers are
 # isolated with --strict-mcp-config (only our backlog server) and built-in tools are denied explicitly.
 CLAUDE_DISALLOWED = ["Bash", "Edit", "Write", "NotebookEdit", "WebFetch", "WebSearch", "Task", "Agent"]
+# Code-fixing runs may edit files and run git and the repo's tests, nothing else.
+CLAUDE_CODE_ALLOWED = ["Read", "Glob", "Grep", "Edit", "Write",
+                       "Bash(git:*)", "Bash(python -m pytest:*)", "Bash(python3 -m pytest:*)", "Bash(pytest:*)"]
 AGY_SCHEMA_DIR = "/.gemini/antigravity-cli/mcp/backlog/"
 
 
@@ -36,14 +39,18 @@ def _events(lines):
             continue
 
 
-def claude_command(prompt, model, mcp_config_path):
-    return [
+def claude_command(prompt, model, mcp_config_path, allow_code=False):
+    denied = [t for t in CLAUDE_DISALLOWED if not (allow_code and t in ("Bash", "Edit", "Write"))]
+    command = [
         "claude", "-p", prompt,
         "--model", model,
         "--output-format", "stream-json", "--verbose",
         "--strict-mcp-config", "--mcp-config", str(mcp_config_path),
-        "--disallowedTools", *CLAUDE_DISALLOWED,
+        "--disallowedTools", *denied,
     ]
+    if allow_code:
+        command += ["--allowedTools", *CLAUDE_CODE_ALLOWED]
+    return command
 
 
 def agy_command(prompt, model, timeout_s):

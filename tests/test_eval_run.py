@@ -357,3 +357,43 @@ def test_run_agent_gives_the_agent_no_stdin(tmp_path):
     started = time.monotonic()
     proc = run_agent([sys.executable, "-c", script], cwd=tmp_path, env=None, timeout_s=20, grace_s=0)
     assert time.monotonic() - started < 10 and proc.timed_out is False and proc.lines == ['{"type":"result"}']
+
+
+def test_select_scenarios_keeps_code_out_of_all():
+    from evals.run import select_scenarios
+
+    scenarios = load_scenarios()
+    ids = lambda choice: {s["id"] for s in select_scenarios(scenarios, choice)}
+    assert ids("code") == {"fix_code", "fix_code_tests_fail", "fix_code_on_main"}
+    assert not ids("all") & ids("code") and "resolve_fixed" in ids("all")
+    assert ids("fix_code_on_main") == {"fix_code_on_main"}
+
+
+def test_claude_command_allows_only_git_and_pytest_bash_for_code():
+    from evals.agents import claude_command
+
+    plain = claude_command("p", "opus", "/tmp/mcp.json")
+    code = claude_command("p", "opus", "/tmp/mcp.json", allow_code=True)
+    assert "Bash" in plain[plain.index("--disallowedTools") + 1:]
+    assert "--dangerously-skip-permissions" not in code
+    denied = code[code.index("--disallowedTools") + 1:code.index("--allowedTools")]
+    assert "Bash" not in denied and "Edit" not in denied and "WebFetch" in denied
+    allowed = code[code.index("--allowedTools") + 1:]
+    assert "Bash(git:*)" in allowed and "Edit" in allowed
+
+
+def test_grade_run_adds_code_checks(tmp_path, monkeypatch):
+    from evals.code_workspace import prepare_code_workspace
+
+    log_dir = tmp_path / "logs"
+    monkeypatch.setattr(settings, "LOG_DIR", str(log_dir))
+    telemetry.set_eval_tags("run-c", "fix_code_on_main")
+    telemetry.log_session_start(backend="fake")
+    telemetry.start_call("get_issue", {"issue_key": "OOP-912900"})
+    telemetry.finish_call("ok", result={"ok": True}, text="{}", response_bytes=300)
+    telemetry.set_eval_tags(None, None)
+    cw = prepare_code_workspace(tmp_path / "ws", tmp_path / "remote.git", "fix_repo", branch="main")
+    trace = AgentTrace(model="m", final_answer="Đang ở nhánh main nên không commit.", raw_ok=True)
+    result = grade_run(scenario("fix_code_on_main"), trace, log_dir, "run-c", code_ws=cw)
+    assert result["code"]["newCommits"] == 0 and result["code"]["reasons"] == []
+    assert result["pass"] is True

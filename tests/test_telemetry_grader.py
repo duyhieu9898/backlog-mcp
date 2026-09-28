@@ -118,3 +118,15 @@ def test_must_mention_accepts_any_of_alternatives():
 def test_open_bugs_empty_scenario_accepts_zero_or_none_phrasing():
     empty = render_scenario(next(s for s in load_scenarios() if s["id"] == "open_bugs_empty"))
     assert empty["expect"]["finalAnswer"] == {"mustMention": [["0", "không có"]]}
+
+
+def test_allow_extra_calls_ignores_extras():
+    expect = {"calls": [{"tool": "get_issue", "args": {"issue_key": "OOP-912900"}}], "order": "any",
+              "forbidden": [], "finalAnswer": None, "allowExtraCalls": True}
+    flow = Flow("r", [call("get_issue", {"issue_key": "OOP-912900"}), call("get_bug_rules", {})])
+    assert grade(expect, flow)["pass"] is True
+
+
+def test_code_scenarios_do_not_join_real_prompt_matching():
+    scenarios = load_scenarios()
+    assert match_prompt("backlog fix OOP-912900", scenarios)[0]["id"] == "fix_context"

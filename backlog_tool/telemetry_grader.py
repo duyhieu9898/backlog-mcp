@@ -82,7 +82,8 @@ def grade(expect, flow, final_answer=None, require_final_answer=False):
             continue
         matched.append(remaining.pop(index))
     extra = [c.tool for c in remaining]
-    if extra:
+    # Code-fixing flows may inspect rules or fields on the way; only the listed calls are required.
+    if extra and not expect.get("allowExtraCalls"):
         reasons.append(f"extra calls: {extra}")
     if expect.get("order") == "exact" and not extra and matched and [c.trace_id for c in matched] != [c.trace_id for c in calls]:
         reasons.append("calls not in expected order")

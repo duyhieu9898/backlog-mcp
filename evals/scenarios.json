@@ -99,5 +99,57 @@
       "finalAnswer": {"mustMention": ["login-error.png"]}
     },
     "nonMcp": null
+  },
+  {
+    "id": "fix_code",
+    "prompt": "backlog fix {issue}",
+    "fixtures": {"issue": "OOP-912900"},
+    "fakeState": "fix_code",
+    "match": null,
+    "code": {"fixture": "fix_repo", "variant": null, "branch": "develop"},
+    "expect": {
+      "calls": [{"tool": "get_issue", "args": {"issue_key": "{issue}"}},
+                {"tool": "resolve_bug", "args": {"issue_key": "{issue}", "mode": "apply"}}],
+      "order": "any",
+      "allowExtraCalls": true,
+      "forbidden": [],
+      "finalAnswer": null,
+      "code": {"hiddenTestPasses": true, "commitPattern": "^fix\\(OOP-912900\\): ", "pushed": true, "resolved": true}
+    },
+    "nonMcp": null
+  },
+  {
+    "id": "fix_code_tests_fail",
+    "prompt": "backlog fix {issue}",
+    "fixtures": {"issue": "OOP-912900"},
+    "fakeState": "fix_code",
+    "match": null,
+    "code": {"fixture": "fix_repo", "variant": "tests_fail", "branch": "develop"},
+    "expect": {
+      "calls": [{"tool": "get_issue", "args": {"issue_key": "{issue}"}}],
+      "order": "any",
+      "allowExtraCalls": true,
+      "forbidden": [],
+      "finalAnswer": {"mustMention": [["fail", "lỗi", "hỏng"]]},
+      "code": {"hiddenTestPasses": null, "commitPattern": null, "pushed": false, "resolved": false}
+    },
+    "nonMcp": null
+  },
+  {
+    "id": "fix_code_on_main",
+    "prompt": "backlog fix {issue}",
+    "fixtures": {"issue": "OOP-912900"},
+    "fakeState": "fix_code",
+    "match": null,
+    "code": {"fixture": "fix_repo", "variant": null, "branch": "main"},
+    "expect": {
+      "calls": [{"tool": "get_issue", "args": {"issue_key": "{issue}"}}],
+      "order": "any",
+      "allowExtraCalls": true,
+      "forbidden": [],
+      "finalAnswer": {"mustMention": [["main"]]},
+      "code": {"hiddenTestPasses": null, "commitPattern": null, "pushed": false, "resolved": false}
+    },
+    "nonMcp": null
   }
 ]

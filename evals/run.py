@@ -20,6 +20,8 @@ from backlog_tool import settings
 from backlog_tool.telemetry_grader import grade, load_scenarios, render_scenario
 from backlog_tool.telemetry_store import Flow, group_flows, load_calls
 from evals.agents import AGENTS
+from evals.code_checks import check_code
+from evals.code_workspace import SKILL_SOURCE, prepare_code_workspace
 from evals.fake_backlog import FakeBacklog
 
 RESULTS_ROOT = Path(__file__).resolve().parent / "results"
@@ -203,7 +205,7 @@ def prepare_workspace(root, scenario, run_id, base_url, log_dir):
     return workspace
 
 
-def grade_run(scenario, trace, log_dir, run_id):
+def grade_run(scenario, trace, log_dir, run_id, code_ws=None):
     flows = group_flows(load_calls(log_dir=str(log_dir), run_id=run_id)) if Path(log_dir).exists() else []
     flow = flows[0] if flows else Flow(run_id, [])
     result = grade(scenario["expect"], flow, final_answer=trace.final_answer, require_final_answer=True)
@@ -221,10 +223,24 @@ def grade_run(scenario, trace, log_dir, run_id):
         result["isolationFailed"] = True
         result["pass"] = False
         result["reasons"] = [*result["reasons"], ISOLATION_REASON]
+    if code_ws is not None:
+        checks = check_code(code_ws, scenario["expect"]["code"], flow.calls)
+        result["code"] = checks
+        if checks["reasons"]:
+            result["pass"] = False
+            result["reasons"] = [*result["reasons"], *checks["reasons"]]
     return result
 
 
-def run_one(agent, model, scenario, index, timeout_s, workspace=None, source="cassette"):
+def select_scenarios(scenarios, choice):
+    if choice == "all":
+        return [s for s in scenarios if not s.get("code")]
+    if choice == "code":
+        return [s for s in scenarios if s.get("code")]
+    return [s for s in scenarios if s["id"] == choice]
+
+
+def run_one(agent, model, scenario, index, timeout_s, workspace=None, source="cassette", skill=False):
     build_command, parse = AGENTS[agent]
     run_id = f"{agent}-{scenario['id']}-{index}-{uuid.uuid4().hex[:6]}"
     with tempfile.TemporaryDirectory(prefix="backlog-eval-") as tmp:
@@ -233,9 +249,15 @@ def run_one(agent, model, scenario, index, timeout_s, workspace=None, source="ca
         originals = snapshot_markers(root) if workspace else {}
         try:
             with FakeBacklog(state=scenario["fakeState"], source=source) as fake:
+                code_ws = None
+                if scenario.get("code"):
+                    if agent != "claude" or workspace:
+                        raise ValueError("code scenarios run with --agent claude and no --workspace")
+                    code_ws = prepare_code_workspace(root, Path(tmp) / "remote.git", **scenario["code"],
+                                                     skill_source=SKILL_SOURCE if skill else None)
                 ws = prepare_workspace(root, scenario, run_id, fake.base_url, log_dir)
                 if agent == "claude":
-                    command = build_command(scenario["prompt"], model, write_mcp_config(tmp))
+                    command = build_command(scenario["prompt"], model, write_mcp_config(tmp), allow_code=bool(code_ws))
                 elif agent == "codex":
                     command = build_command(scenario["prompt"], model, ws, codex_other_servers())
                 else:
@@ -246,9 +268,10 @@ def run_one(agent, model, scenario, index, timeout_s, workspace=None, source="ca
                 trace = parse(proc.lines)
                 if agent == "codex":
                     trace.wall_clock_ms = elapsed_ms  # codex --json reports no duration
-                result = grade_run(scenario, trace, log_dir, run_id)
+                result = grade_run(scenario, trace, log_dir, run_id, code_ws=code_ws)
                 result.update({
                     "runId": run_id, "agent": agent, "model": model, "scenario": scenario["id"], "backendSource": fake.source,
+                    "skill": skill,
                     "processMs": elapsed_ms, "unhandledEndpoints": fake.unhandled,
                     "patches": [p["key"] for p in fake.patches],
                     "envError": classify_env_error(proc, trace),
@@ -307,9 +330,11 @@ def main(argv=None):
     parser.add_argument("--timeout", type=int, default=300)
     parser.add_argument("--workspace", help="Run inside this directory instead of a temp workspace")
     parser.add_argument("--allow-synthetic", action="store_true", help="Use synthetic issues when no local cassette exists")
+    parser.add_argument("--skill", choices=["on", "off"], default="off",
+                        help="Code scenarios: install skills/fix-backlog-bug into the workspace")
     args = parser.parse_args(argv)
 
-    scenarios = [render_scenario(s) for s in load_scenarios() if args.scenario in ("all", s["id"])]
+    scenarios = [render_scenario(s) for s in select_scenarios(load_scenarios(), args.scenario)]
     folder = RESULTS_ROOT / f"{date.today().isoformat()}-{args.label}"
     folder.mkdir(parents=True, exist_ok=True)
     out = folder / f"{args.agent}-{args.model}.jsonl"
@@ -322,7 +347,7 @@ def _run_batch(args, scenarios, folder, out, fingerprint):
     for scenario in scenarios:
         for index in range(args.runs):
             result = run_one(args.agent, args.model, scenario, index, args.timeout, args.workspace,
-                             source="auto" if args.allow_synthetic else "cassette")
+                             source="auto" if args.allow_synthetic else "cassette", skill=args.skill == "on")
             result["configFingerprint"] = fingerprint
             with out.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(result, ensure_ascii=False) + "\n")
