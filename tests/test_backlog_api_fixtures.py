@@ -10,8 +10,8 @@ sys.path.insert(0, str(ROOT))
 
 from backlog_tool.resolver import resolve_status
 from workflows.bug_template import bug_context
-from workflows.resolve_bug import issue_custom_field, my_open_bugs
-from workflows.story_task_overview import my_story_task_overview
+from backlog_tool import issue_service, presenter
+from workflows.resolve_bug import issue_custom_field
 
 
 FIXTURES = ROOT / "tests" / "fixtures"
@@ -118,73 +118,34 @@ class BacklogApiFixtureTest(unittest.TestCase):
             fields["Corrective Action"],
         )
 
-    def test_real_issue_list_filters_open_bugs_assigned_to_me(self):
-        issues = load_fixture("AQM_issues_assigned_me.json")
-        project = project_from_fixtures("AQM")
+    def _list_my_issues(self, project_key, issue_types):
+        project = project_from_fixtures(project_key)
         client = mock.Mock()
         client.get_project_id.return_value = project["id"]
-        client.get_issues.return_value = issues
+        client.get_issues.return_value = load_fixture(f"{project_key}_issues_assigned_me.json")
+        with mock.patch("backlog_tool.issue_service.BacklogClient", return_value=client), \
+             mock.patch("backlog_tool.issue_service.resolve_project", return_value=project):
+            result = issue_service.list_my_issues(CONFIG, project_key=project_key, issue_types=issue_types)
+        return project, client.get_issues.call_args.kwargs, result
 
-        with mock.patch("workflows.resolve_bug.BacklogClient", return_value=client), mock.patch(
-            "workflows.resolve_bug.resolve_project",
-            return_value=project,
-        ), mock.patch(
-            "workflows.resolve_bug.load_workflow_config",
-            return_value={
-                "issue_type": "Bug",
-                "excluded_statuses": ["Closed"],
-                "assignee": "me",
-            },
-        ):
-            result = my_open_bugs(CONFIG, project_key="AQM")
-
+    def test_real_catalog_open_bug_query(self):
+        project, kwargs, result = self._list_my_issues("AQM", ["Bug"])
+        options = project["bug"]
+        bug_id = next(o["id"] for o in options["issue_type_options"] if o["name"] == "Bug")
+        closed_id = next(o["id"] for o in options["status_options"] if o["name"] == "Closed")
+        self.assertEqual([bug_id], kwargs["issue_type_ids"])
+        self.assertNotIn(closed_id, kwargs["status_ids"])
+        self.assertEqual(778617, kwargs["assignee_id"])
         self.assertGreaterEqual(len(result), 1)
-        self.assertTrue(all(item["status"] != "Closed" for item in result))
 
-    def test_real_issue_list_filters_story_task_overview(self):
-        issues = load_fixture("OOP_issues_assigned_me.json")
-        project = project_from_fixtures("OOP")
-        client = mock.Mock()
-        client.get_project_id.return_value = project["id"]
-        client.get_issues.return_value = issues
-
-        with mock.patch("workflows.story_task_overview.BacklogClient", return_value=client), mock.patch(
-            "workflows.story_task_overview.resolve_project",
-            return_value=project,
-        ), mock.patch(
-            "workflows.story_task_overview.load_workflow_config",
-            return_value={
-                "issue_types": ["Story", "Task"],
-                "excluded_statuses": ["Closed"],
-                "assignee": "me",
-                "fields": [
-                    "issueKey",
-                    "summary",
-                    "description",
-                    "status",
-                    "dueDate",
-                    "daysUntilDue",
-                    "dueAlertLevel",
-                ],
-            },
-        ):
-            result = my_story_task_overview(CONFIG, project_key="OOP")
-
-        self.assertTrue(
-            all(
-                set(item.keys())
-                == {
-                    "issueKey",
-                    "summary",
-                    "description",
-                    "status",
-                    "dueDate",
-                    "daysUntilDue",
-                    "dueAlertLevel",
-                }
-                for item in result
-            )
-        )
+    def test_real_issues_render_as_list_items(self):
+        _, kwargs, result = self._list_my_issues("OOP", ["Story", "Task"])
+        self.assertEqual(2, len(kwargs["issue_type_ids"]))
+        items = [presenter.list_item(issue) for issue in result]
+        self.assertTrue(items)
+        for item in items:
+            self.assertNotIn("description", item)
+            self.assertTrue({"issueKey", "summary", "issueType", "status"} <= set(item))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import argparse
 import unittest
 
+import datetime as _dt
 import json as _json
 import os as _os
 import sys
@@ -141,16 +142,12 @@ class PresenterRoutingTest(unittest.TestCase):
 
     def test_present_story_overview_keeps_due_alert_fields(self):
         args = self.parser.parse_args(["story", "overview"])
-        result = [
-            {
-                "issueKey": "AQM-1",
-                "status": "Open",
-                "daysUntilDue": 0,
-                "dueAlertLevel": 2,
-            }
-        ]
+        today = _dt.date.today().isoformat()
+        raw = [{"issueKey": "AQM-1", "description": "long", "status": {"name": "Open"}, "dueDate": today}]
 
-        self.assertEqual(result, cli.present(result, args))
+        [item] = cli.present(raw, args)
+        self.assertNotIn("description", item)
+        self.assertEqual((0, 2), (item["daysUntilDue"], item["dueAlertLevel"]))
 
 
 class CliTelemetryTest(unittest.TestCase):

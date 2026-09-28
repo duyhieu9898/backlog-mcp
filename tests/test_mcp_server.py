@@ -74,9 +74,9 @@ def test_update_issue_and_create_ut_bug_preview_by_default():
     assert ut_mock.call_args.kwargs["dry_run"] is True
 
 
-def test_get_issues_maps_pagination_sort_and_field_selection():
-    with mock.patch("backlog_mcp.server.issue_service.get_issues", return_value=[]) as get_mock:
-        result = server.get_issues(
+def test_list_my_issues_tool_maps_pagination_sort_and_field_selection():
+    with mock.patch("backlog_mcp.server.issue_service.list_my_issues", return_value=[]) as get_mock:
+        result = server.list_my_issues(
             project_key="AQM",
             query="payment",
             issue_types=("Bug",),
@@ -97,8 +97,8 @@ def test_get_issues_maps_pagination_sort_and_field_selection():
     assert kwargs["order"] == "desc"
 
 
-def test_get_issues_with_invalid_cursor_returns_error():
-    result = server.get_issues(cursor="invalid")
+def test_list_my_issues_tool_with_invalid_cursor_returns_error():
+    result = server.list_my_issues(cursor="invalid")
     assert result.isError is True
     assert "Invalid cursor format" in result.content[0].text
 
@@ -107,10 +107,10 @@ def test_build_result_returns_stable_success_envelope_with_pagination():
     from backlog_tool import telemetry
 
     data = [{"issueKey": "AQM-1", "summary": "Fix it", "status": "Open"}]
-    telemetry.start_call("get_issues", {})
+    telemetry.start_call("list_my_issues", {})
     result = server._build_result(
         data,
-        tool="get_issues",
+        tool="list_my_issues",
         list_key="issues",
         limit=1,
         offset=0,
@@ -127,8 +127,8 @@ def test_build_result_returns_stable_success_envelope_with_pagination():
             "hasMore": True,
         },
     }
-    assert result.meta["tool"] == "get_issues"
-    assert result.meta["command"] == "get_issues"
+    assert result.meta["tool"] == "list_my_issues"
+    assert result.meta["command"] == "list_my_issues"
     assert result.meta["resourceUris"] == ["backlog://issue/AQM-1"]
     assert result.meta["traceId"]
     assert json.loads(result.content[0].text) == result.structuredContent
@@ -137,9 +137,9 @@ def test_build_result_returns_stable_success_envelope_with_pagination():
 def test_server_uses_claude_project_directory_as_workspace():
     with (
         mock.patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": "/work/AQM"}, clear=True),
-        mock.patch("backlog_mcp.server.issue_service.get_issues", return_value=[]) as get_mock,
+        mock.patch("backlog_mcp.server.issue_service.list_my_issues", return_value=[]) as get_mock,
     ):
-        server.get_issues(project_key="AQM")
+        server.list_my_issues(project_key="AQM")
 
     assert get_mock.call_args.kwargs["start_path"] == "/work/AQM"
 
@@ -169,16 +169,16 @@ def test_tool_schema_exposes_enums_and_use_when_descriptions():
         return await server.mcp.list_tools()
 
     tools = {tool.name: tool for tool in anyio.run(load_tools)}
-    get_issues = tools["get_issues"]
+    list_my_issues = tools["list_my_issues"]
     get_issue = tools["get_issue"]
     update_issue = tools["update_issue"]
     get_bug_context = tools["get_bug_context"]
     resolve_bug = tools["resolve_bug"]
     create_issue = tools["create_issue"]
 
-    assert "Use when" in get_issues.description
-    assert "Do not use" in get_issues.description
-    assert "view" not in get_issues.inputSchema["properties"]
+    assert "Use when" in list_my_issues.description
+    assert "Do not use" in list_my_issues.description
+    assert "view" not in list_my_issues.inputSchema["properties"]
     assert get_issue.inputSchema["properties"]["view"]["enum"] == ["compact", "full"]
     assert "issue_key" in get_issue.inputSchema["properties"]
     assert "issue_id" not in get_issue.inputSchema["properties"]
@@ -189,9 +189,9 @@ def test_tool_schema_exposes_enums_and_use_when_descriptions():
     assert "issueKey" not in get_bug_context.inputSchema["properties"]
     assert "issue_key" in resolve_bug.inputSchema["properties"]
     assert "issueKey" not in resolve_bug.inputSchema["properties"]
-    assert "cursor" in get_issues.inputSchema["properties"]
-    assert "offset" not in get_issues.inputSchema["properties"]
-    assert get_issues.inputSchema["properties"]["cursor"]["type"] == "string"
+    assert "cursor" in list_my_issues.inputSchema["properties"]
+    assert "offset" not in list_my_issues.inputSchema["properties"]
+    assert list_my_issues.inputSchema["properties"]["cursor"]["type"] == "string"
     for mutation_name in ("create_issue", "update_issue", "resolve_bug", "create_ut_bug"):
         mode_schema = tools[mutation_name].inputSchema["properties"]["mode"]
         assert mode_schema["enum"] == ["preview", "apply"]
@@ -292,43 +292,17 @@ def test_create_ut_bug_returns_structured_partial_write_error():
     assert detail["recovery"]["updatePayload"] == {"statusId": 4, "assigneeId": 9}
 
 
-def test_personal_project_status_aggregates_work_and_bugs_in_one_tool():
-    with mock.patch(
-        "backlog_mcp.server.personal_status.get_my_project_status",
-        return_value={
-            "storiesAndTasks": [{"issueKey": "OOP-1"}],
-            "openBugs": [{"issueKey": "OOP-2"}],
-            "summary": {
-                "storyTaskCount": 1,
-                "openBugCount": 1,
-                "overdueCount": 0,
-                "dueSoonCount": 0,
-            },
-        },
-    ) as status_mock:
-        result = server.get_my_project_status("OOP")
-
-    assert result.isError is False
-    assert result.structuredContent["data"]["summary"]["openBugCount"] == 1
-    status_mock.assert_called_once_with(
-        server.get_config_instance(),
-        project_key="OOP",
-        start_path=server._workspace_path(),
-    )
-
-
 def test_personal_routing_contract_is_explicit_and_domain_first():
     async def load_tools():
         return await server.mcp.list_tools()
 
     tools = {tool.name: tool for tool in anyio.run(load_tools)}
 
-    assert "Backlog is explicitly invoked" in tools["get_my_project_status"].description
-    assert "not a PM/team/project-health dashboard" in tools["get_my_project_status"].description
+    assert "Backlog is explicitly invoked" in tools["list_my_issues"].description
+    assert "not a PM/team/project-health dashboard" in tools["list_my_issues"].description
     assert "Do not call get_issue first" in tools["get_bug_context"].description
     assert "Do not call get_bug_context, get_issue, get_bug_rules or get_bug_fields first." in tools["resolve_bug"].description
-    assert "escape hatch" in tools["get_issues"].description
-    assert "personal Backlog status" in tools["get_issues"].description
+    assert "get_bug_context" in tools["list_my_issues"].description
 
 
 def test_server_instructions_require_backlog_activation_and_minimal_bug_paths():
@@ -483,17 +457,24 @@ def test_resolve_bug_description_says_apply_once():
     assert "Required in apply mode" not in tools["resolve_bug"].inputSchema["properties"]["fix_description"]["description"]
 
 
-def test_get_my_open_bugs_list_omits_description():
-    raw = [{"issueKey": "OOP-1", "summary": "Lỗi", "description": "long text " * 50, "status": {"name": "Open"},
-            "customFields": [{"name": "Severity", "value": {"name": "High"}}]}]
-    with mock.patch("backlog_mcp.server.bug_workflow.my_open_bugs_raw", return_value=raw), \
+def test_list_my_issues_tool_items_omit_description_and_summarize():
+    raw = [
+        {"issueKey": "OOP-1", "summary": "Lỗi", "description": "long text " * 50, "issueType": {"name": "Bug"},
+         "status": {"name": "Open"}, "customFields": [{"name": "Severity", "value": {"name": "High"}}]},
+        {"issueKey": "OOP-2", "summary": "Việc", "issueType": {"name": "Task"}, "status": {"name": "Open"}},
+    ]
+    with mock.patch("backlog_mcp.server.issue_service.list_my_issues", return_value=raw), \
          mock.patch("backlog_mcp.server.get_config_instance", return_value={}), \
          mock.patch("backlog_mcp.server.view_base_url", return_value=""):
-        result = server.get_my_open_bugs()
-    [bug] = result.structuredContent["data"]["bugs"]
+        result = server.list_my_issues()
+    data = result.structuredContent["data"]
+    bug, task = data["issues"]
     assert "description" not in bug
-    assert bug["issueKey"] == "OOP-1" and bug["summary"] == "Lỗi" and bug["status"] == "Open"
+    assert bug["issueKey"] == "OOP-1" and bug["issueType"] == "Bug" and bug["status"] == "Open"
     assert bug["customFields"] == [{"name": "Severity", "value": "High"}]
+    assert data["count"] == 2
+    assert data["summary"] == {"byType": {"Bug": 1, "Task": 1}, "overdueCount": 0, "dueSoonCount": 0}
+    assert result.structuredContent["pagination"]["hasMore"] is False
 
 
 def test_create_issue_blank_parent_key_means_no_parent():

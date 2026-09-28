@@ -181,23 +181,6 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertEqual([], context["descriptionMeta"]["missingSections"])
         self.assertEqual({"id": 1001, "name": "Reporter"}, context["createdUser"])
 
-    def test_my_open_bugs_filters_bug_status_and_assignee(self):
-        issues = [
-            BUG_ISSUE,
-            {**BUG_ISSUE, "issueKey": "AQM-124", "status": {"name": "Closed"}},
-            {**BUG_ISSUE, "issueKey": "AQM-125", "issueType": {"name": "Task"}},
-            {**BUG_ISSUE, "issueKey": "AQM-126", "assignee": {"id": 1002}},
-        ]
-        self.client.get_issues.return_value = issues
-
-        result = bug_workflow.my_open_bugs(CONFIG, project_key="AQM")
-
-        self.assertEqual(["AQM-123"], [item["issueKey"] for item in result])
-        call_kwargs = self.client.get_issues.call_args.kwargs
-        self.assertEqual([1], call_kwargs["issue_type_ids"])
-        self.assertEqual([4], call_kwargs["status_ids"])
-        self.assertEqual(778617, call_kwargs["assignee_id"])
-
     def test_build_resolution_plan_keeps_semantic_field_names(self):
         planned = bug_workflow.build_resolution_plan(
             CONFIG,

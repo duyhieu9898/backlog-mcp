@@ -5,8 +5,8 @@ from datetime import date
 
 from .bug_template import bug_context
 from backlog_tool.client import BacklogClient
-from backlog_tool.resolver import find_option, issue_type_options, resolve_custom_field_defaults, resolve_custom_field_value, status_options
-from backlog_tool.settings import load_workflow_config, resolve_project, resolve_project_key, resolve_user_id
+from backlog_tool.resolver import resolve_custom_field_defaults, resolve_custom_field_value
+from backlog_tool.settings import load_workflow_config, resolve_project, resolve_user_id
 from backlog_tool.telemetry import plan_hash, record_mutation
 from .config import require_int, require_list, require_value, require_mapping
 from .resolution_plan import ResolutionPlan, resolution_plan_to_payload
@@ -41,14 +41,6 @@ def user_summary(user):
     }
 
 
-def is_open_bug_for_user(issue, assignee_id, issue_type, excluded_statuses):
-    if issue_type_name(issue) != issue_type:
-        return False
-    if status_name(issue) in excluded_statuses:
-        return False
-    return user_id(issue.get("assignee")) == assignee_id
-
-
 def merge_resolve_defaults(config, project_key):
     workflow = load_workflow_config("resolve_bug")
     merged = {key: deepcopy(value) for key, value in workflow.items() if key != "project_overrides"}
@@ -59,71 +51,6 @@ def merge_resolve_defaults(config, project_key):
         **override.get("custom_fields", {}),
     }
     return merged
-
-
-def my_open_bugs(config, project_key=None, query=None, limit=100, offset=0, sort=None, order=None, start_path=None):
-    project_key = resolve_project_key(config, project_key, start_path=start_path)
-    workflow = merge_resolve_defaults(config, project_key)
-    project = resolve_project(config, project_key, start_path=start_path)
-    assignee_id = resolve_user_id(config, require_value(workflow, "assignee", "resolve_bug"))
-    issue_type = require_value(workflow, "issue_type", "resolve_bug")
-    excluded_statuses = set(require_list(workflow, "excluded_statuses", "resolve_bug"))
-    issue_type_id = find_option(issue_type_options(project), issue_type, "issue type")
-    status_ids = [
-        item["id"]
-        for item in status_options(project)
-        if item.get("name") not in excluded_statuses
-    ]
-    client = BacklogClient(config)
-    issues = client.get_issues(
-        client.get_project_id(project),
-        query=query,
-        assignee_id=assignee_id,
-        status_ids=status_ids,
-        issue_type_ids=[issue_type_id],
-        count=limit,
-        offset=offset,
-        sort=sort,
-        order=order,
-    )
-    return [
-        bug_context(issue)
-        for issue in issues
-        if is_open_bug_for_user(issue, assignee_id, issue_type, excluded_statuses)
-    ]
-
-
-def my_open_bugs_raw(config, project_key=None, query=None, limit=100, offset=0, sort=None, order=None, start_path=None):
-    """Like my_open_bugs but returns raw API issues (for compact_issue presenter)."""
-    project_key = resolve_project_key(config, project_key, start_path=start_path)
-    workflow = merge_resolve_defaults(config, project_key)
-    project = resolve_project(config, project_key, start_path=start_path)
-    assignee_id = resolve_user_id(config, require_value(workflow, "assignee", "resolve_bug"))
-    issue_type = require_value(workflow, "issue_type", "resolve_bug")
-    excluded_statuses = set(require_list(workflow, "excluded_statuses", "resolve_bug"))
-    issue_type_id = find_option(issue_type_options(project), issue_type, "issue type")
-    status_ids = [
-        item["id"]
-        for item in status_options(project)
-        if item.get("name") not in excluded_statuses
-    ]
-    client = BacklogClient(config)
-    issues = client.get_issues(
-        client.get_project_id(project),
-        query=query,
-        assignee_id=assignee_id,
-        status_ids=status_ids,
-        issue_type_ids=[issue_type_id],
-        count=limit,
-        offset=offset,
-        sort=sort,
-        order=order,
-    )
-    return [
-        issue
-        for issue in issues
-        if is_open_bug_for_user(issue, assignee_id, issue_type, excluded_statuses)
-    ]
 
 
 def get_bug_context(config, issue_key):

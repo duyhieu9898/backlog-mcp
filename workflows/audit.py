@@ -33,12 +33,6 @@ REQUIRED_KEYS = {
         "corrective_action",
         "custom_fields",
     },
-    "story_task_overview": {
-        "issue_types",
-        "excluded_statuses",
-        "assignee",
-        "fields",
-    },
     "ut_bug": {
         "issue_type",
         "status",
@@ -49,16 +43,6 @@ REQUIRED_KEYS = {
         "description_template",
         "custom_fields",
     },
-}
-
-STORY_OUTPUT_FIELDS = {
-    "issueKey",
-    "summary",
-    "description",
-    "status",
-    "dueDate",
-    "daysUntilDue",
-    "dueAlertLevel",
 }
 
 CORRECTIVE_ACTION_PLACEHOLDERS = {"description", "description_lower"}
@@ -80,13 +64,6 @@ def audit_workflows(config):
         for name in REQUIRED_KEYS
     }
 
-    # Check story_task_overview required keys at root (no project_overrides support)
-    story_keys = REQUIRED_KEYS["story_task_overview"]
-    missing = sorted(story_keys - set(workflows["story_task_overview"]))
-    checks.append("story_task_overview: required keys")
-    if missing:
-        errors.append(f"story_task_overview missing required keys: {', '.join(missing)}")
-
     # Policy field groups checks
     field_groups = set(ALWAYS_OVERWRITE_FIELDS) | set(ONLY_WHEN_EMPTY_FIELDS)
     checks.append("resolve_bug: policy field groups")
@@ -105,15 +82,6 @@ def audit_workflows(config):
                 f"{workflow_name} corrective_action has unsupported placeholders: "
                 + ", ".join(unknown)
             )
-
-    story_fields = set(workflows["story_task_overview"]["fields"])
-    checks.append("story_task_overview: output fields")
-    unknown_story_fields = sorted(story_fields - STORY_OUTPUT_FIELDS)
-    if unknown_story_fields:
-        errors.append(
-            "story_task_overview has unsupported fields: "
-            + ", ".join(unknown_story_fields)
-        )
 
     for project_key in project_keys(config):
         project = load_project_catalog(project_key)

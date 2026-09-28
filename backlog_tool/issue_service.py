@@ -9,7 +9,7 @@ from .resolver import (
     resolve_issue_type,
     resolve_status,
 )
-from .settings import resolve_project, resolve_project_for_issue
+from .settings import resolve_project, resolve_project_for_issue, resolve_user_id
 from .telemetry import plan_hash, record_mutation
 
 
@@ -71,6 +71,35 @@ def get_issues(
         project_id, query=query, assignee_id=assignee_id,
         status_ids=status_ids, issue_type_ids=issue_type_ids,
         count=limit, offset=offset, sort=sort, order=order,
+    )
+
+
+def list_my_issues(
+    config,
+    project_key=None,
+    query=None,
+    issue_types=None,
+    include_closed=False,
+    limit=100,
+    offset=0,
+    sort=None,
+    order=None,
+    start_path=None,
+):
+    """Issues assigned to the configured user: the one list behind list_my_issues and the CLI list commands."""
+    me = config.get("defaults", {}).get("assignee", "me")
+    return get_issues(
+        config,
+        project_key=project_key,
+        query=query,
+        assignee_id=resolve_user_id(config, me),
+        open_only=not include_closed,
+        issue_types=issue_types,
+        limit=limit,
+        offset=offset,
+        sort=sort,
+        order=order,
+        start_path=start_path,
     )
 
 

@@ -58,13 +58,14 @@ Normal personal intents map to domain tools:
 
 | Personal Backlog intent | Preferred tool |
 |---|---|
-| What do I currently have to do in this Backlog project? | `get_my_project_status` |
-| What open bugs are assigned to me? | `get_my_open_bugs` |
+| What do I currently have to do in this Backlog project? | `list_my_issues` |
+| What open bugs are assigned to me? | `list_my_issues` with `issue_types=["Bug"]` |
+| My stories/tasks or deadlines | `list_my_issues` with `issue_types=["Story", "Task"]` |
 | Understand/investigate/fix a specific bug | `get_bug_context` |
 | Resolve/close a bug | `resolve_bug` |
 | Create a configured UT bug | `create_ut_bug` |
 
-`get_issue`, `get_issues`, `create_issue`, and `update_issue` are escape
+`get_issue`, `create_issue`, and `update_issue` are escape
 hatches for generic/custom operations. `get_bug_rules` and `get_bug_fields` are
 diagnostic tools, not normal pre-steps for the personal workflows. Project and
 config administration (list projects, inspect/refresh a catalog, show config,
@@ -133,7 +134,7 @@ uv run backlog-cli project inspect XYZ
 ```
 
 Once registered, the agent can call any tool by passing `project_key="XYZ"`
-explicitly. Read-only tools (`get_issue`, `get_issues`) work without a catalog;
+explicitly. Read-only tools (`get_issue`, `list_my_issues`) work without a catalog;
 mutation tools and bug workflow tools require it.
 
 **Limitations of Mode 2:**
@@ -154,7 +155,7 @@ The active project is also resolved from the `BACKLOG_WORKSPACE_PATH` or
 | Tool | Description |
 |---|---|
 | `get_issue` | Get current details of one issue by key or numeric ID. |
-| `get_issues` | List issues assigned to the configured user, with filters and pagination. |
+| `list_my_issues` | The one personal list: open issues assigned to the configured user, filtered by `issue_types` (omit for every type), `query`, `include_closed`, with pagination. Items carry no description (`get_bug_context` gives it for one bug) and add `daysUntilDue`/`dueAlertLevel` (1 = overdue, 2 = due within 2 days); the result adds `summary` (`byType`, `overdueCount`, `dueSoonCount`). |
 | `create_issue` | Create a Backlog issue (`mode="preview"` by default, `"apply"` to submit). |
 | `update_issue` | Update fields on an existing issue (`mode="preview"` / `"apply"`). |
 
@@ -164,19 +165,11 @@ Every tool names the issue it acts on `issue_key` (`get_issue` also accepts a nu
 
 | Tool | Description |
 |---|---|
-| `get_my_open_bugs` | List open bugs assigned to the configured user (with `count`; no description — `get_bug_context` gives it for one bug). |
 | `get_bug_context` | Get AI-ready context for a specific bug, including its attachments (`id`, `name`, `size`, `isImage`). |
 | `resolve_bug` | Resolve a bug with workflow defaults in one `mode="apply"` call. `fix_description`/`commit` are optional (Corrective Action falls back to `fixed <summary>`); guided fields and hours only fill empty values; warnings (e.g. Detected Role is not Tester) never block and are returned with the changes. `mode="preview"` only when asked. |
 | `create_ut_bug` | Create a Unit Test sub-task bug under a parent issue (`mode="preview"` / `"apply"`). |
 | `get_bug_rules` | Get the resolve-bug workflow rules for a project (or the project of `issue_key`). |
 | `get_bug_fields` | Get allowed values and guidance for bug workflow fields (e.g. `qc_activity`, `cause_category`). |
-
-### Personal Work
-
-| Tool | Description |
-|---|---|
-| `get_my_project_status` | One-call personal Backlog status: assigned Stories/Tasks, deadlines, and open Bugs. |
-| `get_my_work_overview` | List assigned Stories and Tasks with deadline and status context when that narrower view is explicitly needed. |
 
 ## Resources
 

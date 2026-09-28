@@ -5,7 +5,7 @@ import json
 from .telemetry import LARGE_RESPONSE_BYTES
 
 # (generic tool, specialized tool) pairs where the specialized tool is the intended path.
-SPECIALIZED = [("get_issue", "get_bug_context"), ("get_issues", "get_my_open_bugs")]
+SPECIALIZED = [("get_issue", "get_bug_context")]
 
 
 def _finding(code, reason, calls, severity="warning"):

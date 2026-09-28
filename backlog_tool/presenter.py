@@ -5,6 +5,7 @@ Default output is trimmed to the fields needed to triage/act, which is the main
 token-cost lever. Pass --json-full at the CLI to bypass this and get raw JSON.
 """
 import re
+from collections import Counter
 
 def _attachment_url(attachment_id, base_url=""):
     """Build a full attachment image URL."""
@@ -151,6 +152,22 @@ def compact_issue(issue, view="compact", base_url=""):
     if custom:
         result["customFields"] = custom
     return result
+
+
+def list_item(issue, base_url="", today=None):
+    """One row of an issue list: compact fields plus due-date context, without the description."""
+    item = {k: v for k, v in compact_issue(issue, base_url=base_url).items() if k != "description"}
+    due = due_status(parse_due_date(issue.get("dueDate")), today)
+    item.update({k: v for k, v in due.items() if v is not None})
+    return item
+
+
+def list_summary(items):
+    return {
+        "byType": dict(Counter(item.get("issueType") for item in items)),
+        "overdueCount": sum(1 for item in items if item.get("dueAlertLevel") == 1),
+        "dueSoonCount": sum(1 for item in items if item.get("dueAlertLevel") == 2),
+    }
 
 
 def format_issues_as_table(issues, is_story_view=False):

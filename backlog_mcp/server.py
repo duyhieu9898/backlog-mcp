@@ -25,8 +25,7 @@ from backlog_tool.settings import (
     find_eval_marker,
 )
 from backlog_tool import issue_service, presenter
-from backlog_tool.resolver import resolve_user_id
-from workflows import guidance, ut_bug, story_task_overview, personal_status
+from workflows import guidance, ut_bug
 import workflows.resolve_bug as bug_workflow
 from backlog_tool.telemetry import (
     log_session_start,
@@ -84,10 +83,11 @@ Activation:
 - Do not route generic requests such as "what should I do?" or "project status" to Backlog without an activation signal.
 
 Preferred tools:
-- My open bugs -> get_my_open_bugs
+- My open bugs -> list_my_issues with issue_types=["Bug"]
 - Resolve/close a bug, or the user says it is already fixed -> resolve_bug directly with mode="apply" (one call)
 - Fix/investigate a bug that is not fixed yet -> get_bug_context (it lists attachments; tell the user when an attachment matters instead of fetching it)
-- Personal status -> get_my_project_status
+- My stories/tasks or deadlines -> list_my_issues with issue_types=["Story", "Task"]
+- Personal status / what do I have to do -> list_my_issues without issue_types
 - Generic get/search/update tools are escape hatches only.
 
 Mutation safety:
@@ -237,7 +237,7 @@ def get_issue(
 
     Use when inspecting a generic or non-bug Backlog issue, or when raw fields are explicitly needed (escape hatch).
     Do not use as the first step for investigating or fixing a Bug; use get_bug_context instead.
-    Do not use for discovery; use a personal domain list/status tool when possible.
+    Do not use for discovery; use list_my_issues.
     """
     start_call("get_issue", locals())
     try:
@@ -255,10 +255,10 @@ def get_issue(
 
 
 @mcp.tool()
-def get_issues(
+def list_my_issues(
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
+    issue_types: Annotated[tuple[str, ...], Field(description="Issue type names to include: ['Bug'] for bugs, ['Story', 'Task'] for stories/tasks. Omit for every type.")] = (),
     query: Annotated[str, Field(description="Search keyword for issue summary or description. Omit or pass an empty string for no keyword filter.")] = "",
-    issue_types: Annotated[tuple[str, ...], Field(description="Issue type names to include, e.g. ('Bug', 'Story'). Omit for all issue types.")] = (),
     include_closed: Annotated[bool, Field(description="Set true to include Closed issues; false returns open issues only.")] = False,
     limit: Annotated[int, Field(description="Maximum issues to return, from 1 to 100.", ge=1, le=100)] = 50,
     cursor: Annotated[str, Field(description="Offset cursor for pagination (e.g., '50' to start from the 50th item). Omit or pass an empty string to start from the beginning.")] = "",
@@ -275,30 +275,28 @@ def get_issues(
         ),
     ] = None,
 ) -> CallToolResult:
-    """Run a custom Backlog issue search across issue types for the configured user.
+    """List Backlog issues assigned to the configured user in one project, with due-date context.
 
-    Use when the user explicitly needs custom Backlog filters/search that the personal domain tools do not provide; treat this as an escape hatch.
-    Do not use for personal Backlog status; use get_my_project_status.
-    Do not use for open personal bugs; use get_my_open_bugs.
+    Use when Backlog is explicitly invoked and the user asks for their bugs, stories/tasks, deadlines or what they have to do.
+    Filter with issue_types (['Bug'] for open bugs); omit it for the combined personal status.
+    This is a personal work view, not a PM/team/project-health dashboard.
+    Items omit the description; call get_bug_context for the bug the user picks.
     Do not use to investigate a specific bug; use get_bug_context.
     """
-    start_call("get_issues", locals())
+    start_call("list_my_issues", locals())
     try:
         offset = _parse_cursor(cursor)
     except ValueError as e:
-        return _error_result("get_issues", e, project=project_key)
+        return _error_result("list_my_issues", e, project=project_key)
 
     try:
         config = get_config_instance()
-        me = config.get("defaults", {}).get("assignee", "me")
-        assignee_id = resolve_user_id(config, me)
-        raw_issues = issue_service.get_issues(
+        raw_issues = issue_service.list_my_issues(
             config,
             project_key=project_key or None,
             query=query or None,
-            assignee_id=assignee_id,
-            open_only=not include_closed,
             issue_types=list(issue_types) if issue_types else None,
+            include_closed=include_closed,
             limit=limit,
             offset=offset,
             sort=sort,
@@ -306,18 +304,19 @@ def get_issues(
             start_path=_workspace_path(),
         )
         base_url = view_base_url(config)
-        data = [presenter.compact_issue(item, view="compact", base_url=base_url) for item in raw_issues]
+        data = [presenter.list_item(item, base_url=base_url) for item in raw_issues]
         return _build_result(
             data,
-            "get_issues",
+            "list_my_issues",
             list_key="issues",
             limit=limit,
             offset=offset,
             paginated=True,
             project=project_key,
+            extra={"summary": presenter.list_summary(data)},
         )
     except Exception as e:
-        return _error_result("get_issues", e, project=project_key)
+        return _error_result("list_my_issues", e, project=project_key)
 
 
 @mcp.tool()
@@ -448,68 +447,6 @@ def update_issue(
 
 
 @mcp.tool()
-def get_my_open_bugs(
-    project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
-    query: Annotated[str, Field(description="Search keyword for bug summary or description. Omit or pass an empty string for no keyword filter.")] = "",
-    limit: Annotated[int, Field(description="Maximum bugs to return, from 1 to 100.", ge=1, le=100)] = 50,
-    cursor: Annotated[str, Field(description="Offset cursor for pagination (e.g., '50' to start from the 50th item). Omit or pass an empty string to start from the beginning.")] = "",
-    sort: Annotated[
-        IssueSort | None,
-        Field(
-            description="Backlog issue sort field, e.g. updated, dueDate, priority. Omit for Backlog default ordering."
-        ),
-    ] = None,
-    order: Annotated[
-        SortOrder | None,
-        Field(
-            description="Sort order: asc or desc. Omit for Backlog default ordering."
-        ),
-    ] = None,
-) -> CallToolResult:
-    """List open Backlog bugs assigned to the configured user in one project.
-
-    Use when Backlog is explicitly invoked and the user asks for their current bugs/bug queue.
-    Prefer this one-call personal workflow over generic get_issues filtering.
-    Items omit the description; call get_bug_context for the bug the user picks.
-    """
-    start_call("get_my_open_bugs", locals())
-    try:
-        offset = _parse_cursor(cursor)
-    except ValueError as e:
-        return _error_result("get_my_open_bugs", e, project=project_key)
-
-    try:
-        config = get_config_instance()
-        bugs = bug_workflow.my_open_bugs_raw(
-            config,
-            project_key=project_key or None,
-            query=query or None,
-            limit=limit,
-            offset=offset,
-            sort=sort,
-            order=order,
-            start_path=_workspace_path(),
-        )
-        base_url = view_base_url(config)
-        # The list is for choosing a bug; get_bug_context gives the description of the one picked.
-        data = [
-            {k: v for k, v in presenter.compact_issue(item, view="compact", base_url=base_url).items() if k != "description"}
-            for item in bugs
-        ]
-        return _build_result(
-            data,
-            "get_my_open_bugs",
-            list_key="bugs",
-            limit=limit,
-            offset=offset,
-            paginated=True,
-            project=project_key,
-        )
-    except Exception as e:
-        return _error_result("get_my_open_bugs", e, project=project_key)
-
-
-@mcp.tool()
 def get_bug_context(
     issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123'.")],
 ) -> CallToolResult:
@@ -517,7 +454,7 @@ def get_bug_context(
 
     Use when a Backlog bug key/link is supplied and the user wants to understand, investigate or fix it (it is the primary entry point).
     Do not call get_issue first just to inspect the same bug.
-    Do not use for listing bugs; use get_my_open_bugs.
+    Do not use for listing bugs; use list_my_issues.
     """
     start_call("get_bug_context", locals())
     try:
@@ -717,88 +654,6 @@ def get_bug_fields(
         return _build_result(data, "get_bug_fields", project=project_key)
     except Exception as e:
         return _error_result("get_bug_fields", e, project=project_key)
-
-
-@mcp.tool()
-def get_my_work_overview(
-    project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
-    query: Annotated[str, Field(description="Search keyword for story/task summary or description. Omit or pass an empty string for no keyword filter.")] = "",
-    limit: Annotated[int, Field(description="Maximum stories/tasks to return, from 1 to 100.", ge=1, le=100)] = 50,
-    cursor: Annotated[str, Field(description="Offset cursor for pagination (e.g., '50' to start from the 50th item). Omit or pass an empty string to start from the beginning.")] = "",
-    sort: Annotated[
-        IssueSort | None,
-        Field(
-            description="Backlog issue sort field, e.g. updated, dueDate, priority. Omit for Backlog default ordering."
-        ),
-    ] = None,
-    order: Annotated[
-        SortOrder | None,
-        Field(
-            description="Sort order: asc or desc. Omit for Backlog default ordering."
-        ),
-    ] = None,
-) -> CallToolResult:
-    """List the configured user's Backlog Stories and Tasks with due-date/status context.
-
-    Use when Backlog is explicitly invoked and the user specifically asks for Stories/Tasks or deadlines.
-    For the broader personal Backlog status including bugs, prefer get_my_project_status.
-    """
-    start_call("get_my_work_overview", locals())
-    try:
-        offset = _parse_cursor(cursor)
-    except ValueError as e:
-        return _error_result("get_my_work_overview", e, project=project_key)
-
-    try:
-        config = get_config_instance()
-        stories = story_task_overview.my_story_task_overview(
-            config,
-            project_key=project_key or None,
-            query=query or None,
-            limit=limit,
-            offset=offset,
-            sort=sort,
-            order=order,
-            start_path=_workspace_path(),
-        )
-        return _build_result(
-            stories,
-            "get_my_work_overview",
-            list_key="stories",
-            limit=limit,
-            offset=offset,
-            paginated=True,
-            project=project_key,
-        )
-    except Exception as e:
-        return _error_result("get_my_work_overview", e, project=project_key)
-
-
-@mcp.tool()
-def get_my_project_status(
-    project_key: Annotated[str, Field(description="Backlog project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace.")]= "",
-) -> CallToolResult:
-    """Get one personal Backlog status view for the configured user in a project.
-
-    Use when Backlog is explicitly invoked and the user asks what they have to do, their Backlog/project status, or a combined view of current personal work.
-    This is a personal work view, not a PM/team/project-health dashboard.
-    It combines assigned Stories/Tasks and open Bugs in one MCP call.
-    """
-    start_call("get_my_project_status", locals())
-    try:
-        config = get_config_instance()
-        data = personal_status.get_my_project_status(
-            config,
-            project_key=project_key or None,
-            start_path=_workspace_path(),
-        )
-        return _build_result(
-            data,
-            "get_my_project_status",
-            project=project_key,
-        )
-    except Exception as e:
-        return _error_result("get_my_project_status", e, project=project_key)
 
 
 @mcp.resource(

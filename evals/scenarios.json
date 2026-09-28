@@ -6,9 +6,9 @@
     "fakeState": "default",
     "match": {"keywords": [["bug", "bugs"], ["open", "mở"]], "issueKeys": "none"},
     "expect": {
-      "calls": [{"tool": "get_my_open_bugs", "args": {}}],
+      "calls": [{"tool": "list_my_issues", "args": {"issue_types": ["Bug"]}}],
       "order": "exact",
-      "forbidden": ["get_issues", "get_issue", "get_bug_context", "get_my_project_status"],
+      "forbidden": ["get_issue", "get_bug_context"],
       "finalAnswer": null
     },
     "nonMcp": null
@@ -20,9 +20,9 @@
     "fakeState": "no_open_bugs",
     "match": null,
     "expect": {
-      "calls": [{"tool": "get_my_open_bugs", "args": {}}],
+      "calls": [{"tool": "list_my_issues", "args": {"issue_types": ["Bug"]}}],
       "order": "exact",
-      "forbidden": ["get_issues", "get_issue", "get_bug_context", "get_my_project_status"],
+      "forbidden": ["get_issue", "get_bug_context"],
       "finalAnswer": {"mustMention": [["0", "không có"]]}
     },
     "nonMcp": null

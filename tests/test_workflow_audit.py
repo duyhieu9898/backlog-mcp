@@ -84,28 +84,11 @@ UT_WORKFLOW = {
     },
 }
 
-STORY_WORKFLOW = {
-    "issue_types": ["Story", "Task"],
-    "excluded_statuses": ["Closed"],
-    "assignee": "me",
-    "fields": [
-        "issueKey",
-        "summary",
-        "description",
-        "status",
-        "dueDate",
-        "daysUntilDue",
-        "dueAlertLevel",
-    ],
-}
-
-
 class WorkflowAuditTest(unittest.TestCase):
     def setUp(self):
         workflows = {
             "resolve_bug": RESOLVE_WORKFLOW,
             "ut_bug": UT_WORKFLOW,
-            "story_task_overview": STORY_WORKFLOW,
         }
         mock.patch.object(audit, "load_workflow_config", side_effect=workflows.get).start()
         from workflows import resolve_bug
@@ -119,7 +102,7 @@ class WorkflowAuditTest(unittest.TestCase):
         result = audit.audit_workflows(CONFIG)
 
         self.assertTrue(result["ok"])
-        self.assertEqual(3, result["workflowCount"])
+        self.assertEqual(2, result["workflowCount"])
         self.assertEqual(1, result["projectCount"])
 
     def test_audit_rejects_unknown_template_placeholder(self):
@@ -130,7 +113,6 @@ class WorkflowAuditTest(unittest.TestCase):
         audit.load_workflow_config.side_effect = {
             "resolve_bug": invalid_workflow,
             "ut_bug": UT_WORKFLOW,
-            "story_task_overview": STORY_WORKFLOW,
         }.get
 
         with self.assertRaisesRegex(ValueError, "unsupported placeholders: unknown"):

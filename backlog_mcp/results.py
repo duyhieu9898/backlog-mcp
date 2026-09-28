@@ -102,8 +102,9 @@ def _build_result(
     paginated: bool = False,
     dry_run: bool | None = None,
     project: str | None = None,
+    extra: dict | None = None,
 ) -> CallToolResult:
-    result_data = {list_key or "items": data, "count": len(data)} if isinstance(data, list) else data
+    result_data = {list_key or "items": data, "count": len(data), **(extra or {})} if isinstance(data, list) else data
     returned = len(data) if isinstance(data, list) else (0 if data in (None, "", [], {}) else 1)
 
     envelope_data = {

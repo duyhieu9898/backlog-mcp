@@ -12,13 +12,13 @@ from backlog_mcp import server
 from backlog_mcp.results import _build_result
 
 EXPECTED_TOOLS = {
-    "get_issue", "get_issues", "create_issue", "update_issue", "get_my_open_bugs", "get_bug_context",
-    "resolve_bug", "create_ut_bug", "get_bug_rules", "get_bug_fields", "get_my_work_overview", "get_my_project_status",
+    "get_issue", "list_my_issues", "create_issue", "update_issue", "get_bug_context",
+    "resolve_bug", "create_ut_bug", "get_bug_rules", "get_bug_fields",
 }
 TOOLS = {tool.name: tool for tool in anyio.run(server.mcp.list_tools)}
 
 
-def test_exactly_twelve_tools():
+def test_exactly_nine_tools():
     assert set(TOOLS) == EXPECTED_TOOLS
 
 
@@ -99,7 +99,7 @@ def test_resolve_bug_rejects_unconfigured_prefix_without_backend_call():
     ({}, {}),
 ])
 def test_text_is_full_json_of_structured_content(data, kwargs):
-    result = _build_result(data, "get_my_open_bugs", **kwargs)
+    result = _build_result(data, "list_my_issues", **kwargs)
     text = result.content[0].text
     assert json.loads(text) == json.loads(json.dumps(result.structuredContent, default=str))
     assert "(structured data)" not in text and "No data." not in text
@@ -107,7 +107,7 @@ def test_text_is_full_json_of_structured_content(data, kwargs):
 
 
 def test_list_results_state_count():
-    empty = _build_result([], "get_my_open_bugs", list_key="bugs", paginated=True, limit=50)
+    empty = _build_result([], "list_my_issues", list_key="bugs", paginated=True, limit=50)
     assert empty.structuredContent["data"] == {"bugs": [], "count": 0}
     assert '"count":0' in empty.content[0].text
 

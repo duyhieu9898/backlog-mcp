@@ -113,17 +113,8 @@ class WorkflowConfigContractTest(unittest.TestCase):
             set(ONLY_WHEN_EMPTY_FIELDS),
         )
 
-    def test_story_task_overview_workflow_refs_configured_user(self):
-        workflow = load_workflow_config("story_task_overview")
-
-        self.assertGreater(len(workflow.get("issue_types", [])), 0)
-        self.assertGreater(len(workflow.get("excluded_statuses", [])), 0)
-        self.assertIn("issueKey", workflow.get("fields", []))
-        self.assertIn("dueAlertLevel", workflow.get("fields", []))
-        self.assertIsInstance(resolve_user_id(self.config, workflow["assignee"]), int)
-
     def test_workflow_configs_use_labels_not_numeric_ids(self):
-        for workflow_name in ["ut_bug", "resolve_bug", "story_task_overview"]:
+        for workflow_name in ["ut_bug", "resolve_bug"]:
             with self.subTest(workflow=workflow_name):
                 assert_no_numeric_ids(self, load_workflow_config(workflow_name), workflow_name)
 

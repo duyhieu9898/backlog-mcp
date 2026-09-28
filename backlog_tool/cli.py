@@ -15,7 +15,7 @@ import sys
 from dataclasses import dataclass
 
 from backlog_tool import presenter
-from backlog_tool.issue_service import create_issue, get_issue, get_issues, update_issue
+from backlog_tool.issue_service import create_issue, get_issue, list_my_issues, update_issue
 from backlog_tool.settings import (
     load_config,
     load_env_file,
@@ -23,7 +23,6 @@ from backlog_tool.settings import (
     project_keys,
     resolve_project_key,
     resolve_project_key_for_issue,
-    resolve_user_id,
     view_base_url,
 )
 from backlog_tool.telemetry import finish_call, log_session_start, set_surface, start_call
@@ -31,7 +30,6 @@ from backlog_tool.telemetry_report import report_from_claude, report_from_logs, 
 from workflows.guidance import field_guidance, resolve_rules
 from workflows.audit import audit_workflows
 from workflows.resolve_bug import get_bug_context, resolve_bug
-from workflows.story_task_overview import my_story_task_overview
 from workflows.ut_bug import create_subtask_bug
 
 
@@ -203,15 +201,16 @@ def is_dry_run(args):
 # read as one workflow in telemetry.
 CLI_TOOL_NAMES = {
     "issue:get": "get_issue",
-    "issue:list": "get_issues",
+    "issue:list": "list_my_issues",
     "issue:create": "create_issue",
     "issue:update": "update_issue",
-    "bug:list": "get_my_open_bugs",
+    "bug:list": "list_my_issues",
     "bug:context": "get_bug_context",
     "bug:resolve": "resolve_bug",
     "bug:create-ut": "create_ut_bug",
     "bug:rules": "get_bug_rules",
     "bug:fields": "get_bug_fields",
+    "story:overview": "list_my_issues",
 }
 _UNTRACED_ARGS = {"group", "action", "json_full", "table", "workspace_path", "apply"}
 
@@ -246,6 +245,21 @@ def _extract_issue_key(result, args):
     return None
 
 
+def _list_my_issues(config, args, issue_types, include_closed=False):
+    return list_my_issues(
+        config,
+        project_key=args.project,
+        query=args.query,
+        issue_types=issue_types,
+        include_closed=include_closed,
+        limit=args.limit,
+        offset=args.offset,
+        sort=args.sort,
+        order=args.order,
+        start_path=getattr(args, "workspace_path", None),
+    )
+
+
 def run_handler(config, args):
     group, action = args.group, getattr(args, "action", None)
 
@@ -253,15 +267,7 @@ def run_handler(config, args):
         if action == "get":
             return get_issue(config, args.issue_id)
         if action == "list":
-            me = config.get("defaults", {}).get("assignee", "me")
-            assignee_id = resolve_user_id(config, me)
-            open_only = not getattr(args, "all", False)
-            return get_issues(
-                config, args.project, args.query, assignee_id,
-                open_only=open_only, issue_types=args.types,
-                limit=args.limit, offset=args.offset, sort=args.sort, order=args.order,
-                start_path=getattr(args, "workspace_path", None),
-            )
+            return _list_my_issues(config, args, args.types, include_closed=getattr(args, "all", False))
         if action == "create":
             from backlog_tool.resolver import parse_custom_args
             return create_issue(
@@ -306,17 +312,7 @@ def run_handler(config, args):
 
     if group == "bug":
         if action == "list":
-            from workflows.resolve_bug import my_open_bugs_raw
-            return my_open_bugs_raw(
-                config,
-                project_key=args.project,
-                query=args.query,
-                limit=args.limit,
-                offset=args.offset,
-                sort=args.sort,
-                order=args.order,
-                start_path=getattr(args, "workspace_path", None),
-            )
+            return _list_my_issues(config, args, ["Bug"])
         if action == "context":
             return get_bug_context(config, args.issue_key)
         if action == "rules":
@@ -343,16 +339,7 @@ def run_handler(config, args):
     if group == "project":
         return run_project(config, args)
     if group == "story":
-        return my_story_task_overview(
-            config,
-            project_key=args.project,
-            query=args.query,
-            limit=args.limit,
-            offset=args.offset,
-            sort=args.sort,
-            order=args.order,
-            start_path=getattr(args, "workspace_path", None),
-        )
+        return _list_my_issues(config, args, ["Story", "Task"])
     if group == "telemetry":
         if action == "report":
             return report_from_logs(since=args.since, run_id=args.run)
@@ -424,7 +411,7 @@ def present(result, args, base_url=""):
         return {"issueKey": result.get("issueKey"), "applied": True}
 
     if group == "story":
-        return result
+        return [presenter.list_item(item, base_url=base_url) for item in result]
     return result
 
 

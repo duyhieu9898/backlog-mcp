@@ -26,11 +26,6 @@ def test_duplicate_and_generic_after_specialized():
     assert codes(flow) == ["duplicate_call", "generic_after_specialized", "generic_before_specialized"]
 
 
-def test_generic_search_before_personal_bugs():
-    flow = Flow("f", [call("get_issues", {"project_key": "OOP"}), call("get_my_open_bugs", {})])
-    assert codes(flow) == ["generic_before_specialized"]
-
-
 def test_arg_error_retry_and_large_response():
     flow = Flow("f", [
         call("resolve_bug", {"issueKey": "OOP-1"}, status="invalid_arguments", issue="OOP-1",

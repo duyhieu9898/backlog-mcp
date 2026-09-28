@@ -53,8 +53,7 @@ hieund-backlog-mcp/
 │   ├── resolve_policy.py         # Bug resolution field policies
 │   ├── guidance.py               # Field guidance & allowed-value lookup
 │   ├── ut_bug.py                 # Unit Test sub-task bug creation
-│   ├── bug_template.py           # Bug field templates
-│   └── story_task_overview.py    # Story/task deadline overview
+│   └── bug_template.py           # Bug field templates
 ├── config/                       # Workstation configuration & project catalogs
 │   ├── backlog.json              # Space URL, project list, user mapping, defaults
 │   └── projects/                 # Per-project cached catalogs (KEY.json)
@@ -88,7 +87,6 @@ Defines transition policies, field rules, and guided sequences for managing bugs
 * `guidance.py`: Returns allowed values and guidance text for individual bug workflow fields (`qc_activity`, `cause_category`, `bug_origin`, etc.).
 * `ut_bug.py`: Creates Unit Test sub-task bugs with opinionated field defaults.
 * `bug_template.py`: Shared field templates reused across bug creation and resolution.
-* `story_task_overview.py`: Queries and formats assigned Story/Task items with deadline context.
 
 ---
 
