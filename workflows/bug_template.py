@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import re
 
+from backlog_tool.presenter import compact_custom_fields
+
 BUG_TEMPLATE_SECTIONS = [
     ("environment", "Environment"),
     ("pre_condition", "Pre-Condition"),
@@ -72,8 +74,10 @@ def attachment_summary(attachments):
     ]
 
 
-def bug_context(issue):
+def bug_context(issue, base_url=""):
     description = parse_bug_description(issue.get("description"))
+    meta = bug_description_metadata(description)
+    base_url = (base_url or "").rstrip("/")
     context = {
         "issueKey": issue.get("issueKey"),
         "summary": issue.get("summary"),
@@ -85,10 +89,14 @@ def bug_context(issue):
         "estimatedHours": issue.get("estimatedHours"),
         "actualHours": issue.get("actualHours"),
         "description": description,
-        "descriptionMeta": bug_description_metadata(description),
-        "rawDescription": issue.get("description"),
-        "customFields": issue.get("customFields", []),
+        "descriptionMeta": meta,
+        "customFields": compact_custom_fields(issue.get("customFields")),
     }
+    # The parsed sections carry the whole text unless some are missing; only then is the raw text needed.
+    if meta["missingSections"]:
+        context["rawDescription"] = issue.get("description")
+    if base_url and issue.get("issueKey"):
+        context["url"] = f"{base_url}/view/{issue['issueKey']}"
     attachments = attachment_summary(issue.get("attachments"))
     if attachments:
         context["attachments"] = attachments

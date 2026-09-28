@@ -154,9 +154,14 @@ def compact_issue(issue, view="compact", base_url=""):
     return result
 
 
+# A personal list is for picking work: the assignee is always the caller, the description
+# comes from get_bug_context, and the custom fields are resolve_bug's business.
+_LIST_ITEM_DROPPED = {"description", "assignee", "customFields", "resourceUri"}
+
+
 def list_item(issue, base_url="", today=None):
-    """One row of an issue list: compact fields plus due-date context, without the description."""
-    item = {k: v for k, v in compact_issue(issue, base_url=base_url).items() if k != "description"}
+    """One row of an issue list: the fields to pick an issue by, plus due-date context."""
+    item = {k: v for k, v in compact_issue(issue, base_url=base_url).items() if k not in _LIST_ITEM_DROPPED}
     due = due_status(parse_due_date(issue.get("dueDate")), today)
     item.update({k: v for k, v in due.items() if v is not None})
     return item

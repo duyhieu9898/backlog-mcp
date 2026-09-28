@@ -17,9 +17,13 @@ def test_list_item_drops_description_and_adds_due_fields():
     issue = {
         "issueKey": "AQM-1", "summary": "Story A", "description": "long text",
         "issueType": {"name": "Story"}, "status": {"name": "Open"}, "dueDate": "2026-06-01T00:00:00Z",
+        "assignee": {"id": 1, "name": "Me"}, "customFields": [{"name": "QC Activity", "value": {"name": "UT"}}],
     }
-    item = presenter.list_item(issue, today=date(2026, 6, 2))
-    assert "description" not in item
+    item = presenter.list_item(issue, base_url="https://x", today=date(2026, 6, 2))
+    # A personal list: the assignee is always the caller, resolve fields belong to resolve_bug.
+    for dropped in ("description", "assignee", "customFields", "resourceUri"):
+        assert dropped not in item
+    assert item["url"] == "https://x/view/AQM-1"
     assert item["issueType"] == "Story" and item["status"] == "Open"
     assert item["daysUntilDue"] == -1 and item["dueAlertLevel"] == 1
 
@@ -49,3 +53,8 @@ def test_list_my_issues_filters_by_configured_user():
     assert kwargs["open_only"] is True
     assert kwargs["issue_types"] == ["Bug"]
     assert kwargs["limit"] == 10
+
+
+def test_issue_type_names_match_case_insensitively():
+    project = {"bug": {"issue_type_options": [{"id": 1, "name": "Bug"}, {"id": 2, "name": "Issue|Risk"}]}}
+    assert issue_service._resolve_issue_type_ids(project, ["bug", "ISSUE|RISK"]) == [1, 2]

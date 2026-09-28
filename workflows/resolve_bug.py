@@ -6,7 +6,7 @@ from datetime import date
 from .bug_template import bug_context
 from backlog_tool.client import BacklogClient
 from backlog_tool.resolver import resolve_custom_field_defaults, resolve_custom_field_value
-from backlog_tool.settings import load_workflow_config, resolve_project, resolve_user_id
+from backlog_tool.settings import load_workflow_config, resolve_project, resolve_user_id, view_base_url
 from backlog_tool.telemetry import plan_hash, record_mutation
 from .config import require_int, require_list, require_value, require_mapping
 from .resolution_plan import ResolutionPlan, resolution_plan_to_payload
@@ -54,7 +54,7 @@ def merge_resolve_defaults(config, project_key):
 
 
 def get_bug_context(config, issue_key):
-    return bug_context(BacklogClient(config).get_issue(issue_key))
+    return bug_context(BacklogClient(config).get_issue(issue_key), base_url=view_base_url(config))
 
 
 def created_user_ref(issue):
@@ -290,10 +290,6 @@ def build_resolution_plan(
             )
         if policy_key == "corrective_action" and not fix_description and issue_has_custom_value(issue, project, field_key):
             # Without a fix note from the user, the summary fallback must not replace a note someone wrote.
-            current = display_value(issue_custom_field(issue, project, field_key).get("value"))
-            warnings.append(
-                f"fix_description not given: kept the existing Corrective Action '{current}'."
-            )
             continue
         semantic_custom_fields[field_key] = field_values[field_key]
 
@@ -331,10 +327,6 @@ def build_resolution_plan(
                 f"{issue_field} {issue.get(issue_field)}, and resolve_bug only fills empty values."
             )
 
-    if not fix_description and "corrective_action" in semantic_custom_fields:
-        warnings.append(
-            "fix_description not given: Corrective Action uses the bug summary ('fixed <summary>')."
-        )
     roles = detected_roles(issue, project)
     if roles and "Tester" not in roles:
         warnings.append(

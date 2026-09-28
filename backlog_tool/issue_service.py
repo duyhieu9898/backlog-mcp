@@ -112,8 +112,8 @@ def _non_closed_status_ids(project):
 def _resolve_issue_type_ids(project, type_names):
     """Resolve issue type names to IDs from project catalog."""
     options = project.get("bug", {}).get("issue_type_options", [])
-    name_set = set(type_names)
-    ids = [opt["id"] for opt in options if opt.get("name") in name_set]
+    name_set = {str(name).casefold() for name in type_names}
+    ids = [opt["id"] for opt in options if str(opt.get("name")).casefold() in name_set]
     if not ids:
         available = ", ".join(opt["name"] for opt in options)
         raise ValueError(f"Unknown issue type(s): {type_names}. Available: {available}")

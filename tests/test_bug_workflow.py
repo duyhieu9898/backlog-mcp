@@ -383,7 +383,8 @@ class BugWorkflowTest(unittest.TestCase):
         change_keys = {change["key"] for change in result["changes"]}
         self.assertIn("statusId", change_keys)
         self.assertIn("customField_5", change_keys)  # corrective_action
-        self.assertTrue(any("fix_description not given" in w for w in result["warnings"]))
+        # The summary fallback is the intended default, not something to warn about.
+        self.assertFalse(any("fix_description" in w for w in result["warnings"]))
 
     def test_resolve_no_warning_when_fix_description_given(self):
         result = bug_workflow.resolve_bug(
@@ -502,8 +503,7 @@ class BugWorkflowTest(unittest.TestCase):
         payload = self.client.update_issue.call_args.args[1]
         self.assertEqual("fixed Save fails", payload["customField_5"])
         self.assertEqual("Resolved", result["updated"]["status"]["name"])
-        self.assertTrue(any("fix_description not given" in w for w in result["warnings"]))
-        self.assertFalse(any("requires fix_description" in w for w in result["warnings"]))
+        self.assertFalse(any("fix_description" in w for w in result["warnings"]))
 
     def test_resolve_without_fix_description_keeps_existing_corrective_action(self):
         self.client.get_issue.return_value = {
@@ -512,9 +512,7 @@ class BugWorkflowTest(unittest.TestCase):
         }
         result = bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2))
         self.assertNotIn("customField_5", result["payload"])
-        self.assertTrue(any("kept the existing Corrective Action 'fixed validation for long input'" in w
-                            for w in result["warnings"]))
-        self.assertFalse(any("uses the bug summary" in w for w in result["warnings"]))
+        self.assertFalse(any("Corrective Action" in w for w in result["warnings"]))
 
     def test_resolve_treats_dash_corrective_action_as_empty(self):
         self.client.get_issue.return_value = {
@@ -655,3 +653,27 @@ def test_attachment_summary_skips_malformed_entries():
     assert attachment_summary([None, "x", {"id": 1, "name": "a.PNG", "size": 3}]) == [
         {"id": 1, "name": "a.PNG", "size": 3, "isImage": True},
     ]
+
+
+def test_bug_context_keeps_raw_description_only_when_sections_are_missing():
+    from workflows.bug_template import bug_context
+
+    parsed = bug_context(BUG_ISSUE)
+    assert parsed["descriptionMeta"]["missingSections"] == []
+    assert "rawDescription" not in parsed
+
+    free_text = bug_context({"issueKey": "OOP-1", "description": "Login fails after reset"})
+    assert free_text["descriptionMeta"]["missingSections"]
+    assert free_text["rawDescription"] == "Login fails after reset"
+
+
+def test_bug_context_compacts_custom_fields_and_links_the_issue():
+    from workflows.bug_template import bug_context
+
+    issue = {"issueKey": "OOP-1", "customFields": [
+        {"id": 9864, "fieldTypeId": 5, "name": "QC Activity", "value": {"id": 1, "name": "Integration Test", "displayOrder": 0}},
+        {"id": 9865, "fieldTypeId": 1, "name": "Empty", "value": None},
+    ]}
+    context = bug_context(issue, base_url="https://space.backlog.com/")
+    assert context["customFields"] == [{"name": "QC Activity", "value": "Integration Test"}]
+    assert context["url"] == "https://space.backlog.com/view/OOP-1"

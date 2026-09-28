@@ -74,7 +74,7 @@ class BacklogApiFixtureTest(unittest.TestCase):
         self.assertEqual(issue["issueKey"], context["issueKey"])
         self.assertEqual("Bug", issue["issueType"]["name"])
         self.assertEqual(issue["status"]["name"], context["status"])
-        self.assertIn("rawDescription", context)
+        self.assertEqual("rawDescription" in context, bool(context["descriptionMeta"]["missingSections"]))
         self.assertIn("missingSections", context["descriptionMeta"])
         self.assertIn("Show popup", context["description"]["actual"])
         self.assertIn("Run history detail", context["description"]["expected"])

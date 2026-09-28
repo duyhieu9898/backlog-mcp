@@ -479,7 +479,7 @@ def test_list_my_issues_tool_items_omit_description_and_summarize():
     bug, task = data["issues"]
     assert "description" not in bug
     assert bug["issueKey"] == "OOP-1" and bug["issueType"] == "Bug" and bug["status"] == "Open"
-    assert bug["customFields"] == [{"name": "Severity", "value": "High"}]
+    assert "customFields" not in bug
     assert data["count"] == 2
     assert data["summary"] == {"byType": {"Bug": 1, "Task": 1}, "overdueCount": 0, "dueSoonCount": 0}
     assert result.structuredContent["pagination"]["hasMore"] is False
