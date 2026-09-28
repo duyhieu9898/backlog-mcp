@@ -216,6 +216,8 @@ def grade_run(scenario, trace, log_dir, run_id, code_ws=None):
         "schemaReads": trace.schema_reads,
         "deniedTools": trace.denied,
         "nonMcpCalls": [item["name"] for item in trace.non_mcp],
+        "bashCommands": [item["input"].get("command") for item in trace.non_mcp if item["name"] == "Bash"],
+        "deniedInputs": trace.denied_inputs,
         "wallClockMs": trace.wall_clock_ms,
         "turns": trace.turns,
         "agentOk": trace.raw_ok,
@@ -227,7 +229,7 @@ def grade_run(scenario, trace, log_dir, run_id, code_ws=None):
         result["pass"] = False
         result["reasons"] = [*result["reasons"], ISOLATION_REASON]
     if code_ws is not None:
-        checks = check_code(code_ws, scenario["expect"]["code"], flow.calls)
+        checks = check_code(code_ws, scenario["expect"]["code"], flow.calls, tool_uses=trace.tool_uses)
         result["code"] = checks
         if checks["reasons"]:
             result["pass"] = False
@@ -338,6 +340,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     scenarios = [render_scenario(s) for s in select_scenarios(load_scenarios(), args.scenario)]
+    if any(s.get("code") for s in scenarios) and (args.agent != "claude" or args.workspace):
+        parser.error("code scenarios run with --agent claude and no --workspace")
     folder = RESULTS_ROOT / f"{date.today().isoformat()}-{args.label}"
     folder.mkdir(parents=True, exist_ok=True)
     out = folder / f"{args.agent}-{args.model}.jsonl"

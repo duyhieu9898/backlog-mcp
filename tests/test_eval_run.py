@@ -408,3 +408,27 @@ def test_grade_run_adds_code_checks(tmp_path, monkeypatch):
     result = grade_run(scenario("fix_code_on_main"), trace, log_dir, "run-c", code_ws=cw)
     assert result["code"]["newCommits"] == 0 and result["code"]["reasons"] == []
     assert result["pass"] is True
+
+
+def test_grade_run_records_bash_and_denied_commands(tmp_path, monkeypatch):
+    log_dir = tmp_path / "logs"
+    monkeypatch.setattr(settings, "LOG_DIR", str(log_dir))
+    telemetry.set_eval_tags("run-b", "resolve_fixed")
+    telemetry.log_session_start(backend="fake")
+    telemetry.set_eval_tags(None, None)
+    trace = AgentTrace(non_mcp=[{"name": "Bash", "input": {"command": "python -m pytest -q"}},
+                                {"name": "Grep", "input": {"pattern": "x"}}],
+                       denied_inputs=[{"command": "ls -la"}], raw_ok=True)
+    result = grade_run(scenario("resolve_fixed"), trace, log_dir, "run-b")
+    assert result["bashCommands"] == ["python -m pytest -q"]
+    assert result["deniedInputs"] == [{"command": "ls -la"}]
+
+
+def test_code_scenarios_reject_other_agents_before_running(monkeypatch):
+    from evals import run
+
+    monkeypatch.setattr(run, "config_fingerprint", lambda agent: (_ for _ in ()).throw(AssertionError("ran")))
+    with pytest.raises(SystemExit):
+        run.main(["--agent", "codex", "--model", "m", "--scenario", "code"])
+    with pytest.raises(SystemExit):
+        run.main(["--agent", "claude", "--model", "m", "--scenario", "fix_code", "--workspace", "/tmp/x"])

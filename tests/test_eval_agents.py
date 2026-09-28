@@ -18,6 +18,11 @@ def test_parse_claude():
     assert trace.denied == ["Bash"]
     assert trace.final_answer == "Đã resolve OOP-912762."
     assert trace.wall_clock_ms == 9120 and trace.turns == 3 and trace.raw_ok is True
+    # Every tool use in stream order, MCP and built-in alike.
+    assert trace.tool_uses == [
+        {"kind": "tool", "name": "Grep", "input": {"pattern": "fix"}},
+        {"kind": "mcp", "name": "resolve_bug", "input": {"issue_key": "OOP-912762", "mode": "apply"}},
+    ]
 
 
 def test_parse_agy():

@@ -28,6 +28,9 @@ class AgentTrace:
     turns: int | None = None
     steps: int = 0
     raw_ok: bool = False
+    # Every tool use in stream order: {"kind": "mcp" | "tool", "name", "input"}; and what was denied.
+    tool_uses: list = field(default_factory=list)
+    denied_inputs: list = field(default_factory=list)
 
 
 def _events(lines):
@@ -80,13 +83,16 @@ def parse_claude(lines):
                 name = part.get("name") or ""
                 if name.startswith(CLAUDE_MCP_PREFIX):
                     trace.mcp_tools.append({"tool": name[len(CLAUDE_MCP_PREFIX):], "arguments": part.get("input") or {}})
+                    trace.tool_uses.append({"kind": "mcp", "name": name[len(CLAUDE_MCP_PREFIX):], "input": part.get("input") or {}})
                 else:
                     trace.non_mcp.append({"name": name, "input": part.get("input") or {}})
+                    trace.tool_uses.append({"kind": "tool", "name": name, "input": part.get("input") or {}})
         elif kind == "result":
             trace.final_answer = event.get("result")
             trace.wall_clock_ms = event.get("duration_ms")
             trace.turns = event.get("num_turns")
             trace.denied = [d.get("tool_name") for d in event.get("permission_denials") or []]
+            trace.denied_inputs = [d.get("tool_input") or {} for d in event.get("permission_denials") or []]
             trace.raw_ok = not event.get("is_error")
     return trace
 

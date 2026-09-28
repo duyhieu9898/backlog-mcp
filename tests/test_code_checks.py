@@ -93,3 +93,57 @@ def test_commit_must_not_carry_bytecode_or_eval_files(tmp_path):
     fix_and_commit(cw)
     result = check_code(cw, DONE, [])
     assert any("non-source files" in r and ".pyc" in r and ".backlog-project.json" in r for r in result["reasons"])
+
+
+def test_deleted_remote_branch_counts_as_not_pushed(tmp_path):
+    cw = workspace(tmp_path)
+    fix_and_commit(cw)
+    git(cw.remote, "update-ref", "-d", "refs/heads/develop")
+    result = check_code(cw, DONE, [])
+    assert result["pushed"] is False and "fix not pushed" in result["reasons"]
+
+
+def test_uppercase_sha_is_accepted(tmp_path):
+    cw = workspace(tmp_path)
+    sha = fix_and_commit(cw)
+    result = check_code(cw, DONE, [call("resolve_bug", issue_key="OOP-912900", mode="apply", commit=sha[:7].upper())])
+    assert result["resolvedWithPushedSha"] is True
+
+
+def test_max_commits(tmp_path):
+    cw = workspace(tmp_path)
+    (cw.path / "NOTES.md").write_text("wip\n")
+    git(cw.path, "add", "NOTES.md")
+    git(cw.path, "commit", "-q", "-m", "wip")
+    sha = fix_and_commit(cw)
+    result = check_code(cw, {**DONE, "maxCommits": 1},
+                        [call("resolve_bug", issue_key="OOP-912900", mode="apply", commit=sha)])
+    assert "2 new commits, expected at most 1" in result["reasons"]
+
+
+def step(kind, name, **inputs):
+    return {"kind": kind, "name": name, "input": inputs}
+
+
+def test_resolve_must_come_after_the_push(tmp_path):
+    cw = workspace(tmp_path)
+    sha = fix_and_commit(cw)
+    resolve = call("resolve_bug", issue_key="OOP-912900", mode="apply", commit=sha)
+    push = step("tool", "Bash", command="git push")
+    apply = step("mcp", "resolve_bug", issue_key="OOP-912900", mode="apply", commit=sha)
+    good = check_code(cw, DONE, [resolve], tool_uses=[step("mcp", "get_issue"), push, apply])
+    assert good["reasons"] == []
+    early = check_code(cw, DONE, [resolve], tool_uses=[apply, push])
+    assert "resolve_bug applied before git push" in early["reasons"]
+
+
+def test_push_is_recognised_in_other_git_spellings(tmp_path):
+    cw = workspace(tmp_path)
+    sha = fix_and_commit(cw)
+    resolve = call("resolve_bug", issue_key="OOP-912900", mode="apply", commit=sha)
+    apply = step("mcp", "resolve_bug", issue_key="OOP-912900", mode="apply", commit=sha)
+    for command in ("git -C . push origin develop", "cd ws && git push -u origin develop"):
+        result = check_code(cw, DONE, [resolve], tool_uses=[step("tool", "Bash", command=command), apply])
+        assert result["reasons"] == [], command
+    not_a_push = check_code(cw, DONE, [resolve], tool_uses=[step("tool", "Bash", command="git status"), apply])
+    assert "resolve_bug applied before git push" in not_a_push["reasons"]

@@ -114,7 +114,7 @@
       "allowExtraCalls": true,
       "forbidden": [],
       "finalAnswer": null,
-      "code": {"hiddenTestPasses": true, "commitPattern": "^fix\\(OOP-912900\\): ", "pushed": true, "resolved": true}
+      "code": {"hiddenTestPasses": true, "commitPattern": "^fix\\(OOP-912900\\): ", "pushed": true, "resolved": true, "maxCommits": 1}
     },
     "nonMcp": null
   },
