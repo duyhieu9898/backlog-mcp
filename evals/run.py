@@ -22,6 +22,9 @@ from backlog_tool.telemetry_store import Flow, group_flows, load_calls
 from evals.agents import AGENTS
 from evals.code_checks import check_code
 from evals.code_workspace import SKILL_SOURCE, prepare_code_workspace
+
+# The agent loads the user's global skills too: while this is installed, a --skill off run is not a baseline.
+GLOBAL_SKILL = Path.home() / ".claude" / "skills" / SKILL_SOURCE.name
 from evals.fake_backlog import FakeBacklog
 
 RESULTS_ROOT = Path(__file__).resolve().parent / "results"
@@ -342,6 +345,8 @@ def main(argv=None):
     scenarios = [render_scenario(s) for s in select_scenarios(load_scenarios(), args.scenario)]
     if any(s.get("code") for s in scenarios) and (args.agent != "claude" or args.workspace):
         parser.error("code scenarios run with --agent claude and no --workspace")
+    if any(s.get("code") for s in scenarios) and args.skill == "off" and GLOBAL_SKILL.exists():
+        parser.error(f"--skill off is not a baseline while {GLOBAL_SKILL} is installed; move it aside first")
     folder = RESULTS_ROOT / f"{date.today().isoformat()}-{args.label}"
     folder.mkdir(parents=True, exist_ok=True)
     out = folder / f"{args.agent}-{args.model}.jsonl"

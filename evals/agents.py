@@ -8,9 +8,10 @@ CLAUDE_MCP_PREFIX = "mcp__backlog__"
 # In the user's auto permission mode --allowedTools does not block other tools, so MCP servers are
 # isolated with --strict-mcp-config (only our backlog server) and built-in tools are denied explicitly.
 CLAUDE_DISALLOWED = ["Bash", "Edit", "Write", "NotebookEdit", "WebFetch", "WebSearch", "Task", "Agent"]
-# Code-fixing runs: with --permission-mode dontAsk this list is the whole whitelist (the user's
-# default auto mode would let other tools through). It is not a sandbox: git can reach other repos
-# (`git -C`) and pytest runs whatever Python the agent writes. Accepted residual risk (spec §7).
+# Code-fixing runs ask for --permission-mode dontAsk with this allow list, so most other commands are
+# denied. It is not enforced completely (2026-09-28: `python - <<EOF` still ran, reason unknown) and it
+# is no sandbox: git reaches other repos (`git -C`), pytest runs agent-written Python. The real barrier
+# is the temp workspace + fake backend; residual risk accepted (spec §7).
 CLAUDE_CODE_ALLOWED = ["mcp__backlog", "ToolSearch", "Skill", "Read", "Glob", "Grep", "Edit", "Write",
                        "Bash(git:*)", "Bash(python -m pytest:*)", "Bash(python3 -m pytest:*)", "Bash(pytest:*)"]
 AGY_SCHEMA_DIR = "/.gemini/antigravity-cli/mcp/backlog/"

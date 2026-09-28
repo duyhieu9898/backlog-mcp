@@ -432,3 +432,14 @@ def test_code_scenarios_reject_other_agents_before_running(monkeypatch):
         run.main(["--agent", "codex", "--model", "m", "--scenario", "code"])
     with pytest.raises(SystemExit):
         run.main(["--agent", "claude", "--model", "m", "--scenario", "fix_code", "--workspace", "/tmp/x"])
+
+
+def test_baseline_refuses_to_run_while_the_skill_is_installed_globally(monkeypatch, tmp_path):
+    from evals import run
+
+    installed = tmp_path / "fix-backlog-bug"
+    installed.mkdir()
+    monkeypatch.setattr(run, "GLOBAL_SKILL", installed)
+    monkeypatch.setattr(run, "config_fingerprint", lambda agent: (_ for _ in ()).throw(AssertionError("ran")))
+    with pytest.raises(SystemExit):
+        run.main(["--agent", "claude", "--model", "m", "--scenario", "code", "--skill", "off"])
