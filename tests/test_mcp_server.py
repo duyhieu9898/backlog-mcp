@@ -172,7 +172,6 @@ def test_tool_schema_exposes_enums_and_use_when_descriptions():
     list_my_issues = tools["list_my_issues"]
     get_issue = tools["get_issue"]
     update_issue = tools["update_issue"]
-    get_bug_context = tools["get_bug_context"]
     resolve_bug = tools["resolve_bug"]
     create_issue = tools["create_issue"]
 
@@ -185,8 +184,6 @@ def test_tool_schema_exposes_enums_and_use_when_descriptions():
     assert "issueKey" not in get_issue.inputSchema["properties"]
     assert "issue_key" in update_issue.inputSchema["properties"]
     assert "issue_id" not in update_issue.inputSchema["properties"]
-    assert "issue_key" in get_bug_context.inputSchema["properties"]
-    assert "issueKey" not in get_bug_context.inputSchema["properties"]
     assert "issue_key" in resolve_bug.inputSchema["properties"]
     assert "issueKey" not in resolve_bug.inputSchema["properties"]
     assert "cursor" in list_my_issues.inputSchema["properties"]
@@ -230,7 +227,7 @@ def test_tool_schemas_disallow_additional_properties():
 
     tools = {tool.name: tool for tool in anyio.run(load_tools)}
     assert tools["resolve_bug"].inputSchema["additionalProperties"] is False
-    assert tools["get_bug_context"].inputSchema["additionalProperties"] is False
+    assert tools["get_issue"].inputSchema["additionalProperties"] is False
     assert tools["get_issue"].inputSchema["additionalProperties"] is False
 
 def test_resources_have_json_mime_type_and_issue_template():
@@ -300,16 +297,16 @@ def test_personal_routing_contract_is_explicit_and_domain_first():
 
     assert "Backlog is explicitly invoked" in tools["list_my_issues"].description
     assert "not a PM/team/project-health dashboard" in tools["list_my_issues"].description
-    assert "Do not call get_issue first" in tools["get_bug_context"].description
-    assert "Do not call get_bug_context, get_issue, get_bug_rules or get_bug_fields first." in tools["resolve_bug"].description
-    assert "get_bug_context" in tools["list_my_issues"].description
+    assert "no get_issue, get_bug_rules or get_bug_fields call is needed first" in tools["resolve_bug"].description
+    assert "get_issue returns it" in tools["list_my_issues"].description
+    assert "parsed" in tools["get_issue"].description and "attachments" in tools["get_issue"].description
 
 
 def test_server_instructions_require_backlog_activation_and_minimal_bug_paths():
     instructions = server.SERVER_INSTRUCTIONS
     assert "Activation:" in instructions and "without that signal" in instructions
     assert 'resolve_bug(mode="apply"), one call, no lookups first' in instructions
-    assert "-> get_bug_context" in instructions and "lists attachments" in instructions
+    assert "-> get_issue" in instructions and "lists attachments" in instructions
     assert 'Writes (resolve_bug, create_issue, update_issue, create_ut_bug): call with mode="apply" directly' in instructions
     assert "report the returned changes and every warning" in instructions
     assert "preview -> apply" not in instructions
@@ -381,13 +378,13 @@ def _details():
 
 
 def test_tool_success_and_error_are_logged_with_project_from_issue_key():
-    with mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", return_value={"issueKey": "OOP-1"}):
-        ok = server.get_bug_context("OOP-1")
-    with mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", side_effect=ValueError("Boom")):
-        bad = server.get_bug_context("OOP-1")
+    with mock.patch("backlog_mcp.server.issue_service.get_issue", return_value={"issueKey": "OOP-1"}):
+        ok = server.get_issue("OOP-1")
+    with mock.patch("backlog_mcp.server.issue_service.get_issue", side_effect=ValueError("Boom")):
+        bad = server.get_issue("OOP-1")
 
     first, second = _rows("calls")
-    assert (first["tool"], first["status"], first["projectKey"]) == ("get_bug_context", "ok", "OOP")
+    assert (first["tool"], first["status"], first["projectKey"]) == ("get_issue", "ok", "OOP")
     assert (second["status"], second["projectKey"]) == ("error", "OOP")
     assert ok.meta["traceId"] == first["traceId"] and bad.meta["traceId"] == second["traceId"]
     assert _rows("errors")[0]["message"] == "Boom"
@@ -460,8 +457,8 @@ def test_resolve_bug_preview_response_shape():
 def test_resolve_bug_description_says_apply_once():
     tools = {tool.name: tool for tool in anyio.run(server.mcp.list_tools)}
     description = tools["resolve_bug"].description
-    assert 'only once, with mode="apply"' in description
-    assert "Do not call get_bug_context, get_issue, get_bug_rules or get_bug_fields first." in description
+    assert 'One call with mode="apply" does the whole resolution' in description
+    assert "no get_issue, get_bug_rules or get_bug_fields call is needed first" in description
     assert "Required in apply mode" not in tools["resolve_bug"].inputSchema["properties"]["fix_description"]["description"]
 
 
@@ -509,8 +506,8 @@ def test_issue_resource_normalizes_key_and_rejects_bad_key():
 
 
 def test_error_telemetry_keeps_project_for_lowercase_key():
-    with mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", side_effect=ValueError("Boom")):
-        server.get_bug_context(" oop-1 ")
+    with mock.patch("backlog_mcp.server.issue_service.get_issue", side_effect=ValueError("Boom")):
+        server.get_issue(" oop-1 ")
     assert _rows("calls")[0]["projectKey"] == "OOP"
 
 
@@ -551,7 +548,7 @@ def test_applied_ut_bug_reports_the_closed_issue():
 
 def test_tools_declare_read_and_write_annotations():
     tools = {tool.name: tool for tool in anyio.run(server.mcp.list_tools)}
-    for name in ("get_issue", "list_my_issues", "get_bug_context", "get_bug_rules", "get_bug_fields"):
+    for name in ("get_issue", "list_my_issues", "get_bug_rules", "get_bug_fields"):
         assert tools[name].annotations.readOnlyHint is True, name
     for name in ("create_issue", "create_ut_bug", "update_issue", "resolve_bug"):
         assert tools[name].annotations.readOnlyHint is False, name

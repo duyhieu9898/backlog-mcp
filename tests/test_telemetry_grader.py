@@ -38,12 +38,12 @@ def test_resolve_fast_path_passes_and_preview_is_extra():
 def test_forbidden_and_arg_errors_fail():
     expect = scenario("resolve_fixed")["expect"]
     result = grade(expect, Flow("r", [
-        call("get_bug_context", {"issue_key": "OOP-912762"}),
+        call("get_issue", {"issue_key": "OOP-912762"}),
         call("resolve_bug", {"issueKey": "OOP-912762"}, status="invalid_arguments", errors=[{"kind": "arg_error", "unknown": ["issueKey"]}]),
         call("resolve_bug", {"issue_key": "OOP-912762", "mode": "apply"}),
     ]))
     assert result["pass"] is False
-    assert result["forbiddenHits"] == ["get_bug_context"]
+    assert result["forbiddenHits"] == ["get_issue"]
     assert result["argErrors"] == [{"tool": "resolve_bug", "unknown": ["issueKey"]}]
 
 

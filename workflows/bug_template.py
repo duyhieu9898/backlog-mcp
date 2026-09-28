@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import re
 
-from backlog_tool.presenter import compact_custom_fields
+from backlog_tool.presenter import compact_issue, user_name
 
 BUG_TEMPLATE_SECTIONS = [
     ("environment", "Environment"),
@@ -49,15 +49,6 @@ def bug_description_metadata(parsed):
     }
 
 
-def compact_user(user):
-    user = user or {}
-    return {
-        key: user.get(key)
-        for key in ("id", "name", "roleType")
-        if user.get(key) is not None
-    }
-
-
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg")
 
 
@@ -74,29 +65,27 @@ def attachment_summary(attachments):
     ]
 
 
-def bug_context(issue, base_url=""):
-    description = parse_bug_description(issue.get("description"))
-    meta = bug_description_metadata(description)
-    base_url = (base_url or "").rstrip("/")
-    context = {
-        "issueKey": issue.get("issueKey"),
-        "summary": issue.get("summary"),
-        "status": (issue.get("status") or {}).get("name"),
-        "assignee": compact_user(issue.get("assignee")),
-        "createdUser": compact_user(issue.get("createdUser")),
-        "startDate": issue.get("startDate"),
-        "dueDate": issue.get("dueDate"),
-        "estimatedHours": issue.get("estimatedHours"),
-        "actualHours": issue.get("actualHours"),
-        "description": description,
-        "descriptionMeta": meta,
-        "customFields": compact_custom_fields(issue.get("customFields")),
-    }
-    # The parsed sections carry the whole text unless some are missing; only then is the raw text needed.
-    if meta["missingSections"]:
-        context["rawDescription"] = issue.get("description")
-    if base_url and issue.get("issueKey"):
-        context["url"] = f"{base_url}/view/{issue['issueKey']}"
+def issue_context(issue, base_url=""):
+    """One issue as the model reads it. A bug report written in the template comes back as
+    parsed sections; any other description comes back as text."""
+    compact = compact_issue(issue, base_url=base_url)
+    context = {k: v for k, v in compact.items() if k not in ("description", "resourceUri", "customFields")}
+    creator = user_name(issue.get("createdUser"))
+    if creator:
+        context["createdUser"] = creator
+    text = compact.get("description")
+    sections = parse_bug_description(text)
+    meta = bug_description_metadata(sections)
+    if meta["hasTemplateMarkers"]:
+        context["description"] = {k: v for k, v in sections.items() if v}
+        context["descriptionMeta"] = meta
+        # The sections carry the whole text unless some are missing; only then is the raw text needed.
+        if meta["missingSections"]:
+            context["rawDescription"] = text
+    elif text:
+        context["description"] = text
+    if compact.get("customFields"):
+        context["customFields"] = compact["customFields"]
     attachments = attachment_summary(issue.get("attachments"))
     if attachments:
         context["attachments"] = attachments

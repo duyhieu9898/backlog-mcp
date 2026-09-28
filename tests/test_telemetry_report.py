@@ -17,7 +17,7 @@ def test_parse_since():
 
 def test_report_from_logs_with_eval_grade_and_rules():
     telemetry.set_eval_tags("run-1", "resolve_fixed")
-    make("get_bug_context", {"issue_key": "OOP-912762"})
+    make("get_issue", {"issue_key": "OOP-912762"})
     make("resolve_bug", {"issue_key": "OOP-912762", "mode": "apply"})
     telemetry.set_eval_tags(None, None)
     make("get_issue", {"issue_ref": "OOP-5"}, status="error", size=9000)
@@ -25,7 +25,7 @@ def test_report_from_logs_with_eval_grade_and_rules():
     report = report_from_logs()
     [eval_flow] = [f for f in report["flows"] if f["flowId"] == "run-1"]
     assert eval_flow["grade"]["pass"] is False
-    assert eval_flow["grade"]["forbiddenHits"] == ["get_bug_context"]
+    assert eval_flow["grade"]["forbiddenHits"] == ["get_issue"]
     assert report["passRate"] == {"resolve_fixed": {"pass": 0, "runs": 1}}
     assert report["topTools"][0]["tool"] == "get_issue"
     assert report["recurringErrors"][0] == {"kind": "tool_error", "tool": "get_issue", "detail": "boom", "count": 1}

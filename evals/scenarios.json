@@ -8,7 +8,7 @@
     "expect": {
       "calls": [{"tool": "list_my_issues", "args": {"issue_types": ["Bug"]}}],
       "order": "exact",
-      "forbidden": ["get_issue", "get_bug_context"],
+      "forbidden": ["get_issue"],
       "finalAnswer": null
     },
     "nonMcp": null
@@ -22,7 +22,7 @@
     "expect": {
       "calls": [{"tool": "list_my_issues", "args": {"issue_types": ["Bug"]}}],
       "order": "exact",
-      "forbidden": ["get_issue", "get_bug_context"],
+      "forbidden": ["get_issue"],
       "finalAnswer": {"mustMention": [["0", "không có"]]}
     },
     "nonMcp": null
@@ -36,7 +36,7 @@
     "expect": {
       "calls": [{"tool": "resolve_bug", "args": {"issue_key": "{issue}", "mode": "apply"}}],
       "order": "exact",
-      "forbidden": ["get_bug_context", "get_issue", "get_bug_rules", "get_bug_fields"],
+      "forbidden": ["get_issue", "get_bug_rules", "get_bug_fields"],
       "finalAnswer": null
     },
     "nonMcp": null
@@ -53,7 +53,7 @@
         {"tool": "resolve_bug", "args": {"issue_key": "{b}", "mode": "apply"}}
       ],
       "order": "any",
-      "forbidden": ["get_bug_context", "get_issue", "get_bug_rules", "get_bug_fields"],
+      "forbidden": ["get_issue", "get_bug_rules", "get_bug_fields"],
       "finalAnswer": null
     },
     "nonMcp": null
@@ -67,7 +67,7 @@
     "expect": {
       "calls": [{"tool": "resolve_bug", "args": {"issue_key": "{issue}", "mode": "apply"}}],
       "order": "exact",
-      "forbidden": ["get_bug_context", "get_issue", "get_bug_rules", "get_bug_fields"],
+      "forbidden": ["get_issue", "get_bug_rules", "get_bug_fields"],
       "finalAnswer": {"mustMention": ["Tester"]}
     },
     "nonMcp": null
@@ -79,9 +79,9 @@
     "fakeState": "default",
     "match": {"keywords": [["fix"]], "issueKeys": "one"},
     "expect": {
-      "calls": [{"tool": "get_bug_context", "args": {"issue_key": "{issue}"}}],
+      "calls": [{"tool": "get_issue", "args": {"issue_key": "{issue}"}}],
       "order": "exact",
-      "forbidden": ["get_issue"],
+      "forbidden": ["resolve_bug", "update_issue"],
       "finalAnswer": null
     },
     "nonMcp": null
@@ -93,9 +93,9 @@
     "fakeState": "default",
     "match": null,
     "expect": {
-      "calls": [{"tool": "get_bug_context", "args": {"issue_key": "{issue}"}}],
+      "calls": [{"tool": "get_issue", "args": {"issue_key": "{issue}"}}],
       "order": "exact",
-      "forbidden": ["get_issue"],
+      "forbidden": ["resolve_bug", "update_issue"],
       "finalAnswer": {"mustMention": ["login-error.png"]}
     },
     "nonMcp": null

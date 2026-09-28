@@ -173,7 +173,7 @@ class CliTelemetryTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 cli.execute(["bug", "context", "OOP-1"])
         [call] = self._rows("calls")
-        self.assertEqual(("get_bug_context", "error"), (call["tool"], call["status"]))
+        self.assertEqual(("get_issue", "error"), (call["tool"], call["status"]))
         self.assertEqual("bad config", self._rows("errors")[0]["message"])
         self.assertIsNone(telemetry.current_trace_id())
 

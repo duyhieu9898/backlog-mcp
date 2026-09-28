@@ -12,13 +12,13 @@ from backlog_mcp import server
 from backlog_mcp.results import _build_result
 
 EXPECTED_TOOLS = {
-    "get_issue", "list_my_issues", "create_issue", "update_issue", "get_bug_context",
+    "get_issue", "list_my_issues", "create_issue", "update_issue",
     "resolve_bug", "create_ut_bug", "get_bug_rules", "get_bug_fields",
 }
 TOOLS = {tool.name: tool for tool in anyio.run(server.mcp.list_tools)}
 
 
-def test_exactly_nine_tools():
+def test_exactly_eight_tools():
     assert set(TOOLS) == EXPECTED_TOOLS
 
 

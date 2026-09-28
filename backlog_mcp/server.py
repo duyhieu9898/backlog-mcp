@@ -26,6 +26,7 @@ from backlog_tool.settings import (
 )
 from backlog_tool import issue_service, presenter
 from workflows import guidance, ut_bug
+from workflows.bug_template import issue_context
 import workflows.resolve_bug as bug_workflow
 from backlog_tool.telemetry import (
     log_session_start,
@@ -86,13 +87,14 @@ Intent -> tool:
 - My open bugs -> list_my_issues(issue_types=["Bug"])
 - My stories/tasks or deadlines -> list_my_issues(issue_types=["Story", "Task"])
 - What do I have to do / my Backlog status -> list_my_issues()
-- Investigate or fix a bug that is not fixed yet -> get_bug_context
+- Investigate or fix a bug that is not fixed yet -> get_issue
 - Resolve/close a bug, or the user says it is fixed -> resolve_bug(mode="apply"), one call, no lookups first
-- Escape hatches, only when nothing above fits: get_issue, create_issue, update_issue
+- Unit Test bug found while working on an issue -> create_ut_bug
+- Other issue changes the user asks for: create_issue, update_issue
 
 Behavior:
 - Writes (resolve_bug, create_issue, update_issue, create_ut_bug): call with mode="apply" directly; use mode="preview" only when the user asks to preview. Afterwards report the returned changes and every warning.
-- get_bug_context lists attachments; tell the user when one matters instead of fetching it.
+- get_issue lists attachments but not their content; tell the user when one matters.
 
 Project:
 - An issue key's prefix is its project (OOP-123 -> OOP).
@@ -234,12 +236,15 @@ _OVERWRITES = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempote
 @mcp.tool(annotations=_READ_ONLY)
 def get_issue(
     issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123', or a numeric issue ID.")],
-    view: Annotated[Literal["compact", "full"], Field(description="Detail level: compact for general triage, full for raw Backlog fields.")] = "compact",
+    view: Annotated[Literal["compact", "full"], Field(description="compact (default): the fields to work on the issue. full: the raw Backlog issue with every field.")] = "compact",
 ) -> CallToolResult:
-    """Get raw/current details of one Backlog issue by key or numeric ID.
+    """Get one Backlog issue by key: everything needed to understand, investigate or fix it.
 
-    Use when inspecting a generic or non-bug Backlog issue, or when raw fields are explicitly needed (escape hatch).
-    Do not use as the first step for investigating or fixing a Bug; use get_bug_context instead.
+    Use when the user gives a Backlog issue key or link, e.g. to fix a bug.
+    compact returns issueType, status, priority, assignee, createdUser (the reporter), dates, hours, url and custom fields.
+    A bug report written in the template comes back parsed: description is its sections (environment,
+    steps_to_reproduce, actual, expected, evidence...) with descriptionMeta, plus rawDescription when sections are missing.
+    attachments lists the files (id, name, size, isImage); their content is not fetched.
     Do not use for discovery; use list_my_issues.
     """
     start_call("get_issue", locals())
@@ -250,8 +255,7 @@ def get_issue(
         if view == "full":
             data = raw_issue
         else:
-            base_url = view_base_url(config)
-            data = presenter.compact_issue(raw_issue, view=view, base_url=base_url)
+            data = issue_context(raw_issue, base_url=view_base_url(config))
         return _build_result(data, "get_issue", project=project_key_from_issue_id(issue_key))
     except Exception as e:
         return _error_result("get_issue", e, project=project_key_from_issue_id(issue_key))
@@ -283,8 +287,8 @@ def list_my_issues(
     Use when Backlog is explicitly invoked and the user asks for their bugs, stories/tasks, deadlines or what they have to do.
     Filter with issue_types (['Bug'] for open bugs); omit it for the combined personal status.
     This is a personal work view, not a PM/team/project-health dashboard.
-    Items omit the description; call get_bug_context for the bug the user picks.
-    Do not use to investigate a specific bug; use get_bug_context.
+    Items omit the description; get_issue returns it for the issue the user picks.
+    Do not use to read one known issue; use get_issue.
     """
     start_call("list_my_issues", locals())
     try:
@@ -445,26 +449,6 @@ def update_issue(
         )
 
 
-@mcp.tool(annotations=_READ_ONLY)
-def get_bug_context(
-    issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123'.")],
-) -> CallToolResult:
-    """Get AI-ready Backlog context for a specific bug.
-
-    Use when a Backlog bug key/link is supplied and the user wants to understand, investigate or fix it (it is the primary entry point).
-    Do not call get_issue first just to inspect the same bug.
-    Do not use for listing bugs; use list_my_issues.
-    """
-    start_call("get_bug_context", locals())
-    try:
-        config = get_config_instance()
-        issue_key = _issue_key(issue_key)
-        data = bug_workflow.get_bug_context(config, issue_key)
-        return _build_result(data, "get_bug_context", project=project_key_from_issue_id(issue_key))
-    except Exception as e:
-        return _error_result("get_bug_context", e, project=project_key_from_issue_id(issue_key))
-
-
 @mcp.tool(annotations=_OVERWRITES)
 def resolve_bug(
     issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123'.")],
@@ -484,13 +468,10 @@ def resolve_bug(
     """Resolve a Backlog bug the user says is fixed, using the configured workflow defaults.
 
     Use when the user asks to resolve/close a Backlog bug or says it is already fixed.
-    Call this directly and only once, with mode="apply", when the user asks to resolve/close a Backlog bug
-    or says it is already fixed. It loads the issue, rules, field mappings, defaults and validation itself.
-    Do not call get_bug_context, get_issue, get_bug_rules or get_bug_fields first.
-    fix_description and commit are optional: pass them only if the user gave them; otherwise the
-    Corrective Action uses the bug summary. Do not read git history or source code to fill them.
-    After applying, report the changes and every warning to the user.
-    Use mode="preview" only when the user explicitly asks to preview.
+    One call with mode="apply" does the whole resolution: it loads the issue, rules, field mappings
+    and defaults and validates them itself, so no get_issue, get_bug_rules or get_bug_fields call is needed first.
+    fix_description and commit are optional; without them the Corrective Action uses the bug summary.
+    The result lists the changes (field, from, to) and any warnings; warnings never block.
     """
     start_call("resolve_bug", locals())
     dry_run = (mode != "apply")
@@ -554,7 +535,7 @@ def create_ut_bug(
     """Create a Unit Test Backlog sub-task bug under a parent issue.
 
     Use when the user explicitly asks Backlog to create a UT bug with configured workflow defaults.
-    The workflow validates/loads the parent internally; do not call get_issue first just to prepare this action.
+    It loads and validates the parent itself, so no get_issue call is needed first.
     Do not use for generic bugs or tasks; use create_issue.
     Call with mode="apply" directly; the bug is created and closed at once, and the result lists every field set.
     """

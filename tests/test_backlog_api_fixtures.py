@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from backlog_tool.resolver import resolve_status
-from workflows.bug_template import bug_context
+from workflows.bug_template import issue_context
 from backlog_tool import issue_service, presenter
 from workflows.resolve_bug import issue_custom_field
 
@@ -69,7 +69,7 @@ class BacklogApiFixtureTest(unittest.TestCase):
     def test_real_bug_issue_context_handles_backlog_issue_shape(self):
         issue = load_fixture("AQM_issue_bug.json")
 
-        context = bug_context(issue)
+        context = issue_context(issue)
 
         self.assertEqual(issue["issueKey"], context["issueKey"])
         self.assertEqual("Bug", issue["issueType"]["name"])

@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from workflows import resolve_bug as bug_workflow
-from workflows.bug_template import bug_context, bug_description_metadata, parse_bug_description
+from workflows.bug_template import issue_context, bug_description_metadata, parse_bug_description
 
 
 CONFIG = {
@@ -171,15 +171,15 @@ class BugWorkflowTest(unittest.TestCase):
         self.assertIn("expected", meta["missingSections"])
         self.assertIn("steps_to_reproduce", meta["missingSections"])
 
-    def test_bug_context_includes_structured_description(self):
-        context = bug_context(BUG_ISSUE)
+    def test_issue_context_includes_structured_description(self):
+        context = issue_context(BUG_ISSUE)
 
         self.assertEqual("AQM-123", context["issueKey"])
         self.assertEqual("Save fails", context["summary"])
         self.assertEqual("In Progress", context["status"])
         self.assertEqual("Error appears", context["description"]["actual"])
         self.assertEqual([], context["descriptionMeta"]["missingSections"])
-        self.assertEqual({"id": 1001, "name": "Reporter"}, context["createdUser"])
+        self.assertEqual("Reporter", context["createdUser"])
 
     def test_build_resolution_plan_keeps_semantic_field_names(self):
         planned = bug_workflow.build_resolution_plan(
@@ -627,24 +627,24 @@ if __name__ == "__main__":
     unittest.main()
 
 
-def test_bug_context_lists_attachments():
-    from workflows.bug_template import bug_context
+def test_issue_context_lists_attachments():
+    from workflows.bug_template import issue_context
 
     issue = {"issueKey": "OOP-1", "attachments": [
         {"id": 7001, "name": "login-error.png", "size": 48213, "created": "x"},
         {"id": 7002, "name": "server.log", "size": 900},
     ]}
-    assert bug_context(issue)["attachments"] == [
+    assert issue_context(issue)["attachments"] == [
         {"id": 7001, "name": "login-error.png", "size": 48213, "isImage": True},
         {"id": 7002, "name": "server.log", "size": 900, "isImage": False},
     ]
 
 
-def test_bug_context_without_attachments_has_no_key():
-    from workflows.bug_template import bug_context
+def test_issue_context_without_attachments_has_no_key():
+    from workflows.bug_template import issue_context
 
     for issue in ({"issueKey": "OOP-1"}, {"issueKey": "OOP-1", "attachments": None}, {"issueKey": "OOP-1", "attachments": []}):
-        assert "attachments" not in bug_context(issue)
+        assert "attachments" not in issue_context(issue)
 
 
 def test_attachment_summary_skips_malformed_entries():
@@ -655,25 +655,30 @@ def test_attachment_summary_skips_malformed_entries():
     ]
 
 
-def test_bug_context_keeps_raw_description_only_when_sections_are_missing():
-    from workflows.bug_template import bug_context
+def test_issue_context_keeps_raw_description_only_when_sections_are_missing():
+    from workflows.bug_template import issue_context
 
-    parsed = bug_context(BUG_ISSUE)
+    parsed = issue_context(BUG_ISSUE)
     assert parsed["descriptionMeta"]["missingSections"] == []
     assert "rawDescription" not in parsed
 
-    free_text = bug_context({"issueKey": "OOP-1", "description": "Login fails after reset"})
-    assert free_text["descriptionMeta"]["missingSections"]
-    assert free_text["rawDescription"] == "Login fails after reset"
+    # A description outside the template (a Story, a free-text bug) stays plain text.
+    free_text = issue_context({"issueKey": "OOP-1", "description": "Login fails after reset"})
+    assert free_text["description"] == "Login fails after reset"
+    assert "descriptionMeta" not in free_text and "rawDescription" not in free_text
+
+    partial = issue_context({"issueKey": "OOP-1", "description": "**Actual:\nOnly actual"})
+    assert partial["description"] == {"actual": "Only actual"}
+    assert partial["rawDescription"] == "**Actual:\nOnly actual"
 
 
-def test_bug_context_compacts_custom_fields_and_links_the_issue():
-    from workflows.bug_template import bug_context
+def test_issue_context_compacts_custom_fields_and_links_the_issue():
+    from workflows.bug_template import issue_context
 
     issue = {"issueKey": "OOP-1", "customFields": [
         {"id": 9864, "fieldTypeId": 5, "name": "QC Activity", "value": {"id": 1, "name": "Integration Test", "displayOrder": 0}},
         {"id": 9865, "fieldTypeId": 1, "name": "Empty", "value": None},
     ]}
-    context = bug_context(issue, base_url="https://space.backlog.com/")
+    context = issue_context(issue, base_url="https://space.backlog.com/")
     assert context["customFields"] == [{"name": "QC Activity", "value": "Integration Test"}]
     assert context["url"] == "https://space.backlog.com/view/OOP-1"

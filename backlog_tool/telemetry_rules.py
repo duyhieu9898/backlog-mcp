@@ -5,6 +5,7 @@ import json
 from .telemetry import LARGE_RESPONSE_BYTES
 
 # (generic tool, specialized tool) pairs where the specialized tool is the intended path.
+# get_bug_context was merged into get_issue on 2026-09-28; the pair still reads older logs.
 SPECIALIZED = [("get_issue", "get_bug_context")]
 
 

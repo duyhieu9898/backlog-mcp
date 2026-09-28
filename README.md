@@ -67,12 +67,12 @@ Normal personal intents map to domain tools:
 | What do I currently have to do in this Backlog project? | `list_my_issues` |
 | What open bugs are assigned to me? | `list_my_issues` with `issue_types=["Bug"]` |
 | My stories/tasks or deadlines | `list_my_issues` with `issue_types=["Story", "Task"]` |
-| Understand/investigate/fix a specific bug | `get_bug_context` |
+| Understand/investigate/fix a specific bug or issue | `get_issue` |
 | Resolve/close a bug | `resolve_bug` |
 | Create a configured UT bug | `create_ut_bug` |
 
-`get_issue`, `create_issue`, and `update_issue` are escape
-hatches for generic/custom operations. `get_bug_rules` and `get_bug_fields` are
+`create_issue` and `update_issue` cover generic changes
+the personal workflows do not. `get_bug_rules` and `get_bug_fields` are
 diagnostic tools, not normal pre-steps for the personal workflows. Project and
 config administration (list projects, inspect/refresh a catalog, show config,
 audit workflows) is CLI-only: `backlog-cli config list-projects|show|audit-workflows`
@@ -161,7 +161,7 @@ The active project is also resolved from the `BACKLOG_WORKSPACE_PATH` or
 
 | Tool | Description |
 |---|---|
-| `get_issue` | Get current details of one issue by key or numeric ID. |
+| `get_issue` | One issue by key (or numeric ID): type, status, priority, assignee, reporter (`createdUser`), dates, hours, url, custom fields, attachments (`id`, `name`, `size`, `isImage`; content not fetched). A bug report in the template comes back as parsed sections (`description` + `descriptionMeta`, `rawDescription` only when sections are missing); other descriptions stay text. `view="full"` returns the raw Backlog issue. |
 | `list_my_issues` | The one personal list: open issues assigned to the configured user, filtered by `issue_types` (omit for every type), `query`, `include_closed`, with pagination. Items carry no description (`get_bug_context` gives it for one bug) and add `daysUntilDue`/`dueAlertLevel` (1 = overdue, 2 = due within 2 days); the result adds `summary` (`byType`, `overdueCount`, `dueSoonCount`). |
 | `create_issue` | Create a Backlog issue, assigned to me unless `assignee` is given. Applied result: `issueKey`, `url`, `changes`. |
 | `update_issue` | Update fields on an existing issue. `description` replaces the whole text (use `comment` to add a note). Applied result lists each changed field with its previous value. |
@@ -172,7 +172,6 @@ Every tool names the issue it acts on `issue_key` (`get_issue` also accepts a nu
 
 | Tool | Description |
 |---|---|
-| `get_bug_context` | Get AI-ready context for a specific bug, including its attachments (`id`, `name`, `size`, `isImage`). |
 | `resolve_bug` | Resolve a bug with workflow defaults in one `mode="apply"` call. `fix_description`/`commit` are optional (Corrective Action falls back to `fixed <summary>`); guided fields and hours only fill empty values; warnings (e.g. Detected Role is not Tester) never block and are returned with the changes. `mode="preview"` only when asked. |
 | `create_ut_bug` | Create a Unit Test sub-task bug under `parent_key` (project = its prefix), titled `[<parent>][<module>] <summary>`, and close it. Applied result: `issueKey`, `url`, `changes`. |
 | `get_bug_rules` | Get the resolve-bug workflow rules for a project (or the project of `issue_key`). |

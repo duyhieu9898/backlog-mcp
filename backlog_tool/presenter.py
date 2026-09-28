@@ -155,7 +155,7 @@ def compact_issue(issue, view="compact", base_url=""):
 
 
 # A personal list is for picking work: the assignee is always the caller, the description
-# comes from get_bug_context, and the custom fields are resolve_bug's business.
+# comes from get_issue, and the custom fields are resolve_bug's business.
 _LIST_ITEM_DROPPED = {"description", "assignee", "customFields", "resourceUri"}
 
 

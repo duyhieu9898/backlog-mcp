@@ -29,7 +29,8 @@ from backlog_tool.telemetry import finish_call, log_session_start, set_surface, 
 from backlog_tool.telemetry_report import report_from_claude, report_from_logs, to_markdown
 from workflows.guidance import field_guidance, resolve_rules
 from workflows.audit import audit_workflows
-from workflows.resolve_bug import get_bug_context, resolve_bug
+from workflows.bug_template import issue_context
+from workflows.resolve_bug import resolve_bug
 from workflows.ut_bug import create_subtask_bug
 
 
@@ -205,7 +206,7 @@ CLI_TOOL_NAMES = {
     "issue:create": "create_issue",
     "issue:update": "update_issue",
     "bug:list": "list_my_issues",
-    "bug:context": "get_bug_context",
+    "bug:context": "get_issue",
     "bug:resolve": "resolve_bug",
     "bug:create-ut": "create_ut_bug",
     "bug:rules": "get_bug_rules",
@@ -314,7 +315,7 @@ def run_handler(config, args):
         if action == "list":
             return _list_my_issues(config, args, ["Bug"])
         if action == "context":
-            return get_bug_context(config, args.issue_key)
+            return issue_context(get_issue(config, args.issue_key), base_url=view_base_url(config))
         if action == "rules":
             return resolve_rules(config, args.project, start_path=getattr(args, "workspace_path", None))
         if action == "fields":

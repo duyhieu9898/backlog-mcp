@@ -3,10 +3,9 @@ import re
 from copy import deepcopy
 from datetime import date
 
-from .bug_template import bug_context
 from backlog_tool.client import BacklogClient
 from backlog_tool.resolver import resolve_custom_field_defaults, resolve_custom_field_value
-from backlog_tool.settings import load_workflow_config, resolve_project, resolve_user_id, view_base_url
+from backlog_tool.settings import load_workflow_config, resolve_project, resolve_user_id
 from backlog_tool.telemetry import plan_hash, record_mutation
 from .config import require_int, require_list, require_value, require_mapping
 from .resolution_plan import ResolutionPlan, resolution_plan_to_payload
@@ -51,10 +50,6 @@ def merge_resolve_defaults(config, project_key):
         **override.get("custom_fields", {}),
     }
     return merged
-
-
-def get_bug_context(config, issue_key):
-    return bug_context(BacklogClient(config).get_issue(issue_key), base_url=view_base_url(config))
 
 
 def created_user_ref(issue):
@@ -364,7 +359,7 @@ def build_resolve_bug_payload(config, issue_key, start_path=None, **kwargs):
         "issue": issue_key,
         "project": project["key"],
         "payload": payload,
-        "context": bug_context(issue),
+        "statusBefore": status_name(issue),
         "assignment": planned["assignment"],
     }
     built["changes"] = summarize_changes(issue, project, payload, plan.status)
@@ -462,7 +457,7 @@ def resolve_bug(config, issue_key, dry_run=True, start_path=None, **kwargs):
     built = build_resolve_bug_payload(config, issue_key, start_path=start_path, **kwargs)
     outcome = {
         "planHash": plan_hash(issue_key, built["payload"]),
-        "statusBefore": built["context"].get("status"),
+        "statusBefore": built["statusBefore"],
         "changedFields": sorted(built["payload"].keys()),
         "warnings": built["warnings"],
     }
