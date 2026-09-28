@@ -11,7 +11,7 @@ from pydantic import ConfigDict, Field, ValidationError
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase
-from mcp.types import CallToolResult
+from mcp.types import CallToolResult, ToolAnnotations
 
 from .arg_errors import describe_validation_error, format_arg_error
 from .results import _build_result, _error_result, _parse_cursor, _partial_write_result
@@ -91,8 +91,7 @@ Intent -> tool:
 - Escape hatches, only when nothing above fits: get_issue, create_issue, update_issue
 
 Behavior:
-- resolve_bug: apply directly; afterwards report the changes and every warning.
-- create_issue, update_issue, create_ut_bug: call with mode="preview", show the plan, apply only after the user confirms.
+- Writes (resolve_bug, create_issue, update_issue, create_ut_bug): call with mode="apply" directly; use mode="preview" only when the user asks to preview. Afterwards report the returned changes and every warning.
 - get_bug_context lists attachments; tell the user when one matters instead of fetching it.
 
 Project:
@@ -225,7 +224,14 @@ def activate_workspace(workspace: str | None) -> dict | None:
     return marker
 
 
-@mcp.tool()
+# Every tool talks to the live Backlog space. No write is idempotent: creating twice makes two
+# issues and repeating an update adds its comment again; updates overwrite the fields they set.
+_READ_ONLY = ToolAnnotations(readOnlyHint=True, openWorldHint=True)
+_CREATES = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True)
+_OVERWRITES = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True)
+
+
+@mcp.tool(annotations=_READ_ONLY)
 def get_issue(
     issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123', or a numeric issue ID.")],
     view: Annotated[Literal["compact", "full"], Field(description="Detail level: compact for general triage, full for raw Backlog fields.")] = "compact",
@@ -251,7 +257,7 @@ def get_issue(
         return _error_result("get_issue", e, project=project_key_from_issue_id(issue_key))
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READ_ONLY)
 def list_my_issues(
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
     issue_types: Annotated[tuple[str, ...], Field(description="Issue type names to include: ['Bug'] for bugs, ['Story', 'Task'] for stories/tasks. Omit for every type.")] = (),
@@ -316,7 +322,7 @@ def list_my_issues(
         return _error_result("list_my_issues", e, project=project_key)
 
 
-@mcp.tool()
+@mcp.tool(annotations=_CREATES)
 def create_issue(
     summary: Annotated[str, Field(description="Issue summary title")],
     issue_type: Annotated[str, Field(description="Issue type name or ID (e.g., 'Bug', 'Task', 'Story'). Required by Backlog for creation.")],
@@ -324,7 +330,7 @@ def create_issue(
     parent_key: Annotated[str, Field(description="Parent issue key such as 'OOP-123'. Omit or pass an empty string for no parent.")] = "",
     description: Annotated[str, Field(description="Issue description detail text. Omit or pass an empty string for no description.")] = "",
     priority: Annotated[str, Field(description="Priority name or ID (e.g., 'High', 'Normal', 'Low'). Omit for project default.")] = "",
-    assignee: Annotated[str, Field(description="Assignee user reference from config.users or raw user ID. Omit for project default.")] = "",
+    assignee: Annotated[str, Field(description="Assignee: 'me' or a numeric Backlog user ID. Omit to assign the issue to me.")] = "",
     category: Annotated[str, Field(description="Category name or ID. Omit for no category.")] = "",
     start_date: Annotated[str, Field(description="Start date in YYYY-MM-DD format. Omit for no start date.")] = "",
     due_date: Annotated[str, Field(description="Due date in YYYY-MM-DD format. Omit for no due date.")] = "",
@@ -337,6 +343,7 @@ def create_issue(
 
     Use when the user asks to create a generic Backlog issue and has supplied the issue type.
     Do not use when the user asks for the opinionated Unit Test bug workflow; use create_ut_bug.
+    Call with mode="apply" directly; the result lists every field set (changes: field, from, to).
     """
     start_call("create_issue", locals())
     dry_run = (mode != "apply")
@@ -361,11 +368,7 @@ def create_issue(
             dry_run=dry_run,
             workspace_path=_workspace_path(),
         )
-        if dry_run:
-            data = res
-        else:
-            base_url = view_base_url(config)
-            data = presenter.compact_issue(res, view="compact", base_url=base_url)
+        data = res if dry_run else _write_result(config, res, presenter.issue_changes(None, res))
         return _build_result(
             data,
             "create_issue",
@@ -376,16 +379,16 @@ def create_issue(
         return _error_result("create_issue", e, dry_run=dry_run, project=project_key)
 
 
-@mcp.tool()
+@mcp.tool(annotations=_OVERWRITES)
 def update_issue(
     issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123'.")],
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to infer from issue key or active workspace context.")] = "",
     summary: Annotated[str, Field(description="New issue summary title. Omit or pass an empty string to keep current summary.")] = "",
     status: Annotated[str, Field(description="Status name or ID to transition to. Omit to keep current status.")] = "",
     comment: Annotated[str, Field(description="Comment text to add to the update. Omit for no comment.")] = "",
-    description: Annotated[str, Field(description="New description detail text. Omit to keep current description.")] = "",
+    description: Annotated[str, Field(description="Replaces the whole description. To add a note, use comment instead. Omit to keep the current description.")] = "",
     priority: Annotated[str, Field(description="New priority name or ID. Omit to keep current priority.")] = "",
-    assignee: Annotated[str, Field(description="New assignee user reference or raw user ID. Omit to keep current assignee.")] = "",
+    assignee: Annotated[str, Field(description="New assignee: 'me' or a numeric Backlog user ID. Omit to keep the current assignee.")] = "",
     category: Annotated[str, Field(description="New category name or ID. Omit to keep current categories.")] = "",
     start_date: Annotated[str, Field(description="New start date in YYYY-MM-DD format. Omit to keep current start date.")] = "",
     due_date: Annotated[str, Field(description="New due date in YYYY-MM-DD format. Omit to keep current due date.")] = "",
@@ -398,12 +401,15 @@ def update_issue(
 
     Use when the user asks for explicit field changes outside a specialized personal workflow (escape hatch).
     Do not use to complete a bug resolution workflow; use resolve_bug.
+    Call with mode="apply" directly; the result lists each changed field with its previous value (changes: field, from, to).
     """
     start_call("update_issue", locals())
     dry_run = (mode != "apply")
     try:
         config = get_config_instance()
         issue_key = _issue_key(issue_key)
+        # The previous values are what the user needs to check (or undo) an applied update.
+        before = None if dry_run else issue_service.get_issue(config, issue_key)
         res = issue_service.update_issue(
             config,
             issue_id=issue_key,
@@ -423,11 +429,7 @@ def update_issue(
             dry_run=dry_run,
             workspace_path=_workspace_path(),
         )
-        if dry_run:
-            data = res
-        else:
-            base_url = view_base_url(config)
-            data = presenter.compact_issue(res, view="compact", base_url=base_url)
+        data = res if dry_run else _write_result(config, res, presenter.issue_changes(before, res, comment=comment))
         return _build_result(
             data,
             "update_issue",
@@ -443,7 +445,7 @@ def update_issue(
         )
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READ_ONLY)
 def get_bug_context(
     issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123'.")],
 ) -> CallToolResult:
@@ -463,7 +465,7 @@ def get_bug_context(
         return _error_result("get_bug_context", e, project=project_key_from_issue_id(issue_key))
 
 
-@mcp.tool()
+@mcp.tool(annotations=_OVERWRITES)
 def resolve_bug(
     issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123'.")],
     status: Annotated[str, Field(description="Target status name or ID. Omit to use the configured resolved/closed status.")] = "",
@@ -541,12 +543,12 @@ def resolve_bug(
         )
 
 
-@mcp.tool()
+@mcp.tool(annotations=_CREATES)
 def create_ut_bug(
     parent_key: Annotated[str, Field(description="Parent issue key such as 'OOP-123' to attach the UT bug to.")],
     module: Annotated[str, Field(description="Name of the module or file with the failing unit test")],
-    description: Annotated[str, Field(description="Unit test failure description details")],
-    project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
+    summary: Annotated[str, Field(description="Short title of the failure, e.g. 'total ignores discount'. Becomes '[<parent_key>][<module>] <summary>' and the Corrective Action.")],
+    project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit to use the prefix of parent_key.")] = "",
     mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned bug without writing; apply submits it to Backlog.")] = "preview",
 ) -> CallToolResult:
     """Create a Unit Test Backlog sub-task bug under a parent issue.
@@ -554,6 +556,7 @@ def create_ut_bug(
     Use when the user explicitly asks Backlog to create a UT bug with configured workflow defaults.
     The workflow validates/loads the parent internally; do not call get_issue first just to prepare this action.
     Do not use for generic bugs or tasks; use create_issue.
+    Call with mode="apply" directly; the bug is created and closed at once, and the result lists every field set.
     """
     start_call("create_ut_bug", locals())
     dry_run = (mode != "apply")
@@ -565,19 +568,16 @@ def create_ut_bug(
             project_key=project_key or None,
             parent_key=parent_key,
             module=module,
-            description=description,
+            summary=summary,
             dry_run=dry_run,
             start_path=_workspace_path(),
         )
-        if dry_run:
-            data = res
-        else:
-            data = {"issueKey": res.get("issueKey"), "applied": True}
+        data = res if dry_run else _write_result(config, res["updated"], presenter.issue_changes(None, res["updated"]))
         return _build_result(
             data,
             "create_ut_bug",
             dry_run=dry_run,
-            project=project_key,
+            project=project_key or project_key_from_issue_id(parent_key),
         )
     except ut_bug.PostCreateUpdateError as e:
         return _partial_write_result(
@@ -600,6 +600,12 @@ def create_ut_bug(
         return _error_result("create_ut_bug", e, dry_run=dry_run, project=project_key)
 
 
+def _write_result(config, issue, changes):
+    """What an applied create/update tells the model: which issue, and what it now says."""
+    issue_key = (issue or {}).get("issueKey")
+    return {"issueKey": issue_key, "url": f"{view_base_url(config)}/view/{issue_key}", "changes": changes}
+
+
 def _support_project_key(project_key: str, issue_key: str) -> str:
     """Project for support tools: explicit key, else the prefix of a bug key."""
     issue_project = project_key_from_issue_id(issue_key) if issue_key else None
@@ -610,7 +616,7 @@ def _support_project_key(project_key: str, issue_key: str) -> str:
     return project_key or issue_project or ""
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READ_ONLY)
 def get_bug_rules(
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit when issue_key is given; otherwise resolved from the active workspace path or configuration.")] = "",
     issue_key: Annotated[str, Field(description="Bug issue key such as 'OOP-123' whose project rules/options to show. Preferred over project_key when working on a specific bug.")] = "",
@@ -631,7 +637,7 @@ def get_bug_rules(
         return _error_result("get_bug_rules", e, project=project_key)
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READ_ONLY)
 def get_bug_fields(
     field: Annotated[str, Field(description="Field name to get guidance for, e.g. qc_activity, bug_origin, cause_category. Omit for all fields.")] = "",
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit when issue_key is given; otherwise resolved from the active workspace path or configuration.")] = "",

@@ -167,6 +167,49 @@ def list_item(issue, base_url="", today=None):
     return item
 
 
+def _named(key):
+    return lambda issue: (issue.get(key) or {}).get("name")
+
+
+def _date(key):
+    return lambda issue: str(issue[key]).split("T", 1)[0] if issue.get(key) else None
+
+
+# Issue fields a create/update can write, in the order changes are reported.
+_CHANGE_FIELDS = [
+    ("Summary", lambda issue: issue.get("summary")),
+    ("Issue Type", _named("issueType")),
+    ("Status", _named("status")),
+    ("Priority", _named("priority")),
+    ("Assignee", lambda issue: user_name(issue.get("assignee"))),
+    ("Category", lambda issue: [c.get("name") for c in issue.get("category") or []] or None),
+    ("Start Date", _date("startDate")),
+    ("Due Date", _date("dueDate")),
+    ("Estimated Hours", lambda issue: issue.get("estimatedHours")),
+    ("Actual Hours", lambda issue: issue.get("actualHours")),
+    ("Description", lambda issue: issue.get("description") or None),
+]
+
+
+def issue_changes(before, after, comment=None):
+    """What a write did, as {field, from, to} by display name; before is None for a new issue."""
+    before = before or {}
+    changes = []
+    for label, read in _CHANGE_FIELDS:
+        old, new = read(before), read(after)
+        if old != new:
+            changes.append({"field": label, "from": old, "to": new})
+    old_custom = {f.get("id"): compact_custom_value(f.get("value")) for f in before.get("customFields") or []}
+    for field in after.get("customFields") or []:
+        old = old_custom.get(field.get("id"))
+        new = compact_custom_value(field.get("value"))
+        if old != new and (_has_value(old) or _has_value(new)):
+            changes.append({"field": field.get("name"), "from": old if _has_value(old) else None, "to": new})
+    if comment:
+        changes.append({"field": "Comment", "from": None, "to": comment})
+    return changes
+
+
 def list_summary(items):
     return {
         "byType": dict(Counter(item.get("issueType") for item in items)),

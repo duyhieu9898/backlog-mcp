@@ -11,7 +11,7 @@ from backlog_tool.resolver import (
     resolve_status,
 )
 
-from backlog_tool.settings import load_workflow_config, resolve_project, resolve_user_id
+from backlog_tool.settings import load_workflow_config, resolve_project_for_issue, resolve_user_id
 from backlog_tool.telemetry import plan_hash, record_mutation
 from .config import require_int, require_mapping, require_value
 
@@ -45,8 +45,8 @@ def merge_bug_defaults(config, project_key):
     return merged
 
 
-def build_subtask_bug_payload(config, project_key, parent_key, module, description, start_path=None):
-    project = resolve_project(config, project_key, start_path=start_path)
+def build_subtask_bug_payload(config, project_key, parent_key, module, summary, start_path=None):
+    project = resolve_project_for_issue(config, parent_key, project_key, start_path=start_path)
     project_key = project["key"]
     bug = require_bug_config(project)
     bug_defaults = merge_bug_defaults(config, project_key)
@@ -59,12 +59,13 @@ def build_subtask_bug_payload(config, project_key, parent_key, module, descripti
 
     today = datetime.now()
     due_date = today + timedelta(days=require_int(bug_defaults, "due_in_days", "ut_bug"))
-    summary = f"[{parent_key}][{module}] {description}"
+    title = f"[{parent_key}][{module}] {summary}"
 
+    # The template's {description} placeholder is the short failure summary.
     corrective_action_template = require_value(bug_defaults, "corrective_action", "ut_bug")
     corrective_action = corrective_action_template.format(
-        description=description,
-        description_lower=description.lower(),
+        description=summary,
+        description_lower=summary.lower(),
     )
 
     issue_type_id = find_option(
@@ -84,7 +85,7 @@ def build_subtask_bug_payload(config, project_key, parent_key, module, descripti
 
     data = {
         "projectId": client.get_project_id(project),
-        "summary": summary,
+        "summary": title,
         "description": require_value(bug_defaults, "description_template", "ut_bug"),
         "parentIssueId": parent_id,
         "issueTypeId": issue_type_id,
@@ -129,8 +130,8 @@ def created_user_id(response):
     return int(user_id) if user_id else None
 
 
-def create_subtask_bug(config, project_key, parent_key, module, description, dry_run=False, start_path=None):
-    built = build_subtask_bug_payload(config, project_key, parent_key, module, description, start_path=start_path)
+def create_subtask_bug(config, project_key, parent_key, module, summary, dry_run=False, start_path=None):
+    built = build_subtask_bug_payload(config, project_key, parent_key, module, summary, start_path=start_path)
     record_mutation(
         mode="preview" if dry_run else "apply",
         planHash=plan_hash(parent_key, built["payload"]),

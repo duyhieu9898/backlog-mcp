@@ -111,7 +111,7 @@ class CreateUtBugDefaultTest(unittest.TestCase):
             "status": {"name": "Closed"},
         }
 
-        mock.patch.object(backlog_ut_bug_service, "resolve_project", return_value=PROJECT).start()
+        mock.patch.object(backlog_ut_bug_service, "resolve_project_for_issue", return_value=PROJECT).start()
         mock.patch.object(backlog_ut_bug_service, "BacklogClient", return_value=self.client).start()
         mock.patch.object(backlog_ut_bug_service, "load_workflow_config", return_value=UT_BUG_WORKFLOW).start()
         self.addCleanup(mock.patch.stopall)
@@ -155,6 +155,12 @@ class CreateUtBugDefaultTest(unittest.TestCase):
         self.assertEqual(6, payload["customField_10150"])
         self.assertEqual(8, payload["customField_10160"])
         self.assertEqual("fixed button broken", payload["customField_10200"])
+
+    def test_project_comes_from_parent_key(self):
+        backlog_ut_bug_service.create_subtask_bug(CONFIG, None, "OOP-1", "m", "fails", dry_run=True)
+        args = backlog_ut_bug_service.resolve_project_for_issue.call_args
+        self.assertEqual("OOP-1", args.args[1])
+        self.assertIsNone(args.args[2])
 
     def test_create_subtask_bug_dry_run_does_not_post(self):
         result = backlog_ut_bug_service.create_subtask_bug(

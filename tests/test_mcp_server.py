@@ -274,7 +274,7 @@ def test_create_ut_bug_returns_structured_partial_write_error():
         result = server.create_ut_bug(
             parent_key="AQM-1",
             module="payments",
-            description="fails",
+            summary="fails",
             project_key="AQM",
             mode="apply",
         )
@@ -310,8 +310,8 @@ def test_server_instructions_require_backlog_activation_and_minimal_bug_paths():
     assert "Activation:" in instructions and "without that signal" in instructions
     assert 'resolve_bug(mode="apply"), one call, no lookups first' in instructions
     assert "-> get_bug_context" in instructions and "lists attachments" in instructions
-    assert "resolve_bug: apply directly; afterwards report the changes and every warning." in instructions
-    assert 'create_issue, update_issue, create_ut_bug: call with mode="preview", show the plan, apply only after the user confirms.' in instructions
+    assert 'Writes (resolve_bug, create_issue, update_issue, create_ut_bug): call with mode="apply" directly' in instructions
+    assert "report the returned changes and every warning" in instructions
     assert "preview -> apply" not in instructions
 
 
@@ -512,3 +512,49 @@ def test_error_telemetry_keeps_project_for_lowercase_key():
     with mock.patch("backlog_mcp.server.bug_workflow.get_bug_context", side_effect=ValueError("Boom")):
         server.get_bug_context(" oop-1 ")
     assert _rows("calls")[0]["projectKey"] == "OOP"
+
+
+def test_applied_update_reports_previous_values():
+    before = {"issueKey": "NLN-1", "description": "old", "status": {"name": "Open"}}
+    after = {"issueKey": "NLN-1", "description": "new", "status": {"name": "Open"}}
+    with mock.patch("backlog_mcp.server.issue_service.get_issue", return_value=before), \
+         mock.patch("backlog_mcp.server.issue_service.update_issue", return_value=after), \
+         mock.patch("backlog_mcp.server.get_config_instance", return_value={"base_url": "https://x", "projects": ["NLN"]}):
+        result = server.update_issue("NLN-1", description="new", comment="why", mode="apply")
+    assert result.structuredContent["data"] == {
+        "issueKey": "NLN-1",
+        "url": "https://x/view/NLN-1",
+        "changes": [
+            {"field": "Description", "from": "old", "to": "new"},
+            {"field": "Comment", "from": None, "to": "why"},
+        ],
+    }
+
+
+def test_update_preview_does_not_read_the_issue():
+    with mock.patch("backlog_mcp.server.issue_service.get_issue") as get, \
+         mock.patch("backlog_mcp.server.issue_service.update_issue", return_value={"dryRun": True}):
+        server.update_issue("NLN-1", summary="x")
+    get.assert_not_called()
+
+
+def test_applied_ut_bug_reports_the_closed_issue():
+    updated = {"issueKey": "NLN-9", "summary": "[NLN-1][m] fails", "status": {"name": "Closed"}}
+    with mock.patch("backlog_mcp.server.ut_bug.create_subtask_bug", return_value={"issueKey": "NLN-9", "updated": updated}) as create, \
+         mock.patch("backlog_mcp.server.get_config_instance", return_value={"base_url": "https://x", "projects": ["NLN"]}):
+        result = server.create_ut_bug("NLN-1", "m", "fails", mode="apply")
+    assert create.call_args.kwargs["summary"] == "fails"
+    data = result.structuredContent["data"]
+    assert data["issueKey"] == "NLN-9"
+    assert {"field": "Status", "from": None, "to": "Closed"} in data["changes"]
+
+
+def test_tools_declare_read_and_write_annotations():
+    tools = {tool.name: tool for tool in anyio.run(server.mcp.list_tools)}
+    for name in ("get_issue", "list_my_issues", "get_bug_context", "get_bug_rules", "get_bug_fields"):
+        assert tools[name].annotations.readOnlyHint is True, name
+    for name in ("create_issue", "create_ut_bug", "update_issue", "resolve_bug"):
+        assert tools[name].annotations.readOnlyHint is False, name
+        assert tools[name].annotations.idempotentHint is False, name
+    assert tools["update_issue"].annotations.destructiveHint is True
+    assert tools["create_issue"].annotations.destructiveHint is False

@@ -78,9 +78,10 @@ config administration (list projects, inspect/refresh a catalog, show config,
 audit workflows) is CLI-only: `backlog-cli config list-projects|show|audit-workflows`
 and `backlog-cli project inspect <KEY>`.
 
-The design target is one MCP call per intent. `resolve_bug` is called once with
-`mode="apply"` when the user asks to resolve a bug; `create_issue`,
-`update_issue` and `create_ut_bug` keep preview → confirm → apply.
+The design target is one MCP call per intent. Every write (`resolve_bug`,
+`create_issue`, `update_issue`, `create_ut_bug`) is called once with
+`mode="apply"`; `mode="preview"` only when the user asks. The applied result
+lists what was written as `changes` (`field`, `from`, `to`).
 
 ## Usage Modes
 
@@ -162,8 +163,8 @@ The active project is also resolved from the `BACKLOG_WORKSPACE_PATH` or
 |---|---|
 | `get_issue` | Get current details of one issue by key or numeric ID. |
 | `list_my_issues` | The one personal list: open issues assigned to the configured user, filtered by `issue_types` (omit for every type), `query`, `include_closed`, with pagination. Items carry no description (`get_bug_context` gives it for one bug) and add `daysUntilDue`/`dueAlertLevel` (1 = overdue, 2 = due within 2 days); the result adds `summary` (`byType`, `overdueCount`, `dueSoonCount`). |
-| `create_issue` | Create a Backlog issue (`mode="preview"` by default, `"apply"` to submit). |
-| `update_issue` | Update fields on an existing issue (`mode="preview"` / `"apply"`). |
+| `create_issue` | Create a Backlog issue, assigned to me unless `assignee` is given. Applied result: `issueKey`, `url`, `changes`. |
+| `update_issue` | Update fields on an existing issue. `description` replaces the whole text (use `comment` to add a note). Applied result lists each changed field with its previous value. |
 
 Every tool names the issue it acts on `issue_key` (`get_issue` also accepts a numeric ID) and the parent `parent_key`; keys look like `OOP-12748` and are upper-cased and checked against the configured projects before any Backlog call. Arguments are snake_case; a wrong argument name returns an error that suggests the right one and lists the valid parameters. Successful results carry the full structured result as compact JSON text too (lists include `count`), so clients that only show text get the same data.
 
@@ -173,7 +174,7 @@ Every tool names the issue it acts on `issue_key` (`get_issue` also accepts a nu
 |---|---|
 | `get_bug_context` | Get AI-ready context for a specific bug, including its attachments (`id`, `name`, `size`, `isImage`). |
 | `resolve_bug` | Resolve a bug with workflow defaults in one `mode="apply"` call. `fix_description`/`commit` are optional (Corrective Action falls back to `fixed <summary>`); guided fields and hours only fill empty values; warnings (e.g. Detected Role is not Tester) never block and are returned with the changes. `mode="preview"` only when asked. |
-| `create_ut_bug` | Create a Unit Test sub-task bug under a parent issue (`mode="preview"` / `"apply"`). |
+| `create_ut_bug` | Create a Unit Test sub-task bug under `parent_key` (project = its prefix), titled `[<parent>][<module>] <summary>`, and close it. Applied result: `issueKey`, `url`, `changes`. |
 | `get_bug_rules` | Get the resolve-bug workflow rules for a project (or the project of `issue_key`). |
 | `get_bug_fields` | Get allowed values and guidance for bug workflow fields (e.g. `qc_activity`, `cause_category`). |
 
@@ -196,10 +197,12 @@ Latest result (2026-09-24, Claude opus): 69/70 runs pass, every scenario ≥ 9/1
 ## Safety
 
 - Mutation tools (`create_issue`, `update_issue`, `create_ut_bug`, `resolve_bug`)
-  default to `mode="preview"` — a dry run that returns the planned change without
-  writing. `create_issue`, `update_issue` and `create_ut_bug` apply only after the
-  user confirms the preview; `resolve_bug` applies directly when the user asks to
-  resolve (the user accepts the Backlog notification to the new assignee).
+  default to `mode="preview"` (a dry run), but the model calls them with
+  `mode="apply"` directly; the user accepts that and the Backlog notifications it
+  sends. Instead of a confirm step, every applied write returns `changes` with the
+  previous values, which also land in `logs/details/` for undoing a mistake.
+- Tool annotations mark the five read tools `readOnlyHint` and the four writes
+  non-idempotent; `update_issue` and `resolve_bug` are `destructiveHint`.
 - Project key is resolved from workspace context only when unambiguous; the server
   returns an error instead of guessing.
 - API keys and full request URLs containing query strings are never logged.

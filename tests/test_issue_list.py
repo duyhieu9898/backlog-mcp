@@ -58,3 +58,35 @@ def test_list_my_issues_filters_by_configured_user():
 def test_issue_type_names_match_case_insensitively():
     project = {"bug": {"issue_type_options": [{"id": 1, "name": "Bug"}, {"id": 2, "name": "Issue|Risk"}]}}
     assert issue_service._resolve_issue_type_ids(project, ["bug", "ISSUE|RISK"]) == [1, 2]
+
+
+BEFORE = {
+    "issueKey": "NLN-1", "summary": "Old", "description": "old text", "status": {"name": "Open"},
+    "priority": {"name": "Normal"}, "assignee": {"id": 1, "name": "Dev"}, "dueDate": "2026-10-01T00:00:00Z",
+    "customFields": [{"id": 5, "name": "QC Activity", "value": {"id": 1, "name": "Unit Test"}}],
+}
+
+
+def test_issue_changes_lists_only_changed_fields_by_name():
+    after = {**BEFORE, "description": "new text", "status": {"name": "In Progress"}, "dueDate": "2026-10-02T00:00:00Z",
+             "updated": "2026-09-28T10:00:00Z"}
+    assert presenter.issue_changes(BEFORE, after, comment="note") == [
+        {"field": "Status", "from": "Open", "to": "In Progress"},
+        {"field": "Due Date", "from": "2026-10-01", "to": "2026-10-02"},
+        {"field": "Description", "from": "old text", "to": "new text"},
+        {"field": "Comment", "from": None, "to": "note"},
+    ]
+
+
+def test_issue_changes_includes_custom_fields_by_label():
+    after = {**BEFORE, "customFields": [{"id": 5, "name": "QC Activity", "value": {"id": 2, "name": "Integration Test"}}]}
+    assert presenter.issue_changes(BEFORE, after) == [
+        {"field": "QC Activity", "from": "Unit Test", "to": "Integration Test"},
+    ]
+
+
+def test_issue_changes_for_a_new_issue_lists_every_set_field():
+    changes = presenter.issue_changes(None, BEFORE)
+    assert {"field": "Summary", "from": None, "to": "Old"} in changes
+    assert {"field": "Assignee", "from": None, "to": "Dev"} in changes
+    assert {"field": "QC Activity", "from": None, "to": "Unit Test"} in changes
