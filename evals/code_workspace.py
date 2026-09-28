@@ -9,8 +9,9 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "evals" / "fixtures"
 HIDDEN_TEST = FIXTURES / "fix_repo_hidden_test.py"
 SKILL_SOURCE = ROOT / "skills" / "fix-backlog-bug"
-# Eval plumbing the agent must never commit, even with `git add -A`.
-EXCLUDED = [".backlog-project.json", ".backlog-eval.json", ".claude/"]
+# Eval plumbing the agent must never see or commit. The project marker stays untracked, as the
+# README setup leaves it in a real repo.
+EXCLUDED = [".backlog-eval.json", ".claude/"]
 
 
 @dataclass

@@ -8,8 +8,10 @@ CLAUDE_MCP_PREFIX = "mcp__backlog__"
 # In the user's auto permission mode --allowedTools does not block other tools, so MCP servers are
 # isolated with --strict-mcp-config (only our backlog server) and built-in tools are denied explicitly.
 CLAUDE_DISALLOWED = ["Bash", "Edit", "Write", "NotebookEdit", "WebFetch", "WebSearch", "Task", "Agent"]
-# Code-fixing runs may edit files and run git and the repo's tests, nothing else.
-CLAUDE_CODE_ALLOWED = ["Read", "Glob", "Grep", "Edit", "Write",
+# Code-fixing runs: with --permission-mode dontAsk this list is the whole whitelist (the user's
+# default auto mode would let other tools through). It is not a sandbox: git can reach other repos
+# (`git -C`) and pytest runs whatever Python the agent writes. Accepted residual risk (spec §7).
+CLAUDE_CODE_ALLOWED = ["mcp__backlog", "ToolSearch", "Skill", "Read", "Glob", "Grep", "Edit", "Write",
                        "Bash(git:*)", "Bash(python -m pytest:*)", "Bash(python3 -m pytest:*)", "Bash(pytest:*)"]
 AGY_SCHEMA_DIR = "/.gemini/antigravity-cli/mcp/backlog/"
 
@@ -49,7 +51,7 @@ def claude_command(prompt, model, mcp_config_path, allow_code=False):
         "--disallowedTools", *denied,
     ]
     if allow_code:
-        command += ["--allowedTools", *CLAUDE_CODE_ALLOWED]
+        command += ["--permission-mode", "dontAsk", "--allowedTools", *CLAUDE_CODE_ALLOWED]
     return command
 
 

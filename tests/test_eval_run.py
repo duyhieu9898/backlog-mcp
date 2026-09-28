@@ -380,6 +380,17 @@ def test_claude_command_allows_only_git_and_pytest_bash_for_code():
     assert "Bash" not in denied and "Edit" not in denied and "WebFetch" in denied
     allowed = code[code.index("--allowedTools") + 1:]
     assert "Bash(git:*)" in allowed and "Edit" in allowed
+    # The user's default (auto) mode lets tools outside --allowedTools through; dontAsk makes it a whitelist.
+    assert code[code.index("--permission-mode") + 1] == "dontAsk"
+    assert {"mcp__backlog", "ToolSearch", "Skill"} <= set(allowed)
+    assert "--permission-mode" not in plain
+
+
+def test_code_runs_ignore_the_users_global_git_config(tmp_path):
+    from evals.run import agent_env
+
+    assert agent_env(tmp_path, code=True)["GIT_CONFIG_GLOBAL"] == "/dev/null"
+    assert "GIT_CONFIG_GLOBAL" not in agent_env(tmp_path)
 
 
 def test_grade_run_adds_code_checks(tmp_path, monkeypatch):

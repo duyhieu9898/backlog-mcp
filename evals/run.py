@@ -128,10 +128,13 @@ def agy_mcp_isolated():
             print(f"agy: đã bật lại {', '.join(disabled)}", flush=True)
 
 
-def agent_env(workspace):
+def agent_env(workspace, code=False):
     """Agent subprocess env without any real Backlog credentials (bootstrap loads .env into os.environ)."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("BACKLOG_")}
     env["BACKLOG_WORKSPACE_PATH"] = str(workspace)
+    if code:
+        # Keep the user's global git hooks, aliases and signing out of eval commits.
+        env["GIT_CONFIG_GLOBAL"] = "/dev/null"
     return env
 
 
@@ -263,7 +266,7 @@ def run_one(agent, model, scenario, index, timeout_s, workspace=None, source="ca
                 else:
                     command = build_command(scenario["prompt"], model, timeout_s)
                 started = time.monotonic()
-                proc = run_agent(command, cwd=ws, env=agent_env(ws), timeout_s=timeout_s)
+                proc = run_agent(command, cwd=ws, env=agent_env(ws, code=bool(code_ws)), timeout_s=timeout_s)
                 elapsed_ms = round((time.monotonic() - started) * 1000)
                 trace = parse(proc.lines)
                 if agent == "codex":
