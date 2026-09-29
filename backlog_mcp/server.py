@@ -462,7 +462,7 @@ def resolve_bug(
     resolution: Annotated[str, Field(description="Optional Resolution value, used only when the issue field is empty. Omit to use the configured workflow value when applicable.")] = "",
     comment: Annotated[str, Field(description="Resolve comment text.")] = "",
     commit: Annotated[str, Field(description="Git commit hash/ref, only if the user gave it. Omit otherwise.")] = "",
-    fix_description: Annotated[str, Field(description="What was changed, only if the user said it. Rendered into Corrective Action as 'fixed <text>' with casing preserved (write the object of 'fixed', e.g. 'OTP error message to include retry wait time'). Bulleted text renders as 'fixed:' followed by the bullets. Omit to use the bug summary.")] = "",
+    fix_description: Annotated[str, Field(description="What was changed, only if the user said it. Rendered into Corrective Action as 'fixed <text>' (a leading plain capitalized word is lowercased; identifiers keep their casing; write the object of 'fixed', e.g. 'OTP error message to include retry wait time'). Bulleted text renders as 'fixed:' followed by the bullets. Omit to use the bug summary.")] = "",
     mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned resolution without writing; apply submits it to Backlog.")] = "preview",
 ) -> CallToolResult:
     """Resolve a Backlog bug the user says is fixed, using the configured workflow defaults.
@@ -470,7 +470,10 @@ def resolve_bug(
     Use when the user asks to resolve/close a Backlog bug or says it is already fixed.
     One call with mode="apply" does the whole resolution: it loads the issue, rules, field mappings
     and defaults and validates them itself, so no get_issue, get_bug_rules or get_bug_fields call is needed first.
-    fix_description and commit are optional; without them the Corrective Action uses the bug summary.
+    Resolved means the configured status and the bug assigned back to its reporter (QC); a bug already
+    in that status but still assigned to me is completed by reassigning it.
+    fix_description and commit are optional; without them an existing Corrective Action is kept (with a
+    warning), else the bug summary is used.
     The result lists the changes (field, from, to) and any warnings; warnings never block.
     """
     start_call("resolve_bug", locals())

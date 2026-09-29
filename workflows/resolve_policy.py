@@ -67,6 +67,7 @@ def resolve_rules_from_config(workflow):
             for line in (
                 "Writes only in apply mode (MCP mode=\"apply\", CLI --apply); otherwise returns the planned changes.",
                 "The issue must match the configured issue type, assignee, and non-excluded status.",
+                f"Resolved means status '{status}' and assigned back to {ASSIGNMENT_SOURCE}; a '{status}' bug still assigned to the resolve user is completed, one already reassigned is refused.",
                 expected_role and f"Warns when Detected Role is not {expected_role}: the bug goes back to its reporter for QC.",
                 "Allowed values for qc_activity, bug_origin and cause_category: get_bug_fields (CLI: bug fields <field>).",
             )

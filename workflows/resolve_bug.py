@@ -134,16 +134,30 @@ def clean_summary_for_fix(summary):
     return SUMMARY_PREFIX_PATTERN.sub("", str(summary)).strip()
 
 
+def lower_leading_word(text):
+    """'Guard partner ...' -> 'guard partner ...' so it reads after 'fixed'. Only a plain
+    capitalized word: identifiers such as OTP_INVALID, UserNav.tsx or MetaMask keep their casing."""
+    first, space, rest = text.partition(" ")
+    if first.isalpha() and first[0].isupper() and first[1:].islower():
+        return first.lower() + space + rest
+    return text
+
+
 def corrective_action_source(issue, issue_key, fix_description=None):
     if fix_description:
-        return str(fix_description)
+        return lower_leading_word(str(fix_description).strip())
     return clean_summary_for_fix(issue.get("summary")) or issue.get("summary") or issue_key
+
+
+FULL_SHA_PATTERN = re.compile(r"\b([0-9a-f]{7})[0-9a-f]{33}\b")
 
 
 def comment_with_commit(comment=None, commit=None):
     if not commit:
         return comment
-    commit_note = f"Commit: {commit}."
+    # Same short form as `git log --oneline`, whatever the agent pasted.
+    short_commit = FULL_SHA_PATTERN.sub(r"\1", commit.strip())
+    commit_note = f"Commit: {short_commit}."
     return f"{comment.rstrip()} {commit_note}" if comment else commit_note
 
 
@@ -225,14 +239,21 @@ def build_resolution_plan(
     excluded_statuses = set(require_list(workflow, "excluded_statuses", WORKFLOW_NAME))
     if status_name(issue) in excluded_statuses:
         raise ValueError(f"{issue_key} has excluded status '{status_name(issue)}'.")
-    if str(status_name(issue)) == str(target_status):
-        # Resolve is apply-first; a retry must not re-send the PATCH (dates, notes, notification).
-        raise ValueError(f"{issue_key} is already '{target_status}'; nothing to do.")
     expected_assignee_id = resolve_user_id(
         config,
         require_value(workflow, "assignee", WORKFLOW_NAME),
     )
-    if user_id(issue.get("assignee")) != expected_assignee_id:
+    assigned_to_me = user_id(issue.get("assignee")) == expected_assignee_id
+    if str(status_name(issue)) == str(target_status) and not assigned_to_me:
+        # Resolved means the status is set and the bug is back with QC; a Resolved bug still assigned
+        # to me is finished below. A retry must not re-send the PATCH (dates, notes, notification).
+        assignee_name = (issue.get("assignee") or {}).get("name") or "nobody"
+        raise ValueError(
+            f"{issue_key} is already '{target_status}' and assigned to {assignee_name}; nothing to do. "
+            "To record a follow-up fix, use update_issue with a comment "
+            "(and custom_fields={'corrective_action': ...} if the fix changed)."
+        )
+    if not assigned_to_me:
         raise ValueError(f"{issue_key} is not assigned to the configured resolve user.")
 
     semantic_custom_fields = {}
@@ -285,6 +306,13 @@ def build_resolution_plan(
             )
         if policy_key == "corrective_action" and not fix_description and issue_has_custom_value(issue, project, field_key):
             # Without a fix note from the user, the summary fallback must not replace a note someone wrote.
+            # Reporters sometimes prefill it with another bug's note, so say what was kept.
+            kept = display_value(issue_custom_field(issue, project, field_key).get("value"))
+            warnings.append(
+                f"Kept the existing Corrective Action '{kept}' because no fix_description was given; "
+                "if it does not describe this fix, set it with "
+                "update_issue(custom_fields={'corrective_action': ...})."
+            )
             continue
         semantic_custom_fields[field_key] = field_values[field_key]
 

@@ -281,7 +281,7 @@ class BugWorkflowTest(unittest.TestCase):
             fix_description="Validated save button",
         )
 
-        self.assertEqual("fixed Validated save button", result["payload"]["customField_5"])
+        self.assertEqual("fixed validated save button", result["payload"]["customField_5"])
 
     def test_resolve_bug_preserves_technical_identifier_casing_in_fix_description(self):
         fix_description = (
@@ -297,7 +297,7 @@ class BugWorkflowTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            "fixed Handle OTP_INVALID and keep retryAfterSeconds in SomeFile.tsx unchanged.",
+            "fixed handle OTP_INVALID and keep retryAfterSeconds in SomeFile.tsx unchanged.",
             result["payload"]["customField_5"],
         )
 
@@ -524,7 +524,10 @@ class BugWorkflowTest(unittest.TestCase):
         }
         result = bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2))
         self.assertNotIn("customField_5", result["payload"])
-        self.assertFalse(any("Corrective Action" in w for w in result["warnings"]))
+        # Reporters sometimes prefill another bug's note (OOP-12798), so the kept value is reported.
+        self.assertTrue(any(
+            "Kept the existing Corrective Action 'fixed validation for long input'" in w for w in result["warnings"]
+        ))
 
     def test_resolve_treats_dash_corrective_action_as_empty(self):
         self.client.get_issue.return_value = {
@@ -545,19 +548,31 @@ class BugWorkflowTest(unittest.TestCase):
         )
         self.assertEqual("fixed save button validation", result["payload"]["customField_5"])
 
-    def test_resolve_already_resolved_bug_sends_no_patch(self):
+    def test_resolved_bug_still_assigned_to_me_is_handed_to_reporter(self):
+        # Resolved = status set AND the bug is back with QC; the status alone is not done.
         self.client.get_issue.return_value = {**BUG_ISSUE, "status": {"name": "Resolved"}}
-        with self.assertRaisesRegex(ValueError, "AQM-123 is already 'Resolved'"):
-            bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, today=date(2026, 6, 2))
-        self.client.update_issue.assert_not_called()
+        self.client.update_issue.return_value = {**BUG_ISSUE, "status": {"name": "Resolved"}}
+        result = bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, today=date(2026, 6, 2))
+        payload = self.client.update_issue.call_args.args[1]
+        self.assertEqual(1001, payload["assigneeId"])
+        self.assertEqual(
+            [{"field": "Assignee", "from": "Me", "to": "Reporter"}],
+            [c for c in bug_workflow.public_changes(result["changes"]) if c["field"] in ("Status", "Assignee")],
+        )
 
-    def test_resolve_already_resolved_bug_assigned_to_reporter_says_already_resolved(self):
+    def test_resolve_already_resolved_bug_assigned_to_reporter_sends_no_patch(self):
         self.client.get_issue.return_value = {
             **BUG_ISSUE, "status": {"name": "Resolved"}, "assignee": {"id": 1001, "name": "Reporter"},
         }
-        with self.assertRaisesRegex(ValueError, "already 'Resolved'"):
+        with self.assertRaisesRegex(ValueError, "already 'Resolved' and assigned to Reporter.*update_issue"):
             bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, today=date(2026, 6, 2))
         self.client.update_issue.assert_not_called()
+
+    def test_commit_note_shortens_full_shas(self):
+        self.assertEqual(
+            "Commit: aa2e937, ef48ffe.",
+            bug_workflow.comment_with_commit(commit="aa2e9378250cd229359ce6f74313f083f3c57f4a, ef48ffe"),
+        )
 
     def test_resolve_apply_on_excluded_status_sends_no_patch(self):
         self.client.get_issue.return_value = {**BUG_ISSUE, "status": {"name": "Closed"}}
@@ -601,6 +616,19 @@ class BugWorkflowTest(unittest.TestCase):
             CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2), fix_description="Fixed-width layout"
         )
         self.assertEqual("fixed Fixed-width layout", result["payload"]["customField_5"])
+
+    def test_corrective_action_lowercases_only_a_plain_leading_word(self):
+        cases = {
+            "Guard partner activation": "fixed guard partner activation",
+            "MetaMask connector": "fixed MetaMask connector",
+            "OTP_INVALID message": "fixed OTP_INVALID message",
+            "UserNav.tsx layout": "fixed UserNav.tsx layout",
+        }
+        for fix_description, expected in cases.items():
+            result = bug_workflow.resolve_bug(
+                CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2), fix_description=fix_description
+            )
+            self.assertEqual(expected, result["payload"]["customField_5"])
 
     def test_corrective_action_renders_bulleted_description_as_list(self):
         result = bug_workflow.resolve_bug(
