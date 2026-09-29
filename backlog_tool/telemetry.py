@@ -163,8 +163,25 @@ def current_tool():
     return call.tool if call else None
 
 
+def write_outcome(body):
+    """What a successful write left on the issue, without the full response (reporter emails, nulab IDs)."""
+    try:
+        data = json.loads(body or "")
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    outcome = {
+        "issueKey": data.get("issueKey"),
+        "status": (data.get("status") or {}).get("name"),
+        "assignee": (data.get("assignee") or {}).get("name"),
+    }
+    return {k: v for k, v in outcome.items() if v is not None} or None
+
+
 def record_api_call(method, path, status, ok, duration_ms, request_bytes, response_bytes, body):
-    keep_body = os.environ.get("BACKLOG_MCP_LOG_BODIES") == "full" or not ok or method != "GET"
+    full = os.environ.get("BACKLOG_MCP_LOG_BODIES") == "full"
+    keep_body = full or not ok
     entry = {
         "method": method,
         "path": path,
@@ -175,6 +192,10 @@ def record_api_call(method, path, status, ok, duration_ms, request_bytes, respon
     }
     if keep_body:
         entry["body"] = body
+    elif method != "GET":
+        outcome = write_outcome(body)
+        if outcome:
+            entry["outcome"] = outcome
     call = _call.get()
     if call is not None:
         call.api.append(entry)

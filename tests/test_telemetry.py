@@ -26,7 +26,8 @@ def read_details():
 def test_call_writes_index_and_detail_linked_by_trace_id():
     trace = telemetry.start_call("resolve_bug", {"issue_key": "OOP-1", "mode": "apply"})
     telemetry.record_api_call("GET", "/issues/OOP-1", 200, True, 12.5, 10, 300, '{"id": 1}')
-    telemetry.record_api_call("PATCH", "/issues/OOP-1", 200, True, 20.0, 50, 400, '{"id": 1}')
+    patched = '{"issueKey": "OOP-1", "status": {"name": "Resolved"}, "assignee": {"name": "QC", "mailAddress": "qc@x"}}'
+    telemetry.record_api_call("PATCH", "/issues/OOP-1", 200, True, 20.0, 50, 400, patched)
     telemetry.record_mutation(mode="apply", planHash="abc", changedFields=["statusId"], warnings=[])
     returned = telemetry.finish_call("ok", result={"ok": True}, text="done", response_bytes=900, project_key="OOP")
 
@@ -42,7 +43,9 @@ def test_call_writes_index_and_detail_linked_by_trace_id():
     assert detail["result"] == {"ok": True} and detail["text"] == "done"
     assert [a["method"] for a in detail["api"]] == ["GET", "PATCH"]
     assert "body" not in detail["api"][0]
-    assert detail["api"][1]["body"] == '{"id": 1}'
+    # A successful write keeps only what it left on the issue, not the full response.
+    assert "body" not in detail["api"][1]
+    assert detail["api"][1]["outcome"] == {"issueKey": "OOP-1", "status": "Resolved", "assignee": "QC"}
     assert detail["mutation"]["planHash"] == "abc"
     assert telemetry.current_trace_id() is None
     assert read("errors") == []

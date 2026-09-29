@@ -31,7 +31,7 @@ Mọi dòng nối với nhau bằng `traceId` (call) và `sessionId` (process). 
 
 ## details/
 `traceId, tool, arguments (đúng như client gửi), result (structuredContent), text (text content), api [{method, path, status, durationMs, requestBytes, responseBytes, body?}], mutation {mode, planHash, statusBefore, statusAfter, changedFields, warnings}`.
-`api[].body` chỉ có khi lỗi hoặc method ≠ GET; `BACKLOG_MCP_LOG_BODIES=full` để giữ mọi body. File `details/` giữ 30 ngày.
+`api[].body` chỉ có khi lỗi; write thành công (method ≠ GET) chỉ giữ `api[].outcome {issueKey, status, assignee}` (từ 2026-09-29, trước đó giữ cả response). `BACKLOG_MCP_LOG_BODIES=full` để giữ mọi body. `mutation.changedFields` của `resolve_bug` chỉ gồm field đổi giá trị thật (từ 2026-09-29; trước đó luôn có Impacted). File `details/` giữ 30 ngày.
 
 ## Công thức mẫu
 ```bash
@@ -48,7 +48,7 @@ jq -s 'sort_by(-.durationMs) | .[:10] | map({ts, tool, durationMs, apiMs})' logs
 ```
 
 ## Báo cáo có sẵn
-`uv run backlog-cli telemetry report --since 1d [--run <runId>] [--json]` — flow, rule, chấm kịch bản, field thiếu (xem Plan A Task 12).
+`uv run backlog-cli telemetry report --since 1d [--run <runId>] [--json]` — flow, rule, chấm kịch bản, field thiếu (xem Plan A Task 12). Bảng **Issues** gom call theo issue key (timeline, client) và gắn cờ: `rework` (ghi tiếp sau khi đã resolve), `refused` (resolve bị từ chối), `preview-then-apply` (client dùng schema cũ hoặc bỏ qua "apply directly"), `kept-corrective-action` (resolve giữ Corrective Action có sẵn). Review dùng thật thì đọc bảng này trước.
 `uv run backlog-cli telemetry import-claude --since 1d` — ghép transcript Claude Code.
 
 ## Log cũ

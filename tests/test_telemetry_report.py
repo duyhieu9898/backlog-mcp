@@ -52,3 +52,50 @@ def test_report_from_claude_compares_since_as_instants(tmp_path):
             handle.write(json.dumps({"type": "user", "timestamp": ts, "cwd": "/home/u/proj", "message": {"role": "user", "content": prompt}}) + "\n")
     report = report_from_claude(since="2026-01-10T10:00:00+07:00", root=str(tmp_path / "projects"), log_dir=str(tmp_path / "logs"))
     assert [f["prompt"] for f in report["flows"]] == ["backlog after"]
+
+
+def call_on(tool, issue_key, mode=None, status="ok", warnings=None):
+    from backlog_tool.telemetry_store import Call
+
+    arguments = {"issue_key": issue_key, **({"mode": mode} if mode else {})}
+    return Call(
+        trace_id=f"{tool}-{mode}-{status}", ts="", tool=tool, arguments=arguments, status=status,
+        duration_ms=1, api_calls=1, response_bytes=1, est_tokens=1, client="c", session_id="s",
+        surface="mcp", run_id=None, scenario=None, issue_key=issue_key, project_key="OOP",
+        result={"ok": True, "data": {"warnings": warnings or []}},
+    )
+
+
+def test_issue_flags_from_real_usage_patterns():
+    from backlog_tool.telemetry_report import issue_flags
+
+    # OOP-12789: resolved, a follow-up resolve refused, then corrections as comments.
+    assert issue_flags([
+        call_on("resolve_bug", "OOP-12789", "apply"),
+        call_on("resolve_bug", "OOP-12789", "apply", status="error"),
+        call_on("update_issue", "OOP-12789", "apply"),
+    ]) == ["refused", "rework"]
+    # OOP-12816 from a client with a stale schema: preview twice, then apply.
+    assert issue_flags([
+        call_on("get_issue", "OOP-12816"),
+        call_on("resolve_bug", "OOP-12816", "preview"),
+        call_on("resolve_bug", "OOP-12816", "preview"),
+        call_on("resolve_bug", "OOP-12816", "apply"),
+    ]) == ["preview-then-apply"]
+    # OOP-12798: a prefilled Corrective Action was kept.
+    kept = ["Kept the existing Corrective Action 'x' because no fix_description was given; ..."]
+    assert issue_flags([call_on("resolve_bug", "OOP-12798", "apply", warnings=kept)]) == ["kept-corrective-action"]
+    assert issue_flags([call_on("get_issue", "OOP-1"), call_on("resolve_bug", "OOP-1", "apply")]) == []
+
+
+def test_report_lists_issue_timelines():
+    make("get_issue", {"issue_key": "OOP-7"})
+    make("resolve_bug", {"issue_key": "OOP-7", "mode": "preview"})
+    make("resolve_bug", {"issue_key": "OOP-7", "mode": "apply"})
+
+    report = report_from_logs()
+    [row] = report["issues"]
+    assert row["issue"] == "OOP-7"
+    assert row["steps"] == ["get_issue", "resolve_bug(preview)", "resolve_bug"]
+    assert row["flags"] == ["preview-then-apply"]
+    assert report["issueFlags"] == {"preview-then-apply": 1}

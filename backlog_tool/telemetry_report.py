@@ -57,9 +57,72 @@ def flow_summary(flow, scenarios):
     return summary
 
 
+WRITE_TOOLS = ("resolve_bug", "update_issue", "create_ut_bug")
+KEPT_CORRECTIVE_ACTION = "Kept the existing Corrective Action"
+
+
+def _mode(call):
+    return (call.mutation or {}).get("mode") or call.arguments.get("mode") or ""
+
+
+def _warnings(call):
+    data = (call.result or {}).get("data") if isinstance(call.result, dict) else None
+    return (data or {}).get("warnings") or []
+
+
+def _step(call):
+    mode = _mode(call)
+    label = f"{call.tool}({mode})" if mode == "preview" else call.tool
+    return label if call.status == "ok" else f"{label}!{call.status}"
+
+
+def issue_flags(calls):
+    """Signals worth a look on one issue's calls, in time order."""
+    flags = []
+    resolved = False
+    previews = set()
+    for call in calls:
+        mode = _mode(call)
+        if call.tool in WRITE_TOOLS and call.status == "ok" and mode == "apply" and resolved:
+            flags.append("rework")  # written again after it was resolved (follow-up fix, corrections)
+        if call.tool in WRITE_TOOLS and mode == "preview" and call.status == "ok":
+            previews.add(call.tool)
+        elif call.tool in previews and mode == "apply":
+            flags.append("preview-then-apply")  # the server asks for apply directly; a stale client schema does this
+            previews.discard(call.tool)
+        if call.tool == "resolve_bug" and call.status != "ok":
+            flags.append("refused")
+        if any(KEPT_CORRECTIVE_ACTION in str(w) for w in _warnings(call)):
+            flags.append("kept-corrective-action")
+        if call.tool == "resolve_bug" and call.status == "ok" and mode == "apply":
+            resolved = True
+    return sorted(set(flags))
+
+
+def issue_timelines(calls):
+    """One row per issue key: what was called on it, by which client, and the flags it raised."""
+    by_issue = defaultdict(list)
+    for call in calls:
+        if call.issue_key:
+            by_issue[call.issue_key].append(call)
+    rows = []
+    for issue_key, issue_calls in by_issue.items():
+        issue_calls.sort(key=lambda c: c.ts)
+        rows.append({
+            "issue": issue_key,
+            "firstAt": issue_calls[0].ts,
+            "clients": sorted({c.client for c in issue_calls}),
+            "steps": [_step(c) for c in issue_calls],
+            "flags": issue_flags(issue_calls),
+        })
+    rows.sort(key=lambda row: row["firstAt"])
+    return rows
+
+
 def build_report(flows, scenarios):
     summaries = [flow_summary(flow, scenarios) for flow in flows]
     calls = [call for flow in flows for call in flow.calls]
+    issues = issue_timelines(calls)
 
     by_tool = defaultdict(lambda: {"calls": 0, "estTokens": 0, "durationMs": 0.0, "errors": 0})
     for call in calls:
@@ -98,6 +161,8 @@ def build_report(flows, scenarios):
 
     return {
         "flows": summaries,
+        "issues": issues,
+        "issueFlags": dict(Counter(flag for row in issues for flag in row["flags"])),
         "totals": {"flows": len(flows), "calls": len(calls), "estTokens": sum(c.est_tokens for c in calls)},
         "topTools": top_tools,
         "recurringErrors": recurring,
@@ -151,6 +216,14 @@ def to_markdown(report):
     if report["recurringErrors"]:
         lines += ["", "| Error | Tool | Detail | Count |", "|---|---|---|---|"]
         lines += [f"| {e['kind']} | {e['tool']} | {e['detail'][:60]} | {e['count']} |" for e in report["recurringErrors"][:15]]
+    if report["issues"]:
+        flag_counts = ", ".join(f"{flag} {count}" for flag, count in sorted(report["issueFlags"].items())) or "none"
+        lines += ["", f"Issues: {len(report['issues'])} · flags: {flag_counts}", ""]
+        lines += ["| Issue | Client | Timeline | Flags |", "|---|---|---|---|"]
+        lines += [
+            f"| {row['issue']} | {','.join(row['clients'])} | {' → '.join(row['steps'])} | {','.join(row['flags'])} |"
+            for row in report["issues"]
+        ]
     lines += ["", "| Flow | Tools | Findings | Grade |", "|---|---|---|---|"]
     for flow in report["flows"]:
         grade_text = "" if "grade" not in flow else ("PASS" if flow["grade"]["pass"] else "FAIL: " + "; ".join(flow["grade"]["reasons"])[:80])

@@ -488,7 +488,11 @@ def resolve_bug(config, issue_key, dry_run=True, start_path=None, **kwargs):
     outcome = {
         "planHash": plan_hash(issue_key, built["payload"]),
         "statusBefore": built["statusBefore"],
-        "changedFields": sorted(built["payload"].keys()),
+        # Fields whose value actually changes; the workflow always sends Impacted even when it is already set.
+        "changedFields": sorted(
+            change["key"] for change in built["changes"]
+            if _change_value(change.get("from")) != _change_value(change.get("value"))
+        ),
         "warnings": built["warnings"],
     }
     if dry_run:
