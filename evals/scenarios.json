@@ -74,7 +74,7 @@
   },
   {
     "id": "fix_context",
-    "prompt": "backlog fix {issue}",
+    "prompt": "backlog đọc bug {issue} và cho tôi biết cần sửa gì, chưa sửa code",
     "fixtures": {"issue": "OOP-912779"},
     "fakeState": "default",
     "match": {"keywords": [["fix"]], "issueKeys": "one"},
@@ -88,7 +88,7 @@
   },
   {
     "id": "fix_context_attachment",
-    "prompt": "backlog fix {issue}",
+    "prompt": "backlog đọc bug {issue} và cho tôi biết cần sửa gì, chưa sửa code",
     "fixtures": {"issue": "OOP-912744"},
     "fakeState": "default",
     "match": null,
