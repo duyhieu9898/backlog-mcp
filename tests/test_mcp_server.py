@@ -37,41 +37,43 @@ def test_get_config_instance_surfaces_bootstrap_error_without_silent_retry():
         server._config = original_config
         server._bootstrap_error = original_error
 
-def test_create_issue_previews_by_default():
+def test_create_issue_applies_by_default():
     with mock.patch("backlog_mcp.server.issue_service.create_issue", return_value={"dryRun": True, "payload": {}}) as create_mock:
         result = server.create_issue("Summary", issue_type="Bug")
 
     assert result.isError is False
-    assert create_mock.call_args.kwargs["dry_run"] is True
+    assert create_mock.call_args.kwargs["dry_run"] is False
     assert create_mock.call_args.kwargs["summary"] == "Summary"
     assert create_mock.call_args.kwargs["issue_type"] == "Bug"
 
 
-def test_create_issue_applies_only_when_requested():
-    with mock.patch("backlog_mcp.server.issue_service.create_issue", return_value={"id": 123, "issueKey": "AQM-1"}) as create_mock:
-        server.create_issue("Summary", issue_type="Bug", mode="apply")
+def test_create_issue_previews_only_when_requested():
+    with mock.patch("backlog_mcp.server.issue_service.create_issue", return_value={"dryRun": True, "payload": {}}) as create_mock:
+        server.create_issue("Summary", issue_type="Bug", mode="preview")
 
-    assert create_mock.call_args.kwargs["dry_run"] is False
+    assert create_mock.call_args.kwargs["dry_run"] is True
 
 
-def test_resolve_bug_previews_by_default_and_applies_when_requested():
+def test_resolve_bug_applies_by_default_and_previews_when_requested():
     with mock.patch("backlog_mcp.server.bug_workflow.resolve_bug", return_value={"dryRun": True, "issue": "AQM-1"}) as resolve_mock:
-        server.resolve_bug("AQM-1")
+        server.resolve_bug("AQM-1", mode="preview")
     assert resolve_mock.call_args.kwargs["dry_run"] is True
 
     with mock.patch("backlog_mcp.server.bug_workflow.resolve_bug", return_value={"issueKey": "AQM-1"}) as resolve_mock:
-        server.resolve_bug("AQM-1", mode="apply")
+        server.resolve_bug("AQM-1")
     assert resolve_mock.call_args.kwargs["dry_run"] is False
 
 
-def test_update_issue_and_create_ut_bug_preview_by_default():
-    with mock.patch("backlog_mcp.server.issue_service.update_issue", return_value={"dryRun": True}) as update_mock, \
-         mock.patch("backlog_mcp.server.ut_bug.create_subtask_bug", return_value={"dryRun": True}) as ut_mock:
+def test_update_issue_and_create_ut_bug_apply_by_default():
+    issue = {"issueKey": "AQM-1", "summary": "Updated", "status": {"name": "Open"}}
+    with mock.patch("backlog_mcp.server.issue_service.get_issue", return_value=issue), \
+         mock.patch("backlog_mcp.server.issue_service.update_issue", return_value=issue) as update_mock, \
+         mock.patch("backlog_mcp.server.ut_bug.create_subtask_bug", return_value={"issueKey": "AQM-2", "updated": issue}) as ut_mock:
         server.update_issue("AQM-1", summary="Updated")
         server.create_ut_bug("AQM-1", "module", "failure")
 
-    assert update_mock.call_args.kwargs["dry_run"] is True
-    assert ut_mock.call_args.kwargs["dry_run"] is True
+    assert update_mock.call_args.kwargs["dry_run"] is False
+    assert ut_mock.call_args.kwargs["dry_run"] is False
 
 
 def test_list_my_issues_tool_maps_pagination_sort_and_field_selection():
@@ -192,7 +194,7 @@ def test_tool_schema_exposes_enums_and_use_when_descriptions():
     for mutation_name in ("create_issue", "update_issue", "resolve_bug", "create_ut_bug"):
         mode_schema = tools[mutation_name].inputSchema["properties"]["mode"]
         assert mode_schema["enum"] == ["preview", "apply"]
-        assert mode_schema["default"] == "preview"
+        assert mode_schema["default"] == "apply"
     assert "workspace_path" not in create_issue.inputSchema["properties"]
     assert "parent" not in create_issue.inputSchema["properties"]
     assert "parent_key" in create_issue.inputSchema["properties"]
@@ -448,7 +450,7 @@ def test_resolve_bug_preview_response_shape():
     with mock.patch("backlog_mcp.server.bug_workflow.resolve_bug", return_value=built), \
          mock.patch("backlog_mcp.server.project_keys", return_value=["OOP"]), \
          mock.patch("backlog_mcp.server.get_config_instance", return_value={}):
-        result = server.resolve_bug("OOP-1")
+        result = server.resolve_bug("OOP-1", mode="preview")
     assert result.structuredContent["data"] == {
         "dryRun": True, "issue": "OOP-1", "changes": [{"field": "Status", "from": "Open", "to": "Resolved"}], "warnings": [],
     }
@@ -531,7 +533,7 @@ def test_applied_update_reports_previous_values():
 def test_update_preview_does_not_read_the_issue():
     with mock.patch("backlog_mcp.server.issue_service.get_issue") as get, \
          mock.patch("backlog_mcp.server.issue_service.update_issue", return_value={"dryRun": True}):
-        server.update_issue("NLN-1", summary="x")
+        server.update_issue("NLN-1", summary="x", mode="preview")
     get.assert_not_called()
 
 

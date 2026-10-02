@@ -198,9 +198,9 @@ Latest result (2026-09-24, Claude opus): 69/70 runs pass, every scenario ≥ 9/1
 ## Safety
 
 - Mutation tools (`create_issue`, `update_issue`, `create_ut_bug`, `resolve_bug`)
-  default to `mode="preview"` (a dry run), but the model calls them with
-  `mode="apply"` directly; the user accepts that and the Backlog notifications it
-  sends. Instead of a confirm step, every applied write returns `changes` with the
+  default to `mode="apply"` (the model need not pass it); `mode="preview"` is a
+  dry run used only when the user asks. The user accepts the Backlog
+  notifications an applied write sends. Instead of a confirm step, every applied write returns `changes` with the
   previous values, which also land in `logs/details/` for undoing a mistake.
 - Tool annotations mark the five read tools `readOnlyHint` and the four writes
   non-idempotent; `update_issue` and `resolve_bug` are `destructiveHint`.

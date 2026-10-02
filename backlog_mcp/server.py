@@ -341,7 +341,7 @@ def create_issue(
     estimated_hours: Annotated[float | None, Field(description="Estimated hours. Omit when unknown.")] = None,
     actual_hours: Annotated[float | None, Field(description="Actual hours. Omit when unknown.")] = None,
     custom_fields: Annotated[dict[str, Any] | None, Field(description="Custom field values keyed by configured custom field key, e.g. {'qc_activity':'Unit Test'}.")] = None,
-    mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned change without writing; apply submits it to Backlog.")] = "preview",
+    mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned change without writing; apply submits it to Backlog.")] = "apply",
 ) -> CallToolResult:
     """Create a Backlog issue.
 
@@ -399,7 +399,7 @@ def update_issue(
     estimated_hours: Annotated[float | None, Field(description="New estimated hours. Omit to keep current value.")] = None,
     actual_hours: Annotated[float | None, Field(description="New actual hours. Omit to keep current value.")] = None,
     custom_fields: Annotated[dict[str, Any] | None, Field(description="Custom field updates keyed by configured custom field key.")] = None,
-    mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned change without writing; apply submits it to Backlog.")] = "preview",
+    mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned change without writing; apply submits it to Backlog.")] = "apply",
 ) -> CallToolResult:
     """Update arbitrary fields on an existing Backlog issue.
 
@@ -463,7 +463,7 @@ def resolve_bug(
     comment: Annotated[str, Field(description="Resolve comment text.")] = "",
     commit: Annotated[str, Field(description="Git commit hash/ref, only if the user gave it. Omit otherwise.")] = "",
     fix_description: Annotated[str, Field(description="What was changed, only if the user said it. Rendered into Corrective Action as 'fixed <text>' (a leading plain capitalized word is lowercased; identifiers keep their casing; write the object of 'fixed', e.g. 'OTP error message to include retry wait time'). Bulleted text renders as 'fixed:' followed by the bullets. Omit to use the bug summary.")] = "",
-    mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned resolution without writing; apply submits it to Backlog.")] = "preview",
+    mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned resolution without writing; apply submits it to Backlog.")] = "apply",
 ) -> CallToolResult:
     """Resolve a Backlog bug the user says is fixed, using the configured workflow defaults.
 
@@ -533,7 +533,7 @@ def create_ut_bug(
     module: Annotated[str, Field(description="Name of the module or file with the failing unit test")],
     summary: Annotated[str, Field(description="Short title of the failure, e.g. 'total ignores discount'. Becomes '[<parent_key>][<module>] <summary>' and the Corrective Action.")],
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit to use the prefix of parent_key.")] = "",
-    mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned bug without writing; apply submits it to Backlog.")] = "preview",
+    mode: Annotated[MutationMode, Field(description="Execution mode: preview returns the planned bug without writing; apply submits it to Backlog.")] = "apply",
 ) -> CallToolResult:
     """Create a Unit Test Backlog sub-task bug under a parent issue.
 

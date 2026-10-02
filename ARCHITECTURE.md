@@ -96,7 +96,7 @@ Because this server operates locally on a developer's workstation with mutation 
 
 > [!IMPORTANT]
 > **Dry Run Heuristic**
-> All tools modifying state (`create_issue`, `update_issue`, `resolve_bug`, `create_ut_bug`) run in **preview mode by default**. They build and return the payload that would be sent. Mutations are only submitted to the Backlog API if `mode="apply"` is explicitly passed. `resolve_bug` is the one tool the instructions tell the model to call with `mode="apply"` directly, once, when the user asks to resolve.
+> All tools modifying state (`create_issue`, `update_issue`, `resolve_bug`, `create_ut_bug`) default to **`mode="apply"`**: they submit to Backlog directly and return `changes` with the previous values. `mode="preview"` builds and returns the payload without sending it, and is used only when the user asks.
 
 > [!WARNING]
 > **Credential Protection**
