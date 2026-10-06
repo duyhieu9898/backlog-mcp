@@ -3,7 +3,40 @@
   "name": "bapit.0317.NeuraLink_Nplu",
   "id": 166141,
   "bug": {
-    "category_options": [],
+    "category_options": [
+      {
+        "id": 195418,
+        "name": "010_Neura"
+      },
+      {
+        "id": 195419,
+        "name": "020_NeuraLink|MKP"
+      },
+      {
+        "id": 197243,
+        "name": "021_NeuraLink|MP"
+      },
+      {
+        "id": 195420,
+        "name": "030_NPlus"
+      },
+      {
+        "id": 196743,
+        "name": "910_Infra"
+      },
+      {
+        "id": 197526,
+        "name": "990_ETA"
+      },
+      {
+        "id": 197240,
+        "name": "991_CR"
+      },
+      {
+        "id": 197244,
+        "name": "992_UAT"
+      }
+    ],
     "issue_type_options": [
       {
         "id": 708744,
