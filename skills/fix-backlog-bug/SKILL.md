@@ -19,7 +19,7 @@ Take one Backlog bug from report to resolved. The Backlog MCP reads and resolves
 6. **Any failing test → stop.** No commit, no push, no resolve; report the failing tests.
 7. **Commit only the fix:** stage the files you changed by path (`git add <paths>`, never `git add -A`), then commit `fix(OOP-123): <what changed, short>` (commitlint).
 8. **Push** the current branch with `git push`; never `--force`. Rejected → stop, no resolve.
-9. **Resolve:** `resolve_bug(issue_key, mode="apply", commit=<sha>, fix_description=<text after "fix(OOP-123): ">)`. Take `<sha>` from `git rev-parse --short HEAD` run after the push; never type it from memory. If resolve_bug says the bug is already resolved and assigned to QC (a follow-up fix), add the commit and what changed with `update_issue(comment=...)`, plus `custom_fields={"corrective_action": "fixed <...>"}` when the fix changed.
+9. **Resolve:** `resolve_bug(issue_key, mode="apply", commit=<sha>, fix_description=<text after "fix(OOP-123): ">)`. Take `<sha>` from `git rev-parse --short HEAD` run after the push; never type it from memory. For a follow-up fix on a bug already resolved and with QC, call `resolve_bug` again with the new `commit` and `fix_description`; it records them without touching status or assignee.
 10. **Report** the fix, the test result, the commit, and resolve_bug's changes and warnings.
 
 ## Stop, don't resolve

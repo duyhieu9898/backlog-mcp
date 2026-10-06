@@ -174,6 +174,40 @@ def detected_roles(issue, project):
     ]
 
 
+def build_follow_up_plan(issue, issue_key, project, project_fields, target_status, *, comment, commit,
+                         fix_description, corrective_action):
+    """A bug already resolved and handed to QC: add the commit/comment and a new Corrective Action only."""
+    effective_comment = comment_with_commit(comment, commit)
+    if not effective_comment and not fix_description:
+        assignee_name = (issue.get("assignee") or {}).get("name") or "nobody"
+        raise ValueError(
+            f"{issue_key} is already '{target_status}' and assigned to {assignee_name}; nothing to do. "
+            "To record a follow-up fix, pass commit, comment or fix_description."
+        )
+    custom_fields = {}
+    if fix_description:
+        if "corrective_action" not in project_fields:
+            available = ", ".join(sorted(project_fields))
+            raise ValueError(f"Unknown custom field 'corrective_action'. Available: {available}")
+        custom_fields["corrective_action"] = corrective_action
+    plan = ResolutionPlan(comment=effective_comment, custom_fields=custom_fields)
+    return {
+        "issue": issue,
+        "issue_key": issue_key,
+        "project": project,
+        "plan": plan,
+        "warnings": [
+            f"{issue_key} was already '{target_status}' and with QC: recorded a follow-up only "
+            "(status, assignee, dates, hours and guided fields unchanged)."
+        ],
+        "assignment": {
+            "from": user_summary(issue.get("assignee")),
+            "to": user_summary(issue.get("assignee")),
+            "source": ASSIGNMENT_SOURCE,
+        },
+    }
+
+
 def build_resolution_plan(
     config,
     issue_key,
@@ -245,13 +279,12 @@ def build_resolution_plan(
     )
     assigned_to_me = user_id(issue.get("assignee")) == expected_assignee_id
     if str(status_name(issue)) == str(target_status) and not assigned_to_me:
-        # Resolved means the status is set and the bug is back with QC; a Resolved bug still assigned
-        # to me is finished below. A retry must not re-send the PATCH (dates, notes, notification).
-        assignee_name = (issue.get("assignee") or {}).get("name") or "nobody"
-        raise ValueError(
-            f"{issue_key} is already '{target_status}' and assigned to {assignee_name}; nothing to do. "
-            "To record a follow-up fix, use update_issue with a comment "
-            "(and custom_fields={'corrective_action': ...} if the fix changed)."
+        # Already resolved and with QC. Re-running with the same arguments must not re-send the PATCH
+        # (dates, notes, notification), so only a follow-up that carries something new is written.
+        return build_follow_up_plan(
+            issue, issue_key, project, project_fields, target_status,
+            comment=comment, commit=commit, fix_description=fix_description,
+            corrective_action=field_values["corrective_action"],
         )
     if not assigned_to_me:
         raise ValueError(f"{issue_key} is not assigned to the configured resolve user.")

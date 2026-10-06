@@ -418,7 +418,9 @@ def resolve_bug(
     One call with mode="apply" does the whole resolution: it loads the issue, rules, field mappings
     and defaults and validates them itself, so no get_issue, get_bug_rules or get_bug_fields call is needed first.
     Resolved means the configured status and the bug assigned back to its reporter (QC); a bug already
-    in that status but still assigned to me is completed by reassigning it.
+    in that status but still assigned to me is completed by reassigning it. A bug already with QC takes a
+    follow-up fix: call again with the new commit and fix_description (comment optional); only those are
+    written, status and assignee stay.
     fix_description and commit are optional; without them an existing Corrective Action is kept (with a
     warning), else the bug summary is used.
     The result lists the changes (field, from, to) and any warnings; warnings never block.

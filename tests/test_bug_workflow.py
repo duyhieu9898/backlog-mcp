@@ -560,13 +560,38 @@ class BugWorkflowTest(unittest.TestCase):
             [c for c in bug_workflow.public_changes(result["changes"]) if c["field"] in ("Status", "Assignee")],
         )
 
-    def test_resolve_already_resolved_bug_assigned_to_reporter_sends_no_patch(self):
+    def _with_qc(self):
         self.client.get_issue.return_value = {
             **BUG_ISSUE, "status": {"name": "Resolved"}, "assignee": {"id": 1001, "name": "Reporter"},
         }
-        with self.assertRaisesRegex(ValueError, "already 'Resolved' and assigned to Reporter.*update_issue"):
+
+    def test_resolve_already_resolved_bug_without_follow_up_sends_no_patch(self):
+        self._with_qc()
+        with self.assertRaisesRegex(ValueError, "already 'Resolved' and assigned to Reporter.*commit, comment or fix_description"):
             bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, today=date(2026, 6, 2))
         self.client.update_issue.assert_not_called()
+
+    def test_resolve_already_resolved_bug_records_follow_up_only(self):
+        self._with_qc()
+        result = bug_workflow.resolve_bug(
+            CONFIG, "AQM-123", dry_run=False, commit="abc1234", fix_description="Guard empty cart",
+            today=date(2026, 6, 2),
+        )
+        payload = self.client.update_issue.call_args.args[1]
+        self.assertNotIn("statusId", payload)
+        self.assertNotIn("assigneeId", payload)
+        self.assertEqual("Commit: abc1234.", payload["comment"])
+        self.assertEqual(
+            ["comment"], [k for k in payload if not k.startswith("customField_")],
+        )
+        self.assertEqual(1, len([k for k in payload if k.startswith("customField_")]))
+        self.assertTrue(any("follow-up only" in w for w in result["warnings"]))
+
+    def test_follow_up_with_only_commit_leaves_corrective_action_alone(self):
+        self._with_qc()
+        bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, commit="abc1234", today=date(2026, 6, 2))
+        payload = self.client.update_issue.call_args.args[1]
+        self.assertEqual({"comment": "Commit: abc1234."}, payload)
 
     def test_commit_note_shortens_full_shas(self):
         self.assertEqual(
