@@ -73,6 +73,20 @@
     "nonMcp": null
   },
   {
+    "id": "resolve_follow_up",
+    "prompt": "backlog {issue}: bug này đã resolve và giao cho QC rồi, tôi vừa fix bổ sung ở commit abc1234, ghi thêm vào bug",
+    "fixtures": {"issue": "OOP-912744"},
+    "fakeState": "default",
+    "match": null,
+    "expect": {
+      "calls": [{"tool": "resolve_bug", "args": {"issue_key": "{issue}", "mode": "apply", "commit": "abc1234"}}],
+      "order": "exact",
+      "forbidden": ["update_issue", "get_bug_rules", "get_bug_fields"],
+      "finalAnswer": null
+    },
+    "nonMcp": null
+  },
+  {
     "id": "fix_context",
     "prompt": "backlog đọc bug {issue} và cho tôi biết cần sửa gì, chưa sửa code",
     "fixtures": {"issue": "OOP-912779"},
