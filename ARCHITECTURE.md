@@ -36,7 +36,9 @@ The directory layout separates the MCP protocol interface from the core domain l
 hieund-backlog-mcp/
 ├── backlog_mcp/                  # MCP Server Interface
 │   ├── __init__.py
-│   └── server.py                 # FastMCP router — tools, instructions, issue resource
+│   ├── server.py                 # FastMCP router — tools, instructions, issue resource
+│   ├── results.py                # Result/error envelopes, pagination
+│   └── arg_errors.py             # Argument-error messages with suggestions
 ├── backlog_tool/                 # Core Domain Runtime
 │   ├── client.py                 # Backlog REST API HTTP client
 │   ├── settings.py               # Config, local paths, project resolution, metrics
@@ -44,7 +46,7 @@ hieund-backlog-mcp/
 │   ├── issue_service.py          # Issue CRUD business logic (typed service)
 │   ├── resolver.py               # Option/ID resolution (status, type, custom fields)
 │   ├── presenter.py              # Output formatting (compact, table, markdown)
-│   ├── journal.py                # Durable CLI output log for cross-session memory
+│   ├── telemetry*.py             # Call/error/session logs, reports and grading (see docs/telemetry.md)
 │   └── inspect.py                # Project metadata inspect logic
 ├── workflows/                    # Workflow policies & transition rules
 │   ├── config.py                 # Workflow config loader
@@ -64,7 +66,7 @@ hieund-backlog-mcp/
 
 ### 1. MCP Server Interface (`backlog_mcp`)
 Defined in `backlog_mcp/server.py`, this module uses the FastMCP SDK to expose three kinds of MCP primitives:
-* **Tools** — 12 callable actions (issue CRUD, bug workflow, personal status). Invokes domain service functions directly with typed arguments and returns structured MCP responses whose text content is the same result as compact JSON. Project/config administration is CLI-only.
+* **Tools** — 8 callable actions: `get_issue`, `list_my_issues`, `create_issue`, `update_issue`, `resolve_bug`, `create_ut_bug`, `get_bug_rules`, `get_bug_fields`. Invokes domain service functions directly with typed arguments and returns structured MCP responses whose text content is the same result as compact JSON. Project/config administration is CLI-only.
 * **Resources** — `backlog://issue/{issue_key}` (one issue as JSON).
 
 ### 2. Core Domain Runtime (`backlog_tool`)
@@ -75,7 +77,7 @@ The underlying engine that executes command actions:
 * `issue_service.py`: CRUD logic for Backlog issues (create, get, list, update).
 * `resolver.py`: Resolves human-readable names (status, issue type, category, custom fields) to Backlog API IDs using project catalog data.
 * `presenter.py`: Converts raw API responses to compact dicts and Markdown table strings.
-* `journal.py`: Appends structured CLI output to a local journal for durable cross-session memory.
+* `telemetry*.py`: Writes `logs/calls.jsonl`, `errors.jsonl`, `sessions.jsonl` and `details/`, and builds the `backlog-cli telemetry report`. Schema in `docs/telemetry.md`.
 * `inspect.py`: Fetches and serializes project metadata from the Backlog API.
 
 ### 3. Workflows

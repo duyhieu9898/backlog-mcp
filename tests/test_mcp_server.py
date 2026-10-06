@@ -253,10 +253,8 @@ def test_issue_resource_success_and_error():
         assert res["summary"] == "Fix issue"
 
     with mock.patch("backlog_mcp.server.issue_service.get_issue", side_effect=ValueError("Issue not found")):
-        res_json = server.issue_resource("AQM-999")
-        res = json.loads(res_json)
-        assert res["ok"] is False
-        assert res["error"] == "Issue not found"
+        with pytest.raises(ValueError, match="Issue not found"):
+            server.issue_resource("AQM-999")
 
 
 def test_create_ut_bug_returns_structured_partial_write_error():
@@ -502,8 +500,8 @@ def test_issue_resource_normalizes_key_and_rejects_bad_key():
         server.issue_resource(" aqm-1 ")
     assert get.call_args.args[1] == "AQM-1"
     with mock.patch("backlog_mcp.server.issue_service.get_issue") as get:
-        res = json.loads(server.issue_resource("not a key"))
-    assert res["ok"] is False and "OOP-123" in res["error"]
+        with pytest.raises(ValueError, match="OOP-123"):
+            server.issue_resource("not a key")
     get.assert_not_called()
 
 

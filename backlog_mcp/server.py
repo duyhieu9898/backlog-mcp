@@ -7,13 +7,11 @@ import re
 from typing import Annotated, Any, Literal
 
 import anyio
-from pydantic import ConfigDict, Field, ValidationError
+from pydantic import Field
 from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.exceptions import ToolError
-from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase
 from mcp.types import CallToolResult, ToolAnnotations
 
-from .arg_errors import describe_validation_error, format_arg_error
+from .instrumentation import forbid_unknown_tool_arguments, record_rejected_tool_calls
 from .results import _build_result, _error_result, _parse_cursor, _partial_write_result
 
 from backlog_tool.settings import (
@@ -28,13 +26,7 @@ from backlog_tool import issue_service, presenter
 from workflows import guidance, ut_bug
 from workflows.bug_template import issue_context
 import workflows.resolve_bug as bug_workflow
-from backlog_tool.telemetry import (
-    log_session_start,
-    record_arg_error,
-    reset_client_arguments,
-    set_client_arguments,
-    start_call,
-)
+from backlog_tool.telemetry import log_session_start, start_call
 
 SortOrder = Literal["asc", "desc"]
 MutationMode = Literal["preview", "apply"]
@@ -60,22 +52,8 @@ IssueSort = Literal[
     "childIssue",
 ]
 
-def _forbid_unknown_tool_arguments() -> None:
-    """Reject tool arguments that are not declared in the generated MCP schema.
-
-    mcp<2 currently inherits Pydantic's extra="ignore" behavior for generated
-    FastMCP argument models, which can silently discard misspelled or
-    hallucinated fields. Configure the shared argument base before any tools are
-    registered so generated schemas also advertise additionalProperties=false.
-    """
-    ArgModelBase.model_config = ConfigDict(
-        **dict(ArgModelBase.model_config),
-        extra="forbid",
-    )
-
-
-_forbid_unknown_tool_arguments()
-
+# Must run before any tool is registered so generated schemas get additionalProperties=false.
+forbid_unknown_tool_arguments()
 
 SERVER_INSTRUCTIONS = """Personal Backlog MCP: every tool acts as the owner of the API key (a developer, not a PM).
 
@@ -106,46 +84,8 @@ mcp = FastMCP(
     instructions=SERVER_INSTRUCTIONS,
     json_response=True,
 )
+record_rejected_tool_calls(mcp)
 
-
-def _record_rejected_tool_calls() -> None:
-    """Log calls FastMCP rejects before the tool body runs.
-
-    Argument validation (including extra="forbid") happens inside FastMCP, so a
-    rejected call never reaches start_call and would be invisible in
-    telemetry. Tool bodies catch their own errors, so any ToolError that
-    escapes the manager is a rejection: invalid arguments or an unknown tool.
-
-    The raw client arguments are also exposed to start_call so tool calls
-    record what the client sent rather than every defaulted parameter.
-    """
-    manager = mcp._tool_manager
-    call_tool = manager.call_tool
-
-    async def call_tool_with_rejection_log(name, arguments, context=None, convert_result=False):
-        token = set_client_arguments(arguments)
-        try:
-            return await call_tool(name, arguments, context=context, convert_result=convert_result)
-        except ToolError as error:
-            cause = error.__cause__
-            status = "invalid_arguments" if isinstance(cause, ValidationError) else "rejected"
-            start_call(name, arguments)
-            if isinstance(cause, ValidationError):
-                tool = manager.get_tool(name)
-                valid = list((tool.parameters or {}).get("properties", {})) if tool else []
-                details = describe_validation_error(cause, valid)
-                record_arg_error(name, arguments, details)
-                error = ToolError(format_arg_error(name, details, valid))
-                error.__cause__ = cause
-            _error_result(name, error, status=status)
-            raise error
-        finally:
-            reset_client_arguments(token)
-
-    manager.call_tool = call_tool_with_rejection_log
-
-
-_record_rejected_tool_calls()
 
 _config: dict[str, Any] | None = None
 _bootstrap_error: Exception | None = None
@@ -228,12 +168,19 @@ def activate_workspace(workspace: str | None) -> dict | None:
 
 # Every tool talks to the live Backlog space. No write is idempotent: creating twice makes two
 # issues and repeating an update adds its comment again; updates overwrite the fields they set.
-_READ_ONLY = ToolAnnotations(readOnlyHint=True, openWorldHint=True)
-_CREATES = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True)
-_OVERWRITES = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True)
+def _read_only(title: str) -> ToolAnnotations:
+    return ToolAnnotations(title=title, readOnlyHint=True, destructiveHint=False, openWorldHint=True)
 
 
-@mcp.tool(annotations=_READ_ONLY)
+def _creates(title: str) -> ToolAnnotations:
+    return ToolAnnotations(title=title, readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True)
+
+
+def _overwrites(title: str) -> ToolAnnotations:
+    return ToolAnnotations(title=title, readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True)
+
+
+@mcp.tool(annotations=_read_only("Get Backlog issue"))
 def get_issue(
     issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123', or a numeric issue ID.")],
     view: Annotated[Literal["compact", "full"], Field(description="compact (default): the fields to work on the issue. full: the raw Backlog issue with every field.")] = "compact",
@@ -261,7 +208,7 @@ def get_issue(
         return _error_result("get_issue", e, project=project_key_from_issue_id(issue_key))
 
 
-@mcp.tool(annotations=_READ_ONLY)
+@mcp.tool(annotations=_read_only("List my Backlog issues"))
 def list_my_issues(
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
     issue_types: Annotated[tuple[str, ...], Field(description="Issue type names to include: ['Bug'] for bugs, ['Story', 'Task'] for stories/tasks. Omit for every type.")] = (),
@@ -326,7 +273,7 @@ def list_my_issues(
         return _error_result("list_my_issues", e, project=project_key)
 
 
-@mcp.tool(annotations=_CREATES)
+@mcp.tool(annotations=_creates("Create Backlog issue"))
 def create_issue(
     summary: Annotated[str, Field(description="Issue summary title")],
     issue_type: Annotated[str, Field(description="Issue type name or ID (e.g., 'Bug', 'Task', 'Story'). Required by Backlog for creation.")],
@@ -383,7 +330,7 @@ def create_issue(
         return _error_result("create_issue", e, dry_run=dry_run, project=project_key)
 
 
-@mcp.tool(annotations=_OVERWRITES)
+@mcp.tool(annotations=_overwrites("Update Backlog issue"))
 def update_issue(
     issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123'.")],
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to infer from issue key or active workspace context.")] = "",
@@ -449,7 +396,7 @@ def update_issue(
         )
 
 
-@mcp.tool(annotations=_OVERWRITES)
+@mcp.tool(annotations=_overwrites("Resolve Backlog bug"))
 def resolve_bug(
     issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123'.")],
     status: Annotated[str, Field(description="Target status name or ID. Omit to use the configured resolved/closed status.")] = "",
@@ -527,7 +474,7 @@ def resolve_bug(
         )
 
 
-@mcp.tool(annotations=_CREATES)
+@mcp.tool(annotations=_creates("Create Unit Test bug"))
 def create_ut_bug(
     parent_key: Annotated[str, Field(description="Parent issue key such as 'OOP-123' to attach the UT bug to.")],
     module: Annotated[str, Field(description="Name of the module or file with the failing unit test")],
@@ -600,7 +547,7 @@ def _support_project_key(project_key: str, issue_key: str) -> str:
     return project_key or issue_project or ""
 
 
-@mcp.tool(annotations=_READ_ONLY)
+@mcp.tool(annotations=_read_only("Get resolve-bug rules"))
 def get_bug_rules(
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit when issue_key is given; otherwise resolved from the active workspace path or configuration.")] = "",
     issue_key: Annotated[str, Field(description="Bug issue key such as 'OOP-123' whose project rules/options to show. Preferred over project_key when working on a specific bug.")] = "",
@@ -621,7 +568,7 @@ def get_bug_rules(
         return _error_result("get_bug_rules", e, project=project_key)
 
 
-@mcp.tool(annotations=_READ_ONLY)
+@mcp.tool(annotations=_read_only("Get bug field guidance"))
 def get_bug_fields(
     field: Annotated[str, Field(description="Field name to get guidance for, e.g. qc_activity, bug_origin, cause_category. Omit for all fields.")] = "",
     project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit when issue_key is given; otherwise resolved from the active workspace path or configuration.")] = "",
@@ -650,12 +597,9 @@ def get_bug_fields(
 )
 def issue_resource(issue_key: str) -> str:
     """Read one Backlog issue as JSON by issue key."""
-    try:
-        config = get_config_instance()
-        data = issue_service.get_issue(config, _issue_key(issue_key, allow_numeric=True))
-        return json.dumps(data, indent=2, ensure_ascii=False)
-    except Exception as e:
-        return json.dumps({"ok": False, "error": str(e)}, indent=2, ensure_ascii=False)
+    config = get_config_instance()
+    data = issue_service.get_issue(config, _issue_key(issue_key, allow_numeric=True))
+    return json.dumps(data, indent=2, ensure_ascii=False)
 
 
 def main() -> None:
