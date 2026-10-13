@@ -67,6 +67,7 @@ Intent -> tool:
 - What do I have to do / my Backlog status -> list_my_issues()
 - Investigate or fix a bug that is not fixed yet -> get_issue
 - Resolve/close a bug, or the user says it is fixed -> resolve_bug(mode="apply"), one call, no lookups first
+- A bug that is not a bug (works as designed) -> resolve_bug(resolution="Won't Fix", comment=<why>)
 - Unit Test bug found while working on an issue -> create_ut_bug
 - Other issue changes the user asks for: create_issue, update_issue
 
@@ -406,7 +407,7 @@ def resolve_bug(
     cause_category: Annotated[str, Field(description="Optional Cause Category option such as 'CAR_Carelessness', used only when the issue field is empty (an existing value is kept and a warning is returned). Not a Bug Origin value. Normally omit to apply the configured default.")] = "",
     bug_origin: Annotated[str, Field(description="Optional Bug Origin option such as 'COD_Coding Logic', used only when the issue field is empty (an existing value is kept and a warning is returned). Normally omit to apply the configured default.")] = "",
     impacted: Annotated[str, Field(description="Optional configured Impacted-field override. Normally omit and let the workflow apply its configured value.")] = "",
-    resolution: Annotated[str, Field(description="Optional Resolution value, used only when the issue field is empty. Omit to use the configured workflow value when applicable.")] = "",
+    resolution: Annotated[str, Field(description="Backlog Resolution, e.g. \"Won't Fix\" for a bug that is not a bug (works as designed): then comment must explain why, and no Corrective Action is written. Omit for a normal fix.")] = "",
     comment: Annotated[str, Field(description="Resolve comment text.")] = "",
     commit: Annotated[str, Field(description="Git commit hash/ref, only if the user gave it. Omit otherwise.")] = "",
     fix_description: Annotated[str, Field(description="What was changed, only if the user said it. Rendered into Corrective Action as 'fixed <text>' (a leading plain capitalized word is lowercased; identifiers keep their casing; write the object of 'fixed', e.g. 'OTP error message to include retry wait time'). Bulleted text renders as 'fixed:' followed by the bullets. Omit to use the bug summary.")] = "",
@@ -423,6 +424,7 @@ def resolve_bug(
     written, status and assignee stay.
     fix_description and commit are optional; without them an existing Corrective Action is kept (with a
     warning), else the bug summary is used.
+    Not a bug: resolution="Won't Fix" with the reason in comment; it is still resolved and handed to QC.
     The result lists the changes (field, from, to) and any warnings; warnings never block.
     """
     start_call("resolve_bug", locals())

@@ -16,6 +16,8 @@ class ResolutionPlan:
     estimated_hours: float | int | None = None
     actual_hours: float | int | None = None
     comment: str | None = None
+    # Backlog's built-in Resolution (e.g. Won't Fix), for projects without a Resolution custom field.
+    resolution_id: int | None = None
     custom_fields: dict[str, Any] = field(default_factory=dict)
 
 
@@ -34,6 +36,8 @@ def resolution_plan_to_payload(project: dict[str, Any], plan: ResolutionPlan) ->
         payload["estimatedHours"] = plan.estimated_hours
     if plan.actual_hours is not None:
         payload["actualHours"] = plan.actual_hours
+    if plan.resolution_id is not None:
+        payload["resolutionId"] = plan.resolution_id
     if plan.comment:
         payload["comment"] = plan.comment
     if plan.custom_fields:

@@ -131,7 +131,7 @@ def build_parser():
     g.add_argument("--cause-category")
     g.add_argument("--bug-origin")
     g.add_argument("--impacted")
-    g.add_argument("--resolution")
+    g.add_argument("--resolution", help="Backlog Resolution, e.g. \"Won't Fix\" for a bug that is not a bug (needs --comment)")
     g.add_argument("--comment")
     g.add_argument("--commit", help="Commit hash/ref appended to the update comment")
     g.add_argument("--fix-description", help="Text for Corrective Action, rendered as 'fixed <text>' with casing preserved. Required with --apply.")

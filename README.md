@@ -69,6 +69,7 @@ Normal personal intents map to domain tools:
 | My stories/tasks or deadlines | `list_my_issues` with `issue_types=["Story", "Task"]` |
 | Understand/investigate/fix a specific bug or issue | `get_issue` |
 | Resolve/close a bug | `resolve_bug` |
+| Not a bug (works as designed) | `resolve_bug` with `resolution="Won't Fix"` and the reason in `comment` |
 | Create a configured UT bug | `create_ut_bug` |
 
 Short prompts that map straight to these tools and to the `fix-backlog-bug` skill: [docs/prompting.md](docs/prompting.md).

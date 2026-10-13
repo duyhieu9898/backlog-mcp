@@ -174,6 +174,22 @@ def detected_roles(issue, project):
     ]
 
 
+def _resolution_token(name):
+    # Backlog names it "Wont Fix"; agents write "Won't Fix" or "won’t fix".
+    return re.sub(r"[^0-9a-z]", "", str(name).casefold())
+
+
+def builtin_resolution(client, value):
+    """Backlog's built-in Resolution (Fixed, Won't Fix, ...) by name or ID."""
+    resolutions = client.get_resolutions()
+    wanted = _resolution_token(value)
+    for option in resolutions:
+        if wanted in (str(option.get("id")), _resolution_token(option.get("name"))):
+            return option
+    available = ", ".join(str(option.get("name")) for option in resolutions)
+    raise ValueError(f"Unknown resolution '{value}'. Available: {available}")
+
+
 def build_follow_up_plan(issue, issue_key, project, project_fields, target_status, *, comment, commit,
                          fix_description, corrective_action):
     """A bug already resolved and handed to QC: add the commit/comment and a new Corrective Action only."""
@@ -289,6 +305,19 @@ def build_resolution_plan(
     if not assigned_to_me:
         raise ValueError(f"{issue_key} is not assigned to the configured resolve user.")
 
+    # Without a Resolution custom field, resolution is Backlog's built-in Resolution. Anything but Fixed
+    # (e.g. Won't Fix for a bug that is not a bug) fixed nothing: no Corrective Action, the comment says why.
+    resolution_option = None
+    if resolution and "resolution" not in project_fields:
+        resolution_option = builtin_resolution(client, resolution)
+    not_fixed = resolution_option is not None and resolution_option.get("name") != "Fixed"
+    if not_fixed and fix_description:
+        raise ValueError(
+            f"fix_description is for a fix; with resolution '{resolution_option['name']}' put the reason in comment."
+        )
+    if not_fixed and not (comment or "").strip():
+        raise ValueError(f"Resolution '{resolution_option['name']}' needs a comment explaining why.")
+
     semantic_custom_fields = {}
     warnings = []
     explicit_values = {
@@ -337,6 +366,8 @@ def build_resolution_plan(
             raise ValueError(
                 f"Unknown custom field '{field_key}'. Available: {available}"
             )
+        if policy_key == "corrective_action" and not_fixed:
+            continue
         if policy_key == "corrective_action" and not fix_description and issue_has_custom_value(issue, project, field_key):
             # Without a fix note from the user, the summary fallback must not replace a note someone wrote.
             # Reporters sometimes prefill it with another bug's note, so say what was kept.
@@ -370,6 +401,7 @@ def build_resolution_plan(
             else None
         ),
         comment=effective_comment,
+        resolution_id=resolution_option.get("id") if resolution_option else None,
         custom_fields=semantic_custom_fields,
     )
 
@@ -402,6 +434,7 @@ def build_resolution_plan(
             "to": user_summary(issue.get("createdUser")),
             "source": ASSIGNMENT_SOURCE,
         },
+        "resolution": resolution_option,
     }
 
 
@@ -425,7 +458,7 @@ def build_resolve_bug_payload(config, issue_key, start_path=None, **kwargs):
         "statusBefore": status_name(issue),
         "assignment": planned["assignment"],
     }
-    built["changes"] = summarize_changes(issue, project, payload, plan.status)
+    built["changes"] = summarize_changes(issue, project, payload, plan.status, planned.get("resolution"))
     built["warnings"] = planned["warnings"]
     return built
 
@@ -474,7 +507,7 @@ def custom_field_current_value(issue, field_id):
     return None
 
 
-def summarize_changes(issue, project, payload, target_status):
+def summarize_changes(issue, project, payload, target_status, resolution=None):
     """Human-readable list of fields this resolve will write. Keeps the agent
     from re-reading the full issue context just to verify the diff."""
     labels = custom_field_label_map(project)
@@ -497,6 +530,15 @@ def summarize_changes(issue, project, payload, target_status):
                     "from": user_summary(issue.get("assignee")),
                     "value": user_summary(issue.get("createdUser")),
                     "source": ASSIGNMENT_SOURCE,
+                }
+            )
+        elif key == "resolutionId":
+            changes.append(
+                {
+                    "field": "Resolution",
+                    "key": key,
+                    "from": (issue.get("resolution") or {}).get("name"),
+                    "value": (resolution or {}).get("name", value),
                 }
             )
         elif key in CORE_FIELD_LABELS:

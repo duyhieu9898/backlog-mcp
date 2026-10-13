@@ -23,6 +23,7 @@ OVERRIDES = {
     "--cause-category": "Cause Category label, used only when the issue field is empty.",
     "--estimated-hours / --actual-hours": "Numeric hours.",
     "--comment": "Update comment.",
+    "--resolution": "Backlog Resolution, e.g. \"Won't Fix\" for a bug that is not a bug: needs --comment with the reason, writes no Corrective Action.",
 }
 
 

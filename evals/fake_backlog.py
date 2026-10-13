@@ -61,6 +61,16 @@ def _number(value):
     return float(text) if "." in text else int(text)
 
 
+# Backlog's built-in resolutions are the same in every space.
+RESOLUTIONS = [
+    {"id": 0, "name": "Fixed"},
+    {"id": 1, "name": "Wont Fix"},
+    {"id": 2, "name": "Invalid"},
+    {"id": 3, "name": "Duplication"},
+    {"id": 4, "name": "Cannot Reproduce"},
+]
+
+
 def apply_patch(issue, data):
     for key, value in data.items():
         value = value[0] if isinstance(value, list) else value
@@ -71,6 +81,8 @@ def apply_patch(issue, data):
             reporter = issue.get("createdUser") or {}
             name = {"name": reporter.get("name")} if reporter.get("id") == int(value) else {}
             issue["assignee"] = {**(issue.get("assignee") or {}), "id": int(value), **name}
+        elif key == "resolutionId":
+            issue["resolution"] = next(r for r in RESOLUTIONS if r["id"] == int(value))
         elif key in ("startDate", "dueDate"):
             issue[key] = f"{value}T00:00:00Z"
         elif key in ("estimatedHours", "actualHours"):
@@ -213,6 +225,8 @@ class _Handler(BaseHTTPRequestHandler):
                 form = parse_qs(self.rfile.read(length).decode("utf-8"))
                 self.fake.patches.append({"key": parts[4], "form": form})
                 return self._send(200, apply_patch(issue, form))
+        if parts == ["", "api", "v2", "resolutions"] and method == "GET":
+            return self._send(200, RESOLUTIONS)
         if parts == ["", "api", "v2", "users", "myself"] and method == "GET":
             return self._send(200, ME)
         if parts[:4] == ["", "api", "v2", "projects"] and len(parts) == 5 and method == "GET":

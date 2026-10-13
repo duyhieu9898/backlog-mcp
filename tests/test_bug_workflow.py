@@ -630,6 +630,57 @@ class BugWorkflowTest(unittest.TestCase):
             {"field": "Start Date", "from": None, "to": "2026-06-02"},
         ], bug_workflow.public_changes(changes))
 
+    def _without_resolution_field(self):
+        # Real projects have no Resolution custom field: resolution means Backlog's built-in Resolution.
+        fields = {k: v for k, v in PROJECT["bug"]["custom_fields"].items() if k != "resolution"}
+        project = {**PROJECT, "bug": {**PROJECT["bug"], "custom_fields": fields}}
+        bug_workflow.resolve_project.return_value = project
+        self.client.get_resolutions.return_value = [
+            {"id": 0, "name": "Fixed"}, {"id": 1, "name": "Wont Fix"}, {"id": 2, "name": "Invalid"},
+        ]
+
+    def test_not_a_bug_is_resolved_as_wont_fix_without_corrective_action(self):
+        self._without_resolution_field()
+        result = bug_workflow.resolve_bug(
+            CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2),
+            resolution="won't fix", comment="Works as designed: the summary cards come from /team/overview.",
+        )
+        payload = result["payload"]
+        self.assertEqual(4, payload["statusId"])
+        self.assertEqual(1001, payload["assigneeId"])
+        self.assertEqual(1, payload["resolutionId"])
+        self.assertEqual("Works as designed: the summary cards come from /team/overview.", payload["comment"])
+        self.assertNotIn("customField_5", payload)
+        self.assertIn(
+            {"field": "Resolution", "from": None, "to": "Wont Fix"},
+            bug_workflow.public_changes(result["changes"]),
+        )
+
+    def test_wont_fix_requires_a_reason_comment(self):
+        self._without_resolution_field()
+        with self.assertRaisesRegex(ValueError, "comment"):
+            bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, today=date(2026, 6, 2), resolution="Won't Fix")
+        self.client.update_issue.assert_not_called()
+
+    def test_wont_fix_rejects_fix_description(self):
+        self._without_resolution_field()
+        with self.assertRaisesRegex(ValueError, "fix_description"):
+            bug_workflow.resolve_bug(
+                CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2),
+                resolution="Won't Fix", comment="By design.", fix_description="nothing",
+            )
+
+    def test_unknown_resolution_lists_available_values(self):
+        self._without_resolution_field()
+        with self.assertRaisesRegex(ValueError, "Available: Fixed, Wont Fix, Invalid"):
+            bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=True, resolution="Not a bug", comment="x")
+
+    def test_fixed_resolution_keeps_corrective_action(self):
+        self._without_resolution_field()
+        result = bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=True, today=date(2026, 6, 2), resolution="Fixed")
+        self.assertEqual(0, result["payload"]["resolutionId"])
+        self.assertEqual("fixed Save fails", result["payload"]["customField_5"])
+
     def test_corrective_action_does_not_duplicate_fixed_verb(self):
         for fix_description in ("Fixed save button validation", "fix: save button validation"):
             result = bug_workflow.resolve_bug(

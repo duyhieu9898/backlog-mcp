@@ -92,6 +92,9 @@ class BacklogClient:
             params["order"] = order
         return self.request_json("GET", "/issues", params=params)
 
+    def get_resolutions(self):
+        return self.request_json("GET", "/resolutions")
+
     def create_issue(self, payload):
         return self.request_json("POST", "/issues", data=payload)
 
