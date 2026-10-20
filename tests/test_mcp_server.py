@@ -378,7 +378,9 @@ def _details():
 
 
 def test_tool_success_and_error_are_logged_with_project_from_issue_key():
-    with mock.patch("backlog_mcp.server.issue_service.get_issue", return_value={"issueKey": "OOP-1"}):
+    with mock.patch("backlog_mcp.server.issue_service.get_issue", return_value={"issueKey": "OOP-1"}), \
+         mock.patch("backlog_mcp.server.issue_service.get_comments", return_value=[]), \
+         mock.patch("backlog_mcp.server.issue_service.assigned_to_me", return_value=True):
         ok = server.get_issue("OOP-1")
     with mock.patch("backlog_mcp.server.issue_service.get_issue", side_effect=ValueError("Boom")):
         bad = server.get_issue("OOP-1")

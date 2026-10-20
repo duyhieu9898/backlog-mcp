@@ -185,6 +185,7 @@ def _overwrites(title: str) -> ToolAnnotations:
 def get_issue(
     issue_key: Annotated[str, Field(description="Backlog issue key such as 'OOP-123', or a numeric issue ID.")],
     view: Annotated[Literal["compact", "full"], Field(description="compact (default): the fields to work on the issue. full: the raw Backlog issue with every field.")] = "compact",
+    include_comments: Annotated[bool, Field(description="Set true only when the user asks to read the comments: adds every written comment, oldest first. Default false; compact already carries handoffComment.")] = False,
 ) -> CallToolResult:
     """Get one Backlog issue by key: everything needed to understand, investigate or fix it.
 
@@ -193,6 +194,10 @@ def get_issue(
     A bug report written in the template comes back parsed: description is its sections (environment,
     steps_to_reproduce, actual, expected, evidence...) with descriptionMeta, plus rawDescription when sections are missing.
     attachments lists the files (id, name, size, isImage); their content is not fetched.
+    handoffComment (only on an issue assigned to you) is the comment written when it was last assigned to you (QC reopening it
+    with what is still missing, a teammate handing it over): it is the current request and takes precedence
+    over the description. The other comments are not needed to fix it: call again with include_comments only
+    when the user asks to read the comments. commentCount counts the written comments; links in them are not fetched.
     Do not use for discovery; use list_my_issues.
     """
     start_call("get_issue", locals())
@@ -202,8 +207,14 @@ def get_issue(
         raw_issue = issue_service.get_issue(config, issue_key)
         if view == "full":
             data = raw_issue
+            if include_comments:
+                data = {**raw_issue, "comments": issue_service.get_comments(config, issue_key)}
         else:
-            data = issue_context(raw_issue, base_url=view_base_url(config))
+            comments = issue_service.get_comments(config, issue_key)
+            data = issue_context(
+                raw_issue, base_url=view_base_url(config), comments=comments, include_comments=include_comments,
+                handoff=issue_service.assigned_to_me(config, raw_issue),
+            )
         return _build_result(data, "get_issue", project=project_key_from_issue_id(issue_key))
     except Exception as e:
         return _error_result("get_issue", e, project=project_key_from_issue_id(issue_key))

@@ -37,6 +37,15 @@ def get_issue(config, issue_id):
     return BacklogClient(config).get_issue(issue_id)
 
 
+def get_comments(config, issue_id):
+    return BacklogClient(config).get_comments(issue_id)
+
+
+def assigned_to_me(config, issue):
+    assignee = issue.get("assignee") or {}
+    return assignee.get("id") == resolve_user_id(config, config.get("defaults", {}).get("assignee", "me"))
+
+
 def get_issues(
     config,
     project_key=None,

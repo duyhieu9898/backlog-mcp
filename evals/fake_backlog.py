@@ -166,6 +166,27 @@ def _code_bug():
     return issue
 
 
+HANDOFF_KEY = "OOP-912773"
+HANDOFF_TEXT = "Đã fix nhưng vẫn thiếu thông tin: Transfer Failed và Near SLA / Over SLA. Nhờ bổ sung."
+
+
+def build_comments(issues):
+    """Comments per issue, newest first like the API. One open bug was reopened by QC with what is
+    still missing, so reading it means reading the handoff comment."""
+    issue = issues[HANDOFF_KEY]
+    me, reporter = (issue.get("assignee") or {}).get("name"), (issue.get("createdUser") or {}).get("name")
+    def change(field, old, new):
+        return {"field": field, "originalValue": old, "newValue": new}
+    return {HANDOFF_KEY: [
+        {"id": 3, "content": HANDOFF_TEXT, "created": "2026-09-22T03:00:00Z", "createdUser": issue.get("createdUser"),
+         "changeLog": [change("status", "Resolved", "Open"), change("assigner", reporter, me)]},
+        {"id": 2, "content": "Commit: 1b04ed8.", "created": "2026-09-21T09:00:00Z", "createdUser": issue.get("assignee"),
+         "changeLog": [change("status", "Open", "Resolved"), change("assigner", me, reporter)]},
+        {"id": 1, "content": "", "created": "2026-09-21T03:00:00Z", "createdUser": issue.get("createdUser"),
+         "changeLog": [change("notification", None, None)]},
+    ]}
+
+
 def build_issues(state="default", source="auto"):
     cassette = load_cassette() if source in ("auto", "cassette") else None
     if source == "cassette" and cassette is None:
@@ -214,6 +235,10 @@ class _Handler(BaseHTTPRequestHandler):
             offset = int((query.get("offset") or [0])[0])
             count = int((query.get("count") or [100])[0])
             return self._send(200, found[offset:offset + count])
+        if parts[:4] == ["", "api", "v2", "issues"] and len(parts) == 6 and parts[5] == "comments" and method == "GET":
+            if parts[4] not in issues:
+                return self._send(404, {"errors": [{"message": "No issue.", "code": 6}]})
+            return self._send(200, self.fake.comments.get(parts[4], []))
         if parts[:4] == ["", "api", "v2", "issues"] and len(parts) == 5:
             issue = issues.get(parts[4])
             if issue is None:
@@ -247,6 +272,7 @@ class _Handler(BaseHTTPRequestHandler):
 class FakeBacklog:
     def __init__(self, state="default", source="auto", port=0):
         self.issues = build_issues(state, source)
+        self.comments = build_comments(self.issues)
         self.source = "cassette" if source != "synthetic" and load_cassette() is not None else "synthetic"
         self.port = port
         self.patches = []

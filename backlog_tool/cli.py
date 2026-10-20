@@ -15,7 +15,7 @@ import sys
 from dataclasses import dataclass
 
 from backlog_tool import presenter
-from backlog_tool.issue_service import create_issue, get_issue, list_my_issues, update_issue
+from backlog_tool.issue_service import assigned_to_me, create_issue, get_comments, get_issue, list_my_issues, update_issue
 from backlog_tool.settings import (
     load_config,
     load_env_file,
@@ -121,6 +121,7 @@ def build_parser():
 
     g = bug.add_parser("context", help="Structured bug context from description")
     g.add_argument("issue_key")
+    g.add_argument("--comments", action="store_true", help="Include every written comment")
 
     g = bug.add_parser("resolve", help="Resolve a bug (dry-run unless --apply)")
     g.add_argument("issue_key")
@@ -315,7 +316,11 @@ def run_handler(config, args):
         if action == "list":
             return _list_my_issues(config, args, ["Bug"])
         if action == "context":
-            return issue_context(get_issue(config, args.issue_key), base_url=view_base_url(config))
+            issue = get_issue(config, args.issue_key)
+            return issue_context(
+                issue, base_url=view_base_url(config), comments=get_comments(config, args.issue_key),
+                include_comments=args.comments, handoff=assigned_to_me(config, issue),
+            )
         if action == "rules":
             return resolve_rules(config, args.project, start_path=getattr(args, "workspace_path", None))
         if action == "fields":

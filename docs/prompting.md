@@ -27,6 +27,8 @@ Cột "Kiểm chứng": **eval** = có kịch bản eval đạt; **thiết kế*
 | Ngoài repo, chỉ project | `backlog bug open NLN` | không lỗi "Cannot determine project" | thiết kế |
 | Đọc / tìm hiểu một bug | `backlog xem OOP-12345` | `get_issue` | thiết kế (eval `fix_context` dùng `backlog fix` khi không có skill) |
 | **Sửa bug trọn quy trình** | `backlog fix OOP-12345` (đứng trong repo) | skill: đọc → sửa → test → commit `fix(OOP-12345): …` → push → resolve | eval (skill, 9/9) |
+| Bug bị QC reopen / được giao kèm comment | `backlog fix OOP-12345` | `get_issue` tự kèm `handoffComment` (comment lúc giao bug cho bạn); sửa theo comment đó | eval `fix_context_handoff` |
+| Đọc hết comment | `backlog fix OOP-12345, đọc thêm comment` | `get_issue(include_comments=true)` | thiết kế |
 | Chỉ sửa, chưa commit | `backlog fix OOP-12345, chưa commit` | skill dừng sau khi sửa và test | thiết kế |
 | Resolve bug tự sửa | `backlog resolve OOP-12345, bug này tôi fix rồi` | một `resolve_bug(mode="apply")` | eval |
 | Resolve kèm thông tin | `backlog resolve OOP-12345, commit abc1234, fix: OTP báo thời gian chờ` | điền `commit`, `fix_description` (Corrective Action `fixed OTP báo thời gian chờ`) | thiết kế |

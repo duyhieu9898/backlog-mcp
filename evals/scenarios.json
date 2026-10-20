@@ -115,6 +115,20 @@
     "nonMcp": null
   },
   {
+    "id": "fix_context_handoff",
+    "prompt": "backlog đọc bug {issue} và cho tôi biết cần sửa gì, chưa sửa code",
+    "fixtures": {"issue": "OOP-912773"},
+    "fakeState": "default",
+    "match": null,
+    "expect": {
+      "calls": [{"tool": "get_issue", "args": {"issue_key": "{issue}"}}],
+      "order": "exact",
+      "forbidden": ["resolve_bug", "update_issue"],
+      "finalAnswer": {"mustMention": ["Transfer Failed"]}
+    },
+    "nonMcp": null
+  },
+  {
     "id": "fix_code",
     "prompt": "backlog fix {issue}",
     "fixtures": {"issue": "OOP-912900"},

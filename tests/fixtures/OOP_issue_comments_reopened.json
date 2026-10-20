@@ -1,0 +1,48 @@
+[
+  {
+    "id": 9003,
+    "projectId": 82531,
+    "issueId": 912800,
+    "content": "Ở Partner Admin thiếu các thông tin:\nPending Request\nTransfer Failed\nNhờ bổ sung\n[EVD actual](https://example.sharepoint.com/evd)",
+    "changeLog": [
+      {"field": "status", "newValue": "Open", "originalValue": "Resolved", "attachmentInfo": null, "attributeInfo": null, "notificationInfo": null},
+      {"field": "assigner", "newValue": "Hieu Nguyen Duy (DN.DEV)", "originalValue": "QA Reporter", "attachmentInfo": null, "attributeInfo": null, "notificationInfo": null},
+      {"field": "limitDate", "newValue": "2026-10-22", "originalValue": "2026-10-20", "attachmentInfo": null, "attributeInfo": null, "notificationInfo": null}
+    ],
+    "createdUser": {"id": 315996, "userId": null, "name": "QA Reporter", "roleType": 2, "lang": null, "mailAddress": null},
+    "created": "2026-10-20T03:34:15Z",
+    "updated": "2026-10-20T03:34:15Z",
+    "stars": [],
+    "notifications": []
+  },
+  {
+    "id": 9002,
+    "projectId": 82531,
+    "issueId": 912800,
+    "content": "Commit: 1b04ed8.",
+    "changeLog": [
+      {"field": "status", "newValue": "Resolved", "originalValue": "Open", "attachmentInfo": null, "attributeInfo": null, "notificationInfo": null},
+      {"field": "assigner", "newValue": "QA Reporter", "originalValue": "Hieu Nguyen Duy (DN.DEV)", "attachmentInfo": null, "attributeInfo": null, "notificationInfo": null},
+      {"field": "Corrective Action", "newValue": "fixed add Top-Up overview section", "originalValue": "-", "attachmentInfo": null, "attributeInfo": null, "notificationInfo": null}
+    ],
+    "createdUser": {"id": 778617, "userId": null, "name": "Hieu Nguyen Duy (DN.DEV)", "roleType": 2, "lang": null, "mailAddress": null},
+    "created": "2026-10-19T08:59:35Z",
+    "updated": "2026-10-19T08:59:35Z",
+    "stars": [],
+    "notifications": []
+  },
+  {
+    "id": 9001,
+    "projectId": 82531,
+    "issueId": 912800,
+    "content": "",
+    "changeLog": [
+      {"field": "notification", "newValue": null, "originalValue": null, "attachmentInfo": null, "attributeInfo": null, "notificationInfo": null}
+    ],
+    "createdUser": {"id": 315996, "userId": null, "name": "QA Reporter", "roleType": 2, "lang": null, "mailAddress": null},
+    "created": "2026-10-19T03:43:34Z",
+    "updated": "2026-10-19T03:43:34Z",
+    "stars": [],
+    "notifications": []
+  }
+]

@@ -65,9 +65,50 @@ def attachment_summary(attachments):
     ]
 
 
-def issue_context(issue, base_url=""):
+COMMENT_TEXT_LIMIT = 2000
+
+
+def comment_text(comment):
+    return (comment.get("content") or "").strip()
+
+
+def comment_summary(comment):
+    text = comment_text(comment)
+    summary = {
+        "author": user_name(comment.get("createdUser")),
+        "created": comment.get("created"),
+        "content": text if len(text) <= COMMENT_TEXT_LIMIT else text[:COMMENT_TEXT_LIMIT] + "…",
+    }
+    changes = [
+        f"{change.get('field')}: {change.get('originalValue') or '-'} -> {change.get('newValue') or '-'}"
+        for change in comment.get("changeLog") or []
+        if change.get("field") != "notification"
+    ]
+    if changes:
+        summary["changes"] = changes
+    return summary
+
+
+def handoff_comment(comments, assignee):
+    """The comment written when the issue was last assigned to its current assignee: QC reopening
+    with what is still missing, or a teammate handing the work over. None when that assignment
+    came without text, so an older handoff never stands in for the current one."""
+    if not assignee:
+        return None
+    for comment in sorted(comments, key=lambda c: c.get("created") or "", reverse=True):
+        if any(
+            change.get("field") == "assigner" and change.get("newValue") == assignee
+            for change in comment.get("changeLog") or []
+        ):
+            return comment_summary(comment) if comment_text(comment) else None
+    return None
+
+
+def issue_context(issue, base_url="", comments=None, include_comments=False, handoff=True):
     """One issue as the model reads it. A bug report written in the template comes back as
-    parsed sections; any other description comes back as text."""
+    parsed sections; any other description comes back as text. With comments, it carries the count
+    of written comments and, when handoff (the issue is the caller's to work on), the handoff comment;
+    include_comments adds them all, oldest first."""
     compact = compact_issue(issue, base_url=base_url)
     context = {k: v for k, v in compact.items() if k not in ("description", "resourceUri", "customFields")}
     creator = user_name(issue.get("createdUser"))
@@ -89,4 +130,12 @@ def issue_context(issue, base_url=""):
     attachments = attachment_summary(issue.get("attachments"))
     if attachments:
         context["attachments"] = attachments
+    if comments is not None:
+        written = sorted((c for c in comments if comment_text(c)), key=lambda c: c.get("created") or "")
+        context["commentCount"] = len(written)
+        latest = handoff_comment(comments, context.get("assignee")) if handoff else None
+        if latest:
+            context["handoffComment"] = latest
+        if include_comments and written:
+            context["comments"] = [comment_summary(c) for c in written]
     return context

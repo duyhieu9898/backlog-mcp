@@ -13,7 +13,7 @@ Take one Backlog bug from report to resolved. The Backlog MCP reads and resolves
 
 1. **Locate the repo.** In a git repo whose `.backlog-project.json` `project_key` equals the key prefix (OOP-123 → OOP): work here. Another project: stop and ask. Not in a repo: ask for the repo path.
 2. **Check git.** Uncommitted changes to tracked files (`git status --porcelain --untracked-files=no` not empty) → stop and ask; never mix the user's changes into the fix. Untracked files such as `.backlog-project.json` are fine. On `main`/`master`, or no upstream (`git rev-parse --abbrev-ref @{u}` fails) → you may fix the code, but stop before committing and say which branch blocked it.
-3. **Read the bug:** `get_issue(issue_key)`. Work from steps_to_reproduce, actual, expected. Attachments are listed, not fetched: if one looks essential, tell the user.
+3. **Read the bug:** `get_issue(issue_key)`. Work from steps_to_reproduce, actual, expected. A `handoffComment` (QC reopened it, a teammate handed it over) is the current request: fix what it asks, with the description as background. Attachments and links in comments are not fetched: if one looks essential, tell the user. The user asks to read the comments → `include_comments=true`.
 4. **Fix the cause** with the smallest change. A regression test in the existing test suite is welcome; do not set up testing where the repo has none.
 5. **Run the repo's tests.** Command from CLAUDE.md / AGENTS.md / README, else `package.json` `test`, `Makefile` `test`, `python -m pytest`, `go test ./...`. No test command → skip and say so in the report.
 6. **Any failing test → stop.** No commit, no push, no resolve; report the failing tests.

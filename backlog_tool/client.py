@@ -61,6 +61,10 @@ class BacklogClient:
     def get_issue(self, issue_id):
         return self.request_json("GET", f"/issues/{issue_id}")
 
+    def get_comments(self, issue_id, count=100):
+        """The latest comments of an issue, newest first (Backlog caps count at 100)."""
+        return self.request_json("GET", f"/issues/{issue_id}/comments", params={"count": count, "order": "desc"})
+
     def get_issues(
         self,
         project_id,
