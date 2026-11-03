@@ -78,7 +78,7 @@ class BacklogClient:
         order=None,
     ):
         params = {
-            "projectId[]": [project_id],
+            "projectId[]": project_id if isinstance(project_id, list) else [project_id],
             "count": count,
             "offset": offset,
         }

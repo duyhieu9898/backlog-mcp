@@ -91,6 +91,12 @@ class BacklogSettingsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Cannot determine Backlog project"):
             backlog_settings.resolve_project_key_for_issue(config, "12345")
 
+    def test_unresolved_project_tells_the_agent_to_ask(self):
+        # Agents read the error first: a bare list of projects made them pick one (OOP) instead of asking.
+        config = {"base_url": "https://example.backlog.com", "projects": ["AQM", "OOP"]}
+        with self.assertRaisesRegex(backlog_settings.ProjectUnresolved, "Ask the user which project"):
+            backlog_settings.resolve_project_key(config, start_path="/tmp")
+
     def test_resolve_project_key_from_local_config(self):
         config = {
             "base_url": "https://example.backlog.com",

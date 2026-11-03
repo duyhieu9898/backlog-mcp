@@ -222,7 +222,7 @@ def get_issue(
 
 @mcp.tool(annotations=_read_only("List my Backlog issues"))
 def list_my_issues(
-    project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'). Omit or pass an empty string to resolve from the active workspace path or configuration.")] = "",
+    project_key: Annotated[str, Field(description="Project key (e.g., 'PRJ'), only if the user named one. Omit to use the workspace project, or every configured project when there is none.")] = "",
     issue_types: Annotated[tuple[str, ...], Field(description="Issue type names to include: ['Bug'] for bugs, ['Story', 'Task'] for stories/tasks. Omit for every type.")] = (),
     query: Annotated[str, Field(description="Search keyword for issue summary or description. Omit or pass an empty string for no keyword filter.")] = "",
     include_closed: Annotated[bool, Field(description="Set true to include Closed issues; false returns open issues only.")] = False,
@@ -241,7 +241,7 @@ def list_my_issues(
         ),
     ] = None,
 ) -> CallToolResult:
-    """List Backlog issues assigned to the configured user in one project, with due-date context.
+    """List Backlog issues assigned to the configured user, with due-date context.
 
     Use when Backlog is explicitly invoked and the user asks for their bugs, stories/tasks, deadlines or what they have to do.
     Filter with issue_types (['Bug'] for open bugs); omit it for the combined personal status.

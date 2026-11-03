@@ -45,7 +45,8 @@ def test_list_summary_counts_types_and_deadlines():
 def test_list_my_issues_filters_by_configured_user():
     config = {"users": {"me": {"id": 778617}}}
     with mock.patch.object(issue_service, "resolve_user_id", return_value=778617) as user, \
-         mock.patch.object(issue_service, "get_issues", return_value=[]) as get:
+         mock.patch.object(issue_service, "resolve_project", return_value={"key": "AQM"}), \
+         mock.patch.object(issue_service, "_get_issues", return_value=[]) as get:
         issue_service.list_my_issues(config, project_key="AQM", issue_types=["Bug"], limit=10)
     user.assert_called_once_with(config, "me")
     kwargs = get.call_args.kwargs

@@ -139,6 +139,10 @@ def find_workspace_project_key(start_path=None):
     return None
 
 
+class ProjectUnresolved(ValueError):
+    """No project_key given and none found in the workspace (e.g. a client that sends no workspace path)."""
+
+
 def resolve_project_key(config, project_key=None, start_path=None):
     # 1. Explicit argument
     if project_key:
@@ -178,13 +182,12 @@ def resolve_project_key(config, project_key=None, start_path=None):
     # 5. Fail Fast
     p_keys_list = sorted(p_keys)
     projects_str = "\n".join(f"- {pk}" for pk in p_keys_list)
-    raise ValueError(
+    raise ProjectUnresolved(
         f"Cannot determine Backlog project.\n\n"
         f"Available projects:\n"
         f"{projects_str}\n\n"
-        f"Please specify project_key explicitly\n"
-        f"(for a bug such as OOP-123, the project_key is its prefix 'OOP')\n"
-        f"or run inside a valid workspace."
+        f"Ask the user which project to use, then pass it as project_key; do not pick one yourself.\n"
+        f"(For an issue such as OOP-123, the project_key is its prefix 'OOP'.)"
     )
 
 

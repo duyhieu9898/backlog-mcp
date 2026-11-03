@@ -9,7 +9,7 @@ from .resolver import (
     resolve_issue_type,
     resolve_status,
 )
-from .settings import resolve_project, resolve_project_for_issue, resolve_user_id
+from .settings import ProjectUnresolved, project_keys, resolve_project, resolve_project_for_issue, resolve_user_id
 from .telemetry import plan_hash, record_mutation
 
 
@@ -65,22 +65,46 @@ def get_issues(
     issue_types: list of type names (e.g. ["Bug", "Story"]) to filter.
     """
     project = resolve_project(config, project_key, start_path=start_path)
+    return _get_issues(
+        config, [project], query=query, assignee_id=assignee_id, open_only=open_only,
+        issue_types=issue_types, limit=limit, offset=offset, sort=sort, order=order,
+    )
+
+
+def _get_issues(config, projects, query=None, assignee_id=None, open_only=False, issue_types=None,
+                limit=100, offset=0, sort=None, order=None):
+    """One /issues query over the given projects; status and type IDs are unique across projects."""
     client = BacklogClient(config)
-    project_id = client.get_project_id(project)
+    project_ids = [client.get_project_id(project) for project in projects]
 
     status_ids = None
     if open_only:
-        status_ids = _non_closed_status_ids(project)
+        status_ids = [i for project in projects for i in _non_closed_status_ids(project)]
 
     issue_type_ids = None
     if issue_types:
-        issue_type_ids = _resolve_issue_type_ids(project, issue_types)
+        issue_type_ids = _issue_type_ids(projects, issue_types)
 
     return client.get_issues(
-        project_id, query=query, assignee_id=assignee_id,
+        project_ids, query=query, assignee_id=assignee_id,
         status_ids=status_ids, issue_type_ids=issue_type_ids,
         count=limit, offset=offset, sort=sort, order=order,
     )
+
+
+def _issue_type_ids(projects, issue_types):
+    """A type missing from one project is skipped; it is an error only if no project has it."""
+    if len(projects) == 1:
+        return _resolve_issue_type_ids(projects[0], issue_types)
+    ids = []
+    for project in projects:
+        try:
+            ids += _resolve_issue_type_ids(project, issue_types)
+        except ValueError:
+            continue
+    if not ids:
+        raise ValueError(f"Unknown issue type(s): {issue_types} in every configured project.")
+    return ids
 
 
 def list_my_issues(
@@ -95,11 +119,19 @@ def list_my_issues(
     order=None,
     start_path=None,
 ):
-    """Issues assigned to the configured user: the one list behind list_my_issues and the CLI list commands."""
+    """Issues assigned to the configured user: the one list behind list_my_issues and the CLI list commands.
+
+    Without a project (none given, none in the workspace) every configured project is searched:
+    "my issues" is about me, not one project.
+    """
     me = config.get("defaults", {}).get("assignee", "me")
-    return get_issues(
+    try:
+        projects = [resolve_project(config, project_key, start_path=start_path)]
+    except ProjectUnresolved:
+        projects = [resolve_project(config, key) for key in project_keys(config)]
+    return _get_issues(
         config,
-        project_key=project_key,
+        projects,
         query=query,
         assignee_id=resolve_user_id(config, me),
         open_only=not include_closed,
@@ -108,7 +140,6 @@ def list_my_issues(
         offset=offset,
         sort=sort,
         order=order,
-        start_path=start_path,
     )
 
 

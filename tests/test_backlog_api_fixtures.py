@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT))
 from backlog_tool.resolver import resolve_status
 from workflows.bug_template import issue_context
 from backlog_tool import issue_service, presenter
+from backlog_tool import settings as backlog_settings
 from workflows.resolve_bug import issue_custom_field
 
 
@@ -146,6 +147,24 @@ class BacklogApiFixtureTest(unittest.TestCase):
         for item in items:
             self.assertNotIn("description", item)
             self.assertTrue({"issueKey", "summary", "issueType", "status"} <= set(item))
+
+    def test_my_issues_without_a_resolvable_project_cover_every_configured_project(self):
+        # Antigravity gives no workspace: "my bugs" is about me, so search all projects instead of failing.
+        def resolve(config, project_key=None, start_path=None):
+            if not project_key:
+                raise backlog_settings.ProjectUnresolved("Cannot determine Backlog project.")
+            return project_from_fixtures(project_key)
+
+        client = mock.Mock()
+        client.get_project_id.side_effect = lambda project: project["id"]
+        client.get_issues.return_value = []
+        with mock.patch("backlog_tool.issue_service.BacklogClient", return_value=client), \
+             mock.patch("backlog_tool.issue_service.resolve_project", side_effect=resolve):
+            issue_service.list_my_issues(CONFIG, issue_types=["Bug"])
+        args, kwargs = client.get_issues.call_args
+        self.assertEqual([158425, 82531], args[0])
+        self.assertEqual([676898, 351795], kwargs["issue_type_ids"])
+        self.assertEqual(1, client.get_issues.call_count)
 
 
 if __name__ == "__main__":
