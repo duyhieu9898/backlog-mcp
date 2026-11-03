@@ -108,6 +108,7 @@ class BugWorkflowTest(unittest.TestCase):
         self.client = mock.Mock()
         self.client.get_project_id.return_value = 158425
         self.client.get_issue.return_value = BUG_ISSUE
+        self.client.get_comments.return_value = []
         mock.patch.object(
             bug_workflow,
             "load_workflow_config",
@@ -592,6 +593,32 @@ class BugWorkflowTest(unittest.TestCase):
         bug_workflow.resolve_bug(CONFIG, "AQM-123", dry_run=False, commit="abc1234", today=date(2026, 6, 2))
         payload = self.client.update_issue.call_args.args[1]
         self.assertEqual({"comment": "Commit: abc1234."}, payload)
+
+    def test_repeated_follow_up_sends_no_patch(self):
+        # Two identical resolve_bug calls seconds apart must not post the same comment to QC twice.
+        self.client.get_issue.return_value = {
+            **BUG_ISSUE, "status": {"name": "Resolved"}, "assignee": {"id": 1001, "name": "Reporter"},
+            "customFields": [{"id": 5, "field": "customField_5", "value": "fixed guard empty cart"}],
+        }
+        self.client.get_comments.return_value = [{"content": "Guard empty cart. Commit: abc1234."}]
+        with self.assertRaisesRegex(ValueError, "already recorded"):
+            bug_workflow.resolve_bug(
+                CONFIG, "AQM-123", dry_run=False, comment="Guard empty cart.", commit="abc1234",
+                fix_description="Guard empty cart", today=date(2026, 6, 2),
+            )
+        self.client.update_issue.assert_not_called()
+
+    def test_follow_up_drops_the_part_already_recorded(self):
+        self.client.get_issue.return_value = {
+            **BUG_ISSUE, "status": {"name": "Resolved"}, "assignee": {"id": 1001, "name": "Reporter"},
+            "customFields": [{"id": 5, "field": "customField_5", "value": "fixed guard empty cart"}],
+        }
+        self.client.get_comments.return_value = [{"content": "Commit: abc1234."}]
+        bug_workflow.resolve_bug(
+            CONFIG, "AQM-123", dry_run=False, commit="def5678", fix_description="Guard empty cart",
+            today=date(2026, 6, 2),
+        )
+        self.assertEqual({"comment": "Commit: def5678."}, self.client.update_issue.call_args.args[1])
 
     def test_commit_note_shortens_full_shas(self):
         self.assertEqual(

@@ -190,8 +190,12 @@ def builtin_resolution(client, value):
     raise ValueError(f"Unknown resolution '{value}'. Available: {available}")
 
 
+def _same_text(a, b):
+    return " ".join(str(a or "").split()) == " ".join(str(b or "").split())
+
+
 def build_follow_up_plan(issue, issue_key, project, project_fields, target_status, *, comment, commit,
-                         fix_description, corrective_action):
+                         fix_description, corrective_action, latest_comment=""):
     """A bug already resolved and handed to QC: add the commit/comment and a new Corrective Action only."""
     effective_comment = comment_with_commit(comment, commit)
     if not effective_comment and not fix_description:
@@ -199,6 +203,16 @@ def build_follow_up_plan(issue, issue_key, project, project_fields, target_statu
         raise ValueError(
             f"{issue_key} is already '{target_status}' and assigned to {assignee_name}; nothing to do. "
             "To record a follow-up fix, pass commit, comment or fix_description."
+        )
+    # A repeated call (agent retry) must not post the same comment to QC again.
+    if effective_comment and _same_text(effective_comment, latest_comment):
+        effective_comment = None
+    current_action = (issue_custom_field(issue, project, "corrective_action") or {}).get("value")
+    if fix_description and _same_text(corrective_action, current_action):
+        fix_description = ""
+    if not effective_comment and not fix_description:
+        raise ValueError(
+            f"{issue_key} follow-up already recorded: the latest comment and Corrective Action match; nothing sent."
         )
     custom_fields = {}
     if fix_description:
@@ -297,10 +311,12 @@ def build_resolution_plan(
     if str(status_name(issue)) == str(target_status) and not assigned_to_me:
         # Already resolved and with QC. Re-running with the same arguments must not re-send the PATCH
         # (dates, notes, notification), so only a follow-up that carries something new is written.
+        latest = client.get_comments(issue_key, count=1) if (comment or commit) else []
         return build_follow_up_plan(
             issue, issue_key, project, project_fields, target_status,
             comment=comment, commit=commit, fix_description=fix_description,
             corrective_action=field_values["corrective_action"],
+            latest_comment=(latest[0].get("content") if latest else ""),
         )
     if not assigned_to_me:
         raise ValueError(f"{issue_key} is not assigned to the configured resolve user.")
